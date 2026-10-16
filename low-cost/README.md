@@ -1,6 +1,6 @@
 # Low-cost Provider Software Factory
 
-Generate a Python-based factory using the configured DeepSeek, Qwen and Kimi providers. The design has nine roles and the same core sequence of implementation, five independent reviews and human approval.
+Generate a Python-based factory using the configured DeepSeek, Qwen and Kimi providers. The design has ten roles, including a Qwen documentation writer, followed by five independent reviews and human approval.
 
 [Choose another edition](../README.md) · [Detailed guide](docs/GUIDE.md)
 
@@ -21,11 +21,17 @@ Store credentials using the generated secure configuration instructions. Never p
 
 The assistant generates the files; the configured DeepSeek orchestrator runs the resulting workflow. The generated runner must verify provider identities and implement real file/test/Git tools, rather than only return text.
 
+## What this edition requests
+
+Specification and documentation plan → implementation → developer documentation and end-user manual → checkpoint → five independent reviews → approver → human approval → merge.
+
+The Qwen3.8 Max documentation writer maintains complete developer documentation so another developer can understand, run and maintain the app, plus a plain-language end-user manual with step-by-step usage instructions. Both are planned before implementation, linked from the app README and reviewed on the final combined commit. Missing or stale required content in either blocks approval. The dashboard shows separate guide statuses and links.
+
 ## Costs and capabilities
 
 Verify current provider model IDs, account access, prices and tool-calling support during setup. The edition name does not promise a particular saving or equivalent quality. Compare total cost per accepted feature, including retries and reviews, using actual recorded evidence.
 
-The [detailed guide](docs/GUIDE.md) preserves a dated illustrative price comparison. It uses an earlier nine-role hybrid baseline and is not a current quote against the ten-role Codex + Claude edition.
+The [detailed guide](docs/GUIDE.md) preserves a dated illustrative price comparison between earlier nine-role editions. It excludes the documentation writer now required in both ten-role designs and is not a current quote or measured saving.
 
 ## Help
 

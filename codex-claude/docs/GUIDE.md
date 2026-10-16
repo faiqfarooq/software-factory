@@ -72,20 +72,31 @@ Preserve existing application files and account settings. Configure only the acc
 | 6 | UI reviewer | Claude Sonnet 5.5 | Checks visual design and accessibility |
 | 7 | Code reviewer | GPT-6.1 Sol | Checks correctness and maintainability |
 | 8 | QA reviewer | GPT-6.1 Sol | Independently verifies tests and acceptance criteria |
-| 9 | Documentation writer | Claude Sonnet 5.5 | Writes and maintains professional application documentation after implementation |
+| 9 | Documentation writer | Claude Sonnet 5.5 | Maintains complete developer documentation and an end-user manual after implementation |
 | 10 | Approver | Claude Opus 5.5 | Recommends approval or escalation |
 
 The human provides the final approval before merging.
 
 ## Professional application documentation
 
-The new documentation writer runs after implementation and before all five independent reviews. It reads the actual code, tests and accepted specification, then updates the app's existing README and documentation. On the first feature it assesses baseline coverage; later features refresh affected content.
+The documentation writer runs after implementation and before all five independent reviews. It reads the actual code, tests and accepted specification, then maintains two separately navigable documentation sets for the app:
 
-Its scope includes getting started, user/admin task guides, architecture, configuration, developer/test instructions, API reference where relevant, and troubleshooting. It preserves existing conventions and avoids invented capabilities, secrets and unverified deployment instructions.
+| Deliverable | Audience and required coverage |
+| --- | --- |
+| Developer documentation | Another developer who needs to understand, run, extend and maintain the app: product overview, architecture/data flow, source/module map, design decisions, data model, auth and integrations, local setup, safe configuration, development conventions, exact test/lint/build commands, API reference where implemented, maintenance, technical troubleshooting and limitations. |
+| End-user manual | People using the app: access and onboarding, roles/permissions, navigation, step-by-step supported workflows with prerequisites, actual labels or commands and expected results, common errors/recovery, relevant admin tasks, settings, FAQ, troubleshooting, limitations and available help. Use plain language and verified examples or screenshots where available. |
+
+Before implementation, the spec writer includes a documentation_plan in the specification and contract. It assigns an entry page, permitted pages/write paths, existing coverage/gaps, feature impact and verification steps to each deliverable. Both guides are required, including for CLI/API products whose users need task instructions. Individual inapplicable topics need reasons; they do not waive either guide.
+
+Preserve the app's existing documentation framework and audience-specific locations. If none exist, use docs/developer/README.md and docs/user-manual/README.md with additional pages as needed. Link both from the application README and docs navigation. Reuse shared references without duplicating them. These paths are generated application outputs, not files shipped in this prompt repository.
+
+On the first feature, assess baseline coverage in both guides; later features update affected pages and verify unchanged coverage remains accurate. Preserve existing conventions and avoid invented capabilities, secrets and unverified deployment instructions. The end-user manual focuses on using the product; developer internals belong in the developer guide unless users need them.
 
 The authoring policy uses [Diataxis](https://diataxis.fr/start-here/) for documentation structure and [Google's developer style guidance](https://developers.google.com/style) for writing. For HTTP API schemas, it checks the current [OpenAPI specification](https://spec.openapis.org/oas/latest.html) and uses a published version compatible with the app's tools. The writer records reference dates and versions rather than claiming universal latest-standard compliance.
 
-Documentation changes are committed on the feature branch before checkpointing. The five reviewers check the combined code-and-documentation commit. Missing or outdated required docs block approval. Documentation updates after rework get a new checkpoint and complete review round; nothing is appended after human approval.
+Documentation changes are committed on the feature branch before checkpointing. The private documentation.md report records entry pages, coverage, checks and COMPLETE/CHANGES status separately for developer_documentation and end_user_manual. Overall completion requires both to be complete and current; the report cannot substitute for either guide.
+
+The five reviewers check the combined code-and-documentation commit. Code/QA verify developer onboarding and technical accuracy; UX/UI verify user instructions, navigation and accessibility; security checks safe configuration, permissions, examples and disclosure in both. Missing, incomplete or outdated required content in either deliverable blocks approval. Documentation updates after rework get a new checkpoint and complete review round; nothing is appended after human approval.
 
 ## Feature workflow
 
@@ -94,10 +105,10 @@ The orchestrator inspects the repository before workers start. Additional permis
 ```mermaid
 flowchart TD
     Feature["Feature request"] --> Inspect["Inspect repository"]
-    Inspect --> Spec["Specification"]
+    Inspect --> Spec["Specification and plan for both guides"]
     Spec --> Permission["Permission check"]
     Permission --> Build["Implement and test"]
-    Build --> Docs["Write and verify application documentation"]
+    Build --> Docs["Write and verify developer docs and end-user manual"]
     Docs --> Reviews["Five independent reviews"]
     Reviews --> Wait["Wait for all five reports"]
     Wait --> Approver["Approver recommendation"]
@@ -118,7 +129,7 @@ The documentation writer finishes before the review checkpoint. The builder and 
 flowchart TD
     Builder["Builder: Claude Opus 5.5"]
 
-    Builder --> Docs["Documentation writer: Claude Sonnet 5.5"]
+    Builder --> Docs["Documentation writer: developer docs and end-user manual"]
     Docs --> Security["Security"]
     Docs --> UX["UX"]
     Docs --> UI["UI design"]
@@ -234,7 +245,7 @@ python -m http.server 8765 --bind 127.0.0.1 --directory factory/.local/public
 
 Use `py -3` instead of `python` if that is the detected Python 3 command. Keep that terminal open and open one link: **http://127.0.0.1:8765/**. If the port is occupied, select another free port and use that port in the link. The legacy /dashboard.html entry remains compatible.
 
-The same application provides navigation to Overview, Jobs, Activity, Documentation, Usage and Readiness. Open a job to view its specification, build report, documentation report, review rounds, approval and usage without leaving the dashboard. Internal links support refresh and browser Back/Forward.
+The same application provides navigation to Overview, Jobs, Activity, Documentation, Usage and Readiness. Open a job to view its specification, build report, documentation report, review rounds, approval and usage without leaving the dashboard. Documentation and job views show separate Developer documentation and End-user manual entries with their status, reviewed commit and safe entry-page links. The writer's report is labelled separately. Internal links support refresh and browser Back/Forward.
 
 **Latest activity appears at the top**, newest first. These transactions are factory invocations, usage records and labelled workflow events. They show time, job, role/action, model, status and token/cost evidence where available. They do not represent business orders or actual provider charges.
 

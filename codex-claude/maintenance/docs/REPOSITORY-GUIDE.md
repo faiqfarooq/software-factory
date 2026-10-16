@@ -2,7 +2,7 @@
 
 Shared maintainer reference. Commands below run from the prompt repository root. New users should start at the [edition chooser](../../../README.md); this material is optional for following an edition's generation prompt.
 
-Generation prompts for a small software factory: specify a feature, build it, wait for five independent reviews, and ask a human before merging. The generated dashboard shows progress, observed tokens, and estimated USD costs.
+Generation prompts for a small software factory: specify a feature and documentation plan, build it, write developer documentation and an end-user manual, wait for five independent reviews of the combined commit, and ask a human before merging. All three editions define ten roles. The generated dashboard shows progress, separate guide completion/links, observed tokens, and estimated USD costs.
 
 This repository contains prompts and a connection checker. **Cloning it does not install or start a generated factory.** Generate one in your own application repository.
 
@@ -18,7 +18,7 @@ flowchart LR
     Checks --> Generate[Generate in your application repo]
     Generate --> Live[Check providers from factory execution environment]
     Live --> Gate{Exact models and builder resume work?}
-    Gate -->|Yes| Feature[Spec → Build → Five reviews → Human approval]
+    Gate -->|Yes| Feature[Spec and docs plan → Build → Both guides → Five reviews → Human approval]
     Gate -->|No| Block[Show error and scoped recovery instructions]
 ```
 

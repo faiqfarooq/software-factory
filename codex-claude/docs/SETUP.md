@@ -123,7 +123,7 @@ $factory Add an accessible settings screen
 
 In Claude Code, `/factory Add an accessible settings screen` forwards to Codex. Do not open another active orchestrator while the owner is running. If the skill is not discovered, follow the generated refresh/resume instructions; typing ordinary feature chat is not guaranteed to invoke it.
 
-The workflow uses all ten roles in stages: specification, implementation, application documentation, five independent reviews, approver recommendation, then human review. The builder works on an isolated feature branch. After implementation, the Sonnet documentation writer updates the app README and relevant guides before checkpointing. Source revisions preserve the builder session and refresh affected docs; the combined commit receives a new complete review round.
+The workflow uses all ten roles in stages: specification and documentation plan, implementation, developer documentation and end-user manual, five independent reviews, approver recommendation, then human review. The builder works on an isolated feature branch. Before implementation, the specification plans coverage, paths and verification for both guides. After implementation, the Sonnet documentation writer completes them and links both from the app README before checkpointing. Source revisions preserve the builder session and refresh affected docs; the combined commit receives a new complete review round.
 
 Review the evidence first:
 
@@ -141,11 +141,16 @@ Use the actual job and full reviewed commit. Changes to the feature, target bran
 
 ## Documentation produced for your app
 
-After the builder completes implementation, documentation-writer (Claude Sonnet 5.5) updates the application's own docs before the review checkpoint. It should maintain the app overview and getting started, relevant user tasks, architecture, safe configuration reference, developer/test instructions, APIs where present, and troubleshooting. The first run assesses baseline gaps; later runs update the affected material.
+After the builder completes implementation, documentation-writer (Claude Sonnet 5.5) updates two documentation sets before the review checkpoint:
 
-Review the generated documentation report with the source changes. It lists the implemented input commit, final combined commit, changed pages, standards references with observation dates, actual validation results and remaining limitations. The factory must verify a real writer invocation and require complete current documentation evidence before approval.
+1. **Developer documentation** so another developer can understand, set up, extend, test and maintain the app. Include architecture, source map, data/configuration, integrations/auth, exact development/test commands, APIs where present, maintenance and technical troubleshooting.
+2. **End-user manual** explaining how to use the app: access/onboarding, navigation, roles, step-by-step tasks with expected results, common errors/recovery, settings, relevant admin tasks and help. Use actual product labels or commands and plain language.
 
-No extra unique model check is required just because this role also uses Sonnet. Scoped file access, execution and documentation accuracy still need evidence. When applying this change to an existing factory, its owner must migrate role routing, agent loading, permissions, state/schema, stage transitions and checks together while preserving existing jobs.
+The first run assesses baseline gaps in both guides; later runs update affected pages and verify unchanged coverage remains accurate. Preserve existing docs locations; when none exist, use docs/developer/README.md and docs/user-manual/README.md. The application README and docs navigation must link to both. The specification and contract's documentation_plan defines each guide's coverage, paths and verification before implementation.
+
+Review the generated documentation report with the source changes. It lists the implementation input commit, final combined commit, changed pages, standards references with observation dates, actual validation results and remaining limitations. It records entry pages, coverage and COMPLETE/CHANGES status separately for developer_documentation and end_user_manual. The Documentation dashboard and job detail expose both guides with separate statuses and safe links. The factory must verify a real writer invocation and require both guides to be complete and current before approval.
+
+No extra unique model check is required just because this role also uses Sonnet. Scoped file access, execution and documentation accuracy still need evidence. When applying this change to an existing factory, its owner must migrate documentation-plan contracts, writer instructions, permissions, per-deliverable evidence, review/approval gates and dashboard publication together while preserving existing jobs and history. Legacy completion alone is insufficient. Frozen active contracts need an explicit scope update and fresh validation/reviews; past approvals must not be rewritten.
 
 ## What ready means
 
@@ -156,7 +161,7 @@ No extra unique model check is required just because this role also uses Sonnet.
 | Local prerequisites | Required programs, baseline and effective permissions are available. |
 | Live models | Real responses report the assigned exact models in the factory environment. |
 | Builder resume | The initial diagnostic succeeded and its same session resumed. |
-| Full feature validation | Real implementation and documentation, acceptance checks, five same-commit reviews, approver and exact human approval; post-merge results recorded. |
+| Full feature validation | Real implementation, complete current developer documentation and end-user manual, acceptance checks, five same-commit reviews, approver and exact human approval; post-merge results recorded. |
 
 Rendered UI and keyboard checks need real browser evidence where required. HTTP 200, source inspection and synthetic DOM tests must be labelled accurately. Setup alone cannot claim a fully validated feature.
 

@@ -1,6 +1,6 @@
 # Claude-only Software Factory
 
-Generate and run a software factory through Claude Code. The configured design has nine roles: the orchestrator, spec writer, builder, five independent reviewers and approver.
+Generate and run a software factory through Claude Code. The configured design has ten roles: the orchestrator, spec writer, builder, documentation writer, five independent reviewers and approver.
 
 [Choose another edition](../README.md) · [Detailed guide](docs/GUIDE.md)
 
@@ -28,9 +28,11 @@ This command is available after the generated project skill is installed and dis
 
 ## What this edition requests
 
-Specification → implementation → five independent reviews → approver recommendation → human approval → merge.
+Specification and documentation plan → implementation → developer documentation and end-user manual → checkpoint → five independent reviews → approver recommendation → human approval → merge.
 
-The design includes a progress dashboard, specifications/build/review reports, measured usage where exposed and labelled cost estimates. The detailed guide contains the role/model assignments and rework rules. Setup must report unavailable tools, telemetry or model access accurately.
+The Sonnet documentation writer maintains complete developer documentation so another developer can understand, run and maintain the app, plus a plain-language end-user manual with step-by-step usage instructions. Both are planned before implementation, linked from the app README and reviewed on the final combined commit. Missing or stale required content in either blocks approval.
+
+The design includes a progress dashboard with separate guide statuses/links, specifications/build/documentation/review reports, measured usage where exposed and labelled cost estimates. The detailed guide contains the role/model assignments and rework rules. Setup must report unavailable tools, telemetry or model access accurately.
 
 ## Help
 

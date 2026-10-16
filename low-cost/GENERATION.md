@@ -4,13 +4,14 @@ First inspect the repository, its instructions, Git root, existing factory files
 
 ## Agent assignments
 
-Use exactly nine roles: one orchestrator and eight specialist workers.
+Use exactly ten roles: one orchestrator and nine specialist workers.
 
 | Role | Required model | Provider model ID |
 |---|---|---|
 | Orchestrator | DeepSeek V4.1 Flash | deepseek-flash |
 | Spec writer | Qwen3.8 Max | qwen3.8-max |
 | Builder | Kimi K3 | kimi-k3 |
+| Documentation writer | Qwen3.8 Max | qwen3.8-max |
 | Security reviewer | DeepSeek V4.1 Flash | deepseek-flash |
 | UX reviewer | Qwen3.8 Max | qwen3.8-max |
 | UI reviewer | Kimi K2.7 Code | kimi-k2.7-code |
@@ -81,6 +82,7 @@ factory/
     orchestrator.md
     spec-writer.md
     builder.md
+    documentation-writer.md
     security-reviewer.md
     ux-reviewer.md
     ui-reviewer.md
@@ -90,7 +92,9 @@ factory/
   jobs/<job-id>/
     request.md
     spec.md
+    spec-contract.json
     build.md
+    documentation.md
     round-1/
       review-security.md
       review-ux.md
@@ -134,15 +138,15 @@ Use environment variables or a supported secrets mechanism for credentials. Prov
 
 ## Workflow
 
-Feature → spec writer → permission check → builder → five independent reviewers → approver → human approval → merge.
+Feature → specification and documentation plan → permission check → builder → developer documentation and end-user manual → checkpoint → five independent reviewers → approver → human approval → merge.
 
-The spec writer produces testable acceptance criteria and identifies permission requirements.
+The spec writer freezes scope, testable acceptance criteria, permission requirements, exact validation commands and a documentation_plan in spec.md and spec-contract.json before implementation. The plan has two required entries: developer_documentation and end_user_manual. Each records audience, entry page, assigned pages/write paths, required topics and workflows, existing coverage/gaps, feature impact and exact verification commands or manual checks. Both guides are mandatory; justified not-applicable individual topics do not waive either. Scope changes require an explicit contract update and affected revalidation.
 
 The builder uses an isolated worktree on branch factory/<job-id>, implements the specification, runs meaningful acceptance tests, and commits explicit changed paths.
 
 Only one factory orchestrator and one build may be active at a time. Review workers can run independently in parallel.
 
-Workers receive context from files. They write only their own reports. The builder may additionally edit application source and tests in its feature worktree.
+Workers receive context from files. They write only their own reports. The builder may additionally edit application source and tests in its feature worktree; the documentation writer may edit and commit only assigned application documentation on that same feature branch while the builder is idle.
 
 Only the orchestrator writes board.json and normalized usage aggregates. Save state atomically and prevent concurrent orchestrators from modifying the same board.
 
@@ -158,9 +162,28 @@ Do not claim a native SendMessage capability unless the chosen runtime supports 
 
 Never silently replace the builder or discard its history. If recovery fails, pause for an explicit recovery decision.
 
+## Application documentation after implementation
+
+Run documentation-writer using Qwen3.8 Max (qwen3.8-max) through the Qwen provider adapter after the builder's implementation commit and before checkpointing, with the builder idle. Verify real writer identity/completion, not just configured model or shared access-probe success. Supply the implementation commit/diff, frozen spec/contract and documentation_plan, build evidence, relevant source/config/tests and existing docs. Produce two separately navigable documentation sets for the actual app:
+
+1. **Developer documentation**: complete guidance for another developer to understand, set up, extend, test and maintain the app. Cover product purpose and supported features, architecture/data flow, source/module map and design decisions, data model/storage, authentication/authorization and integrations where present, reproducible setup with prerequisites/expected outputs, safe configuration types/defaults/requirements, conventions, exact test/lint/build commands, maintenance, technical troubleshooting and limitations. Include API routes/auth/requests/responses/errors/pagination/rate limits where implemented. Describe existing deployment/operations only when in scope and verified.
+2. **End-user manual**: plain-language instructions for using the app without reading code. Cover intended users/roles, access/account setup where present, first-use onboarding, navigation and screens or equivalent CLI/API entry points, all supported workflows, relevant administrator tasks and settings. Each task states prerequisites/permissions, actual labels or commands, steps, expected results, common errors and recovery. Include FAQ, troubleshooting, limitations and available help where implemented. Use real examples and verified screenshots where available; include developer internals only when users need them to use the product.
+
+Preserve existing documentation framework, language, terminology and audience-specific locations. If none exist, use docs/developer/README.md and docs/user-manual/README.md as entry pages, with additional pages as needed. Link both from the app README and docs navigation. Reuse shared references without duplication; API/CLI consumers still need a manual. No new site generator or publication without authorization.
+
+Assess agreed baseline gaps in both guides on the first feature; later update affected pages and verify unchanged coverage remains accurate. Do not invent features, configuration, endpoints, screenshots, releases, test results or deployment readiness. Mark unchanged, inapplicable or unverified individual topics with reasons; no-impact claims cannot waive required gaps or either guide. Follow project documentation conventions; otherwise use Diataxis structure and Google's developer writing/accessibility guidance. Verify relevant current official guidance, record source URLs, versions/observation dates and application in the report, and mark currency unverified when unavailable. Preserve authoritative API schemas and compatible published OpenAPI tooling rather than automatically upgrading it.
+
+Grant only contract-assigned README/docs/API-reference writes, explicit documentation commits and the private job report. No implementation, dependency, settings or production-schema changes unless explicitly scoped and reviewed. Commit docs on the same feature branch after implementation; verify ancestry and the allowed doc-only diff. The private documentation.md report starts DOCUMENTATION: COMPLETE or DOCUMENTATION: CHANGES then Commit: <full-final-SHA>. Record input implementation commit, changed paths, standards and developer_documentation/end_user_manual separately, each with entry page, COMPLETE/CHANGES status, planned coverage mapped to pages and actual checks/limitations. Overall COMPLETE requires both guides complete and current for the final combined commit. Keep the report outside the worktree to avoid circular commit references; no-change outcomes cite concrete coverage in both and the unchanged commit without an empty commit. Bind actual writer identity/completion, content/spec/contract hashes and check evidence to that commit, preserving report history by attempt/round. The report cannot substitute for either guide.
+
+Run applicable acceptance/documentation checks on the final clean combined commit. Verify required coverage, README/navigation links to both entries, case-correct links/anchors, examples and safe placeholders. Compare APIs with source/schema and user steps with actual screens/commands, permissions and behavior. Label executed walkthroughs separately from source-only checks. Execute examples only in authorized isolated environments; required unverified checks remain unresolved. Code/QA review developer onboarding and technical accuracy; UX/UI review manual usability, navigation, task steps and accessibility; security checks safe configuration, permissions, examples and disclosure in both. The author is not a sixth independent reviewer.
+
+Keep the builder and documentation writer idle during reviews. Wait for all five valid reports before rework, then send source findings to the SAME builder and documentation findings to their author through the supported provider adapter. Reassess both guides after source changes, checkpoint the final result and run all five reviews again, including after documentation-only fixes. Preserve the two-round limit. No frozen-tree edits during review or after approval. Record documentation invocations and revisions separately in usage; preserve supported writer history when safely resuming and never infer completion from a shared Qwen access check.
+
+For an existing budget factory, upgrade role routing/loading, documentation-plan contracts, scoped tools/permissions, stage transitions, per-deliverable evidence, accounting, dashboard publication and review/approval gates together. Preserve jobs, sessions and history. Legacy completion alone does not prove both guides exist. Active frozen contracts need an explicit scope update and fresh validation/reviews; do not silently rewrite contracts or past approvals.
+
 ## Reviews
 
-Run five independent reviews against the same immutable commit:
+Run five independent reviews against the same immutable combined code-and-documentation commit:
 
 1. Security — DeepSeek V4.1 Flash.
 2. UX — Qwen3.8 Max.
@@ -168,23 +191,25 @@ Run five independent reviews against the same immutable commit:
 4. Code — Kimi K2.7 Code.
 5. QA — DeepSeek V4.1 Flash.
 
-QA independently runs applicable tests and checks every acceptance criterion.
+QA independently runs applicable tests and checks every acceptance criterion, including both documentation deliverables.
 
 Each report begins with exactly VERDICT: PASS or VERDICT: CHANGES and identifies the reviewed commit.
 
 WAIT FOR ALL FIVE valid reports before resuming the builder. Missing, malformed, failed, or wrong-commit reports never count as PASS.
 
-If any reviewer requests CHANGES, resume the same builder, then run a fresh complete review round.
+If any reviewer requests CHANGES, route findings to the same builder or documentation writer as appropriate, reassess affected docs, then checkpoint and run a fresh complete review round.
 
 Allow two review rounds per attempt. Unresolved changes then move the job to needs-human. Explicit human rework starts a new attempt while preserving prior reports.
 
 ## Approval and merge
 
-After all five reviewers PASS, Qwen3.8 Max writes decision.md beginning with APPROVE or ESCALATE.
+After all five reviewers PASS and both documentation deliverables are complete and current for the combined commit, Qwen3.8 Max writes decision.md beginning with APPROVE or ESCALATE.
 
 Both decisions lead to human review. Agent approval alone never authorizes merging.
 
 Require explicit human approval for the exact reviewed commit. A changed feature branch or main branch requires fresh validation and reviews.
+
+Immediately before merge, revalidate the reviewed commit, spec/contract, both guides' completion evidence, reviews, checks and human consent. Missing, incomplete or stale required content in either guide blocks approval and merge.
 
 Merge only eligible jobs after human approval and required checks. Report conflicts or failed post-merge checks accurately. Do not automatically push, deploy, reset, or discard changes.
 
@@ -203,7 +228,7 @@ The dashboard displays state; human approval occurs through the runner or its do
 
 ## Token and cost accounting
 
-Capture real provider usage after every observable request and worker invocation, including orchestrator work, retries, reviews, failed runs, and builder revisions.
+Capture real provider usage after every observable request and worker invocation, including orchestrator work, documentation runs/revisions, retries, reviews, failed runs, and builder revisions.
 
 Record:
 
@@ -242,7 +267,8 @@ Create one self-contained HTML dashboard that polls board.json.
 Show:
 
 - Jobs across workflow stages.
-- Nine roles with configured and actual models.
+- Ten roles with configured and actual models, including the documentation stage.
+- Separate Developer documentation and End-user manual statuses, reviewed commits and safe entry-page links in job details; label the writer's report separately.
 - Five reviewer chips for every round.
 - Permission, blocked, and human-approval states.
 - Tokens and USD cost per agent, model, invocation, and feature.
@@ -255,20 +281,25 @@ Clicking a job opens its markdown reports and usage summary. Handle empty states
 
 Render content safely. Serve the dashboard using Python's standard HTTP server.
 
+Serve only sanitized approved state, report and documentation copies from a separate public directory. Resolve entry-page links through an explicit safe publication manifest; reject route-derived filesystem paths. Never expose source, credentials, raw logs or private job/session evidence. Include linked documentation assets/pages only after sanitization; missing/unapproved items show unavailable.
+
 ## Documentation and validation
 
 Write a beginner-friendly README with:
 
-- The nine-role model table.
+- The ten-role model table, including the Qwen documentation writer.
 - Mermaid workflow, review/rework, and accounting diagrams.
 - Provider authentication requirements.
 - Setup, dashboard, and first-feature commands.
 - Permission and human-approval behavior.
 - Accounting limitations and pricing-update instructions.
+- The documentation plan, developer documentation and end-user manual, their entry links, separate completion evidence and review/approval requirements.
 
 Keep the original factory comparison only in that README. Use sourced pricing, explicit token assumptions, and reproducible arithmetic. Distinguish token-rate estimates from actual bills and successful-feature costs. Never invent a savings percentage or claim equivalent quality without evidence.
 
 Validate model routing, tool execution, persisted builder continuation, file ownership, all-five review gates, two-round limits, human approval, JSON, dashboard behavior, and relevant repository checks.
+
+Generate offline fixture tests for ten-role routing and writer permissions, documentation_plan coverage for both deliverables, docs-before-checkpoint ordering, allowed doc-only diff/ancestry, per-deliverable completion binding and missing/incomplete/stale content blocking approval/merge. Cover no-change evidence for both, README/navigation links, technical onboarding and user-task verification, source-change invalidation, documentation-only rework with five fresh reviews, separate documentation usage/dashboard entries and upgrades rejecting unsupported legacy completion. These generated-runtime requirements are distinct from this prompt repository's tests.
 
 Test accounting deduplication, counter resets, cache/reasoning overlap, peak/off-peak rates, region selection, missing pricing, historical rates, and total reconciliation.
 

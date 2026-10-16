@@ -8,11 +8,13 @@ This repository contains **generation prompts and support tools**. Cloning it do
 
 | Edition | Runtime and accounts | Start here |
 | --- | --- | --- |
-| **Claude only** | Claude Code and your Claude account; nine configured roles | [Claude-only guide](claude-only/README.md) |
-| **Codex + Claude** | Both tools and accounts; ten roles, including a documentation writer, with token-efficiency and unified-dashboard requirements | [Codex + Claude guide](codex-claude/README.md) |
-| **Low-cost providers** | Generated Python runner and DeepSeek, Qwen and Kimi API credentials; nine configured roles | [Low-cost guide](low-cost/README.md) |
+| **Claude only** | Claude Code and your Claude account; ten configured roles, including a Sonnet documentation writer | [Claude-only guide](claude-only/README.md) |
+| **Codex + Claude** | Both tools and accounts; ten roles, including a documentation writer for developer documentation and an end-user manual, with token-efficiency and unified-dashboard requirements | [Codex + Claude guide](codex-claude/README.md) |
+| **Low-cost providers** | Generated Python runner and DeepSeek, Qwen and Kimi API credentials; ten configured roles, including a Qwen documentation writer | [Low-cost guide](low-cost/README.md) |
 
 Each edition documents its actual requirements and features. Provider access and cost depend on your accounts and workload.
+
+All three editions plan and maintain two documentation deliverables: complete developer documentation so another developer can understand, run and maintain the app, and an end-user manual with step-by-step usage instructions. Both are reviewed with the implementation and must be complete and current before approval.
 
 ## Start in three steps
 

@@ -18,7 +18,8 @@ $factory Add SAVE10 discounts to checkout.
 Expected behavior:
 - A valid SAVE10 code reduces the eligible subtotal by 10%.
 - Invalid or expired codes explain the problem without losing the cart.
-- Document the new merchant and customer workflows.
+- Update developer documentation for discount rules, integration and tests.
+- Update the end-user manual with merchant and customer steps and expected results.
 
 Constraints:
 - Reuse the existing pricing and authentication logic.
@@ -37,7 +38,7 @@ The generation prompt is for setup and audit. Workers get concise common rules, 
 
 The owner maintains one compact project map and refreshes changed sections. Freshness includes repository/config/instruction/source fingerprints; ignored local tools and effective permissions need their own checks. Each worker reads its task packet rather than repeating whole-project exploration. Independent reviewers still inspect authoritative code and contract, without copying another reviewer's verdict.
 
-Resume the recorded builder for source revisions. Supply the changed-context and all five report paths. After implementation, the documentation writer assesses existing baseline coverage once, then updates affected pages on later features. Preserve session continuity and role-specific context.
+Resume the recorded builder for source revisions. Supply the changed-context and all five report paths. Plan both developer documentation and an end-user manual in the frozen specification, including coverage, assigned pages and checks. After implementation, the documentation writer assesses baseline coverage in both once, then updates affected pages and verifies unchanged coverage on later features. Reuse shared references without duplicating content; both guides must remain complete and current. Preserve session continuity and role-specific context.
 
 ## Bound routine output
 

@@ -2,7 +2,7 @@
 
 A reusable generation prompt for building a visual software factory using DeepSeek, Qwen, and Kimi.
 
-The factory keeps the same core workflow: specification, coding, five independent reviews, and human approval. Its dashboard records progress, tokens, and USD costs.
+The factory keeps the same core workflow: specification and documentation plan, coding, developer documentation and end-user manual, five independent reviews, and human approval. Its dashboard records progress, guide completion, tokens, and USD costs.
 
 ## Get started
 
@@ -19,7 +19,7 @@ The updated prompt requires local configuration checks, explicitly authorized li
 
 Keep current readiness separate from historical invocations, publish timestamps and sanitized reasons, and preserve unavailable usage. See the [startup guide](../../README.md) and [environment/dashboard troubleshooting](../../codex-claude/maintenance/docs/TROUBLESHOOTING.md).
 
-## Nine agent roles
+## Ten agent roles
 
 | # | Agent | Model | Responsibility |
 |---|---|---|---|
@@ -31,19 +31,43 @@ Keep current readiness separate from historical invocations, publish timestamps 
 | 6 | UI reviewer | Kimi K2.7 Code | Checks visual design and accessibility |
 | 7 | Code reviewer | Kimi K2.7 Code | Checks correctness and maintainability |
 | 8 | QA reviewer | DeepSeek V4.1 Flash | Independently verifies tests and acceptance criteria |
-| 9 | Approver | Qwen3.8 Max | Recommends approval or escalation |
+| 9 | Documentation writer | Qwen3.8 Max | Maintains complete developer documentation and an end-user manual |
+| 10 | Approver | Qwen3.8 Max | Recommends approval or escalation |
 
-There is one orchestrator and eight workers. The human provides the final merge approval.
+There is one orchestrator and nine workers. The human provides the final merge approval.
+
+## Developer documentation and end-user manual
+
+Before implementation, the spec writer freezes a documentation_plan in spec.md and spec-contract.json. It defines two required deliverables, developer_documentation and end_user_manual, each with audience, entry page, assigned pages/write paths, required coverage, baseline gaps, feature impact and verification steps.
+
+| Deliverable | Required coverage |
+| --- | --- |
+| Developer documentation | Product purpose/features, architecture/data flow, source/module map and decisions, data model, auth/integrations, reproducible setup, safe configuration, conventions, exact test/lint/build commands, APIs where implemented, maintenance, technical troubleshooting and limitations. It should let another developer understand, run and maintain the app. |
+| End-user manual | Access/onboarding, users/roles, navigation, step-by-step supported tasks with prerequisites, actual labels or commands, expected results and error recovery, relevant admin tasks/settings, FAQ, troubleshooting, limitations and available help. Use plain language and verified examples or screenshots where available. |
+
+After the implementation commit, the Qwen3.8 Max documentation writer runs through the Qwen provider adapter and updates both guides on the same feature branch while the builder is idle. Preserve existing docs conventions and locations; otherwise use docs/developer/README.md and docs/user-manual/README.md as entry pages with further pages as needed. Link both from the app README and docs navigation. These paths are generated app outputs, not files shipped in this repository. Reuse shared references without duplication. CLI/API consumers also need a user manual.
+
+Assess agreed baseline gaps in both guides on the first feature; later update affected pages and verify unchanged coverage. Explain individual inapplicable topics; neither guide can be waived. Follow project style, otherwise Diataxis and Google's developer writing/accessibility guidance; record relevant official source versions/dates and unverified limitations. Never invent app capabilities or check results.
+
+The private documentation.md report identifies implementation and final combined commits, permitted doc-only changes, standards and checks. It records entry pages, coverage, verification evidence/limitations and COMPLETE/CHANGES status separately for both deliverables. Both must be complete and current before overall completion. Verify real writer identity/completion and bind evidence to the commit and spec/contract; a shared Qwen access check is insufficient. The report cannot replace either guide.
+
+Check links and coverage, technical onboarding/API accuracy and user steps against actual screens/commands, roles and behavior. Distinguish executed walkthroughs from source-only checks. All five reviewers inspect the final combined commit: Code/QA check technical accuracy, UX/UI check manual usability/accessibility, and security checks safe configuration, permissions and disclosure in both. Missing, incomplete or stale required content in either guide blocks approval and merge.
+
+Source rework returns to the SAME Kimi builder; documentation findings return to the Qwen writer. Reassess both guides, checkpoint and run all five reviews again, including for documentation-only fixes. Writers stay idle during review; no docs are added after approval. Track documentation runs/revisions separately in usage.
+
+For an existing budget factory, have its owner upgrade role routing/loading, contracts, scoped tools/permissions, stage transitions, per-deliverable evidence, accounting, dashboard publication and review/approval gates together. Preserve jobs, sessions and history. Legacy completion alone is insufficient; active frozen contracts need an explicit scope update and fresh validation/reviews without rewriting past approvals.
 
 ## How it works
 
 ```mermaid
 flowchart TD
     Feature["Feature request"] --> Inspect["Inspect repository"]
-    Inspect --> Spec["Spec writer: Qwen3.8 Max"]
+    Inspect --> Spec["Qwen specification and plan for both guides"]
     Spec --> Permission["Permission check"]
     Permission --> Build["Builder: Kimi K3"]
-    Build --> Reviews["Five independent reviews"]
+    Build --> Docs["Qwen: developer docs and end-user manual"]
+    Docs --> Checkpoint["Checkpoint combined code and docs"]
+    Checkpoint --> Reviews["Five independent reviews"]
     Reviews --> Wait["Wait for all five reports"]
     Wait --> Approver["Approver: Qwen3.8 Max"]
     Approver --> Human["Human approval required"]
@@ -61,11 +85,12 @@ The DeepSeek orchestrator coordinates every stage. It requests additional permis
 flowchart TD
     Builder["Same Kimi K3 builder"]
 
-    Builder --> Security["Security: DeepSeek"]
-    Builder --> UX["UX: Qwen"]
-    Builder --> UI["UI: Kimi K2.7 Code"]
-    Builder --> Code["Code: Kimi K2.7 Code"]
-    Builder --> QA["QA: DeepSeek"]
+    Builder --> Docs["Qwen: both guides, then checkpoint"]
+    Docs --> Security["Security: DeepSeek"]
+    Docs --> UX["UX: Qwen"]
+    Docs --> UI["UI: Kimi K2.7 Code"]
+    Docs --> Code["Code: Kimi K2.7 Code"]
+    Docs --> QA["QA: DeepSeek"]
 
     Security --> Wait["WAIT FOR ALL FIVE"]
     UX --> Wait
@@ -77,15 +102,17 @@ flowchart TD
     Verdict -->|Yes| Approver["Qwen approver"]
     Approver --> Human["Human review"]
     Human -->|Approve eligible job| Merge["Merge"]
-    Human -->|Request rework| Builder
+    Human -->|Request rework| Rework["Same builder or docs writer as appropriate"]
 
     Verdict -->|No| Budget{"Another round available?"}
-    Budget -->|Yes| Builder
+    Budget -->|Yes| Rework
     Budget -->|No: two rounds used| Feedback["Human feedback required"]
-    Feedback -->|Explicit rework: new attempt| Builder
+    Feedback -->|Explicit rework: new attempt| Rework
+    Rework -->|Source changes| Builder
+    Rework -->|Docs only| Docs
 ```
 
-All five reports must arrive before revisions start. Each attempt allows two review rounds. Human rework preserves earlier reports and starts a new attempt.
+All five reports must arrive before revisions start. Source findings return to the same builder and documentation findings to their author. Reassess both guides, checkpoint and run five fresh reviews. Each attempt allows two review rounds. Human rework preserves earlier reports and starts a new attempt.
 
 An agent's `APPROVE` is a recommendation. Failed mandatory reviews must be resolved before merging.
 
@@ -104,13 +131,13 @@ flowchart TD
     Board --> Dashboard["Dashboard: tokens and USD"]
 ```
 
-The dashboard shows usage by agent, model, review round, and feature. It distinguishes measured tokens, estimated cost, reported charges, and unavailable data.
+The dashboard shows usage by agent, model, review round, and feature, including documentation runs/revisions. It distinguishes measured tokens, estimated cost, reported charges, and unavailable data.
 
 Unknown usage is never treated as zero. Historical records retain their original pricing.
 
 ## Cost comparison with the original edition
 
-Historical illustrative comparison recorded on 2026-10-13. It uses the earlier nine-role hybrid snapshot; the current Codex + Claude generation prompt has ten roles. The preserved figures are not a current-price quote, measured savings or a comparison against the updated edition. Verify provider rates and compare accepted-feature costs before making a purchasing decision.
+Historical illustrative comparison recorded on 2026-10-13. It uses earlier nine-role hybrid and budget snapshots. Both current generation prompts have ten roles; the preserved example excludes both documentation writers. The figures are not a current-price quote, measured savings or a comparison against either updated edition. Verify provider rates and compare accepted-feature costs before making a purchasing decision.
 
 Reference: [original Software Factory](../../codex-claude/docs/GUIDE.md).
 
@@ -204,6 +231,8 @@ python -m http.server 8000 --bind 127.0.0.1 --directory <generated-public-direct
 ```
 
 Replace `<generated-public-directory>` with the directory documented by your generated runner, containing only sanitized state and reports. Open `http://localhost:8000/dashboard.html`; private logs and credentials must stay outside the served directory.
+
+Job details show separate Developer documentation and End-user manual statuses, reviewed commits and safe entry-page links, with the writer's report separately labelled. Publish approved sanitized docs and linked assets/pages through an explicit safe manifest; missing/unapproved items show unavailable. Never expose source, raw logs, credentials or private job/session evidence to make a guide open.
 
 The generated runner should support:
 

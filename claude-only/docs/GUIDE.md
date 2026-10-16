@@ -6,6 +6,7 @@ A reusable generation prompt for building a small, visual software factory in yo
 
 - An orchestrator skill and specialist agents.
 - A coding agent and independent security, UX, UI, code, and QA reviews.
+- A Sonnet documentation writer maintaining developer documentation and an end-user manual.
 - A dashboard showing features, review results, and human approval states.
 - Token usage and USD cost breakdowns by model, agent, and feature.
 - Markdown specifications, build reports, reviews, and decisions.
@@ -20,6 +21,44 @@ A reusable generation prompt for building a small, visual software factory in yo
 
 Use your own AI provider account.
 
+## Ten agent roles
+
+| Role | Claude Code model |
+| --- | --- |
+| Orchestrator | Current owning session's configured model |
+| Spec writer | Opus |
+| Builder | Opus |
+| Documentation writer | Sonnet |
+| Security reviewer | Opus |
+| UX reviewer | Sonnet |
+| UI reviewer | Sonnet |
+| Code reviewer | Sonnet |
+| QA reviewer | Sonnet |
+| Approver | Opus |
+
+There is one orchestrator and nine specialists. Verify supported exact model identifiers and actual execution during setup. Local Codex support inherits configured Codex models rather than claiming to run Claude models.
+
+## Developer documentation and end-user manual
+
+Before implementation, the spec writer freezes a documentation_plan in spec.md and spec-contract.json. It defines two required deliverables, developer_documentation and end_user_manual, each with an audience, entry page, assigned pages/write paths, required coverage, baseline gaps, feature impact and verification steps.
+
+| Deliverable | Required coverage |
+| --- | --- |
+| Developer documentation | Product purpose/features, architecture/data flow, source/module map and decisions, data model, auth/integrations, reproducible setup, safe configuration, conventions, exact test/lint/build commands, APIs where implemented, maintenance, technical troubleshooting and limitations. It should let another developer understand, run and maintain the app. |
+| End-user manual | Access/onboarding, users/roles, navigation, step-by-step supported tasks with prerequisites, actual labels or commands, expected results and error recovery, relevant admin tasks/settings, FAQ, troubleshooting, limitations and available help. Use plain language and verified examples or screenshots where available. |
+
+After the implementation commit, the Sonnet documentation writer updates both guides on the same feature branch while the builder is idle. Preserve existing docs conventions and locations; otherwise use docs/developer/README.md and docs/user-manual/README.md as entry pages with further pages as needed. Link both from the app README and docs navigation. These paths are generated app outputs, not files shipped in this repository. Reuse shared references without duplication. CLI/API consumers also need a user manual.
+
+Assess agreed baseline gaps in both guides on the first feature; later update affected pages and verify unchanged coverage. Explain individual inapplicable topics; neither guide can be waived. Follow project style, otherwise Diataxis and Google's developer writing/accessibility guidance; record relevant official source versions/dates and unverified limitations. Never invent app capabilities or check results.
+
+The private documentation.md report identifies the implementation and final combined commits, permitted doc-only changes, standards and checks. It records entry pages, coverage, verification evidence/limitations and COMPLETE/CHANGES status separately for both deliverables. Both must be complete and current before overall completion. The report cannot replace the guides.
+
+Check links and coverage, technical onboarding/API accuracy and user steps against actual screens/commands, roles and behavior. Distinguish executed walkthroughs from source-only checks. All five reviewers inspect the final combined commit: Code/QA check technical accuracy, UX/UI check manual usability/accessibility, and security checks safe configuration, permissions and disclosure in both. Missing, incomplete or stale required content in either guide blocks approval and merge.
+
+Source rework returns to the SAME builder; documentation findings return to the writer. Reassess both guides, checkpoint and run all five reviews again, including for documentation-only fixes. Writers stay idle during review; no docs are added after approval. The dashboard exposes separate guide statuses, reviewed commits and safe entry links, with the writer's report separately labelled. Track documentation runs/revisions in usage.
+
+For an existing factory, have its owner upgrade role routing/loading, contracts, permissions, stage transitions, per-deliverable evidence, accounting, dashboard publication and review/approval gates together. Preserve jobs, sessions and history. Legacy completion alone is insufficient; active frozen contracts need an explicit scope update and fresh validation/reviews without rewriting past approvals.
+
 ## Check connections before features
 
 Use the [repository startup guide](../../README.md) to check installation and authentication, then explicitly authorize live checks using your configured models. Verify access and builder continuation from the same runtime and permission environment used by workers. Codex running the generator does not itself run Claude models.
@@ -33,10 +72,12 @@ The orchestrator first inspects your project, then coordinates every stage. It a
 ```mermaid
 flowchart TD
     Feature["Your feature request"] --> Inspect["Inspect repository and conventions"]
-    Inspect --> Spec["Write specification and acceptance criteria"]
+    Inspect --> Spec["Specification, acceptance criteria and plan for both guides"]
     Spec --> Permission["Check required permissions"]
     Permission --> Build["Implement and test on a feature branch"]
-    Build --> Review["Run five independent reviews"]
+    Build --> Docs["Write developer docs and end-user manual"]
+    Docs --> Checkpoint["Checkpoint combined code and docs"]
+    Checkpoint --> Review["Run five independent reviews"]
     Review --> Decision["Approver recommendation"]
     Decision --> Human["Human approval required"]
     Human --> Merge["Merge reviewed code into main"]
@@ -49,17 +90,18 @@ The review stage includes a rework loop, shown below.
 
 ## Reviews and rework
 
-All five reviewers must finish before the builder receives feedback. A failed check returns to the same builder, with a maximum of two review rounds per attempt.
+All five reviewers must finish before revisions begin. Route source findings to the same builder and documentation findings to the writer, with a maximum of two review rounds per attempt. Reassess both guides before the next checkpoint and complete review round.
 
 ```mermaid
 flowchart TD
     Builder["Coding agent: implement and test"]
 
-    Builder --> Security["Security review"]
-    Builder --> UX["UX review"]
-    Builder --> UI["UI design review"]
-    Builder --> Code["Code review"]
-    Builder --> QA["QA: verify acceptance criteria"]
+    Builder --> Docs["Developer docs and end-user manual, then checkpoint"]
+    Docs --> Security["Security review"]
+    Docs --> UX["UX review"]
+    Docs --> UI["UI design review"]
+    Docs --> Code["Code review"]
+    Docs --> QA["QA: verify acceptance criteria"]
 
     Security --> Wait["WAIT FOR ALL FIVE REPORTS"]
     UX --> Wait
@@ -72,12 +114,14 @@ flowchart TD
     Verdict -->|Yes| Approver["Approver: APPROVE or ESCALATE"]
     Approver --> Human["Human reviews the result"]
     Human -->|Approve eligible job| Merge["Merge into main"]
-    Human -->|Request rework| Builder
+    Human -->|Request rework| Rework["Same builder or docs writer as appropriate"]
 
     Verdict -->|No| Budget{"Another round available?"}
-    Budget -->|Yes: resume same builder| Builder
+    Budget -->|Yes| Rework
     Budget -->|No: two rounds used| Feedback["Human feedback required"]
-    Feedback -->|Explicit rework: new attempt| Builder
+    Feedback -->|Explicit rework: new attempt| Rework
+    Rework -->|Source changes| Builder
+    Rework -->|Docs only| Docs
 
     classDef human fill:#fff3cd,stroke:#b7791f,color:#422006;
     class Human,Feedback human;
@@ -89,7 +133,7 @@ An agent’s `APPROVE` is a recommendation. Human approval is required, and fail
 
 ## Who controls the files?
 
-The orchestrator is the only writer of `board.json`. Workers write their own reports; the builder also edits application code and tests on its feature branch.
+The orchestrator is the only writer of `board.json`. Workers write their own reports; the builder also edits application code/tests, and the documentation writer edits only assigned docs on the same feature branch after implementation. Serve only sanitized approved state/reports/docs through safe manifest links; private jobs, source, logs and credentials stay outside the public directory.
 
 ```mermaid
 flowchart LR
@@ -105,7 +149,7 @@ The dashboard displays progress. Approval commands run in Claude Code or Codex.
 
 ## Token usage and USD costs
 
-Usage is recorded after each agent run, including observable retries and rework. The dashboard shows totals by agent, actual model, review round, and feature.
+Usage is recorded after each agent run, including documentation runs/revisions, observable retries and rework. The dashboard shows totals by agent, actual model, review round, and feature.
 
 ```mermaid
 flowchart TD

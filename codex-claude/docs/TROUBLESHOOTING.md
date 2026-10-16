@@ -138,7 +138,11 @@ Use an already accepted alternative evidence rule when it applies. If the frozen
 
 The documentation-writer role runs after implementation and before checkpointing. Confirm it exists in central routing and explicit agent loading, has only the assigned application documentation write paths, and completed with the actual Sonnet model. The factory has ten roles and five independent reviewers.
 
-A factory documentation.md report is not a substitute for the application's README and guides. Check the final combined commit, allowed doc-only diff, required page coverage, recorded standards sources/dates and executed documentation checks. A no-impact result needs concrete existing coverage. Do not mark a missing required section complete merely because the report says so.
+A factory documentation.md report is not a substitute for the app's developer documentation and end-user manual. Check the frozen documentation_plan for both deliverables, assigned paths/coverage/checks, the final combined commit, allowed doc-only diff, recorded standards sources/dates and executed checks. Each guide needs a distinct entry page linked from the application README/navigation, plus separate coverage and COMPLETE/CHANGES evidence in the report. A no-impact result needs concrete existing coverage for both. Missing, incomplete or stale required content in either guide blocks approval.
+
+Developer documentation must explain how another developer understands, runs and maintains the app. The end-user manual must explain actual user tasks in plain language with prerequisites, steps, expected results and error recovery. Check instructions against implemented screens/commands and permissions; a list of features or source files alone is insufficient. The dashboard should expose both safe entry links and separate statuses, with the writer's report separately labelled.
+
+When upgrading an existing factory, migrate documentation-plan contracts, writer instructions, per-deliverable evidence, review/approval gates and dashboard publication together. Preserve jobs and history. A legacy completion flag does not prove both guides exist; active frozen contracts need an explicit scope update and fresh validation/reviews rather than silently rewriting past evidence.
 
 Source rework invalidates the documentation completion evidence until the writer reassesses affected content. Documentation-only corrections require a new commit, checkpoint and five reviews. Never modify the frozen tree during review or add docs after the approved commit.
 

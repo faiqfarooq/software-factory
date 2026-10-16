@@ -29,7 +29,9 @@ The generated Claude /factory launcher forwards to the Codex owner. It does not 
 
 ## What this edition requests
 
-Specification → implementation → application documentation → checkpoint → five reviews → approver → exact human approval → merge.
+Specification and documentation plan → implementation → developer documentation and end-user manual → checkpoint → five reviews → approver → exact human approval → merge.
+
+The documentation writer maintains two deliverables: complete developer documentation so another developer can understand, run and maintain the app, and an end-user manual with step-by-step instructions for using it. The specification plans coverage and checks for both before implementation. Both must be complete and current before approval.
 
 One dashboard home link opens jobs, reports, documentation, usage and readiness. Latest activity appears at the top, with pagination and selectable limits. Focused agent context, bounded logs, safe reuse and configurable budgets help control repeated work; real savings still need measurement.
 
