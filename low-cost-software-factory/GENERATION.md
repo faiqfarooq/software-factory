@@ -46,6 +46,20 @@ Use provider-supported reasoning parameters. Kimi K3 and Kimi K2.7 Code require 
 
 Keep dependencies minimal. Preserve current runtime and permission settings.
 
+## Startup checks and connection recovery
+
+Generate a small `factory check` operation: local configuration by default, explicit `--live` provider calls only when authorized. Document exact commands. Verify the Git root and committed base, installed runner, credentials presence, configured endpoints, requested/resolved model IDs, tool calling and SAME builder continuation before feature dispatch.
+
+Check each unique provider/model/endpoint/environment once, one at a time, through the SAME adapter, working directory, and permissions used by workers. An external terminal/API success does not prove the coding assistant's child process has access. Prove an initial builder result before continuing that SAME session; preserve uncertain state for explicit recovery.
+
+Bound timeouts and retries. Stop dependent work after a failure. Record timestamp, environment, exit/terminal status, requested/reported model, observed HTTP status or sanitized error category, and usage when exposed. Distinguish DNS/TLS/connection, authentication, rate limits, model access and permission failures only with evidence; otherwise say unknown. Never log secrets, credential values, full URLs containing tokens, or raw private transcripts.
+
+If only the factory fails, compare child-process permissions, executable, cwd, authentication mode, endpoint and inherited proxy/CA settings. Request narrowly scoped required access through the host's supported controls; never disable the sandbox, silently change providers/models, or repeatedly relaunch all workers.
+
+Only the existing orchestrator publishes readiness, ledger and board. Standalone checks return evidence and explain that they do not update the dashboard. Store current per-provider/model readiness separately from historical invocations; show Ready/Blocked/Unchecked, last-check time, environment and sanitized reason. Successful rechecks preserve old failures and unavailable usage, never turn them into zero-cost successes.
+
+Separate offline validation, local readiness, live provider access, and complete feature validation. A doctor must not call models by default. Add offline tests for failure categories, unknown retries, bounded timeouts, model mismatch, secret-safe diagnostics, external success with factory failure, and successful recheck with preserved history. Live tests require authorization and real usage accounting.
+
 ## Files
 
 Create a reusable structure such as:

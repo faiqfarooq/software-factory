@@ -49,6 +49,20 @@ Implement:
 
 Verify that approval matches the exact reviewed commit. Changes to the feature or main require fresh validation and reviews.
 
+STARTUP CHECKS AND CONNECTION RECOVERY
+
+Generate a small factory check operation: local installation/authentication by default, and explicit --live checks that can consume usage. Document exact commands. Check Git root and committed base, runtime executable paths and versions, supported flags, authentication, and builder continuation before feature dispatch.
+
+Check providers through the SAME adapter, directory, and permission/network environment as actual workers. External PowerShell success is not factory-environment success. Check each unique runtime/model/environment once, one at a time; prove the initial builder response before resuming that SAME session. A Codex launcher must check its own provider environment, not infer access from Claude.
+
+Bound timeouts and retries. Stop dependent work after a failed check. Preserve sanitized exit status, terminal result, reported model, session match, observed error category/HTTP status, retry count, timestamp, and environment. Distinguish installation, authentication, DNS/TLS/connection, rate limit, model access, and permission failures only when evidence supports it; otherwise say unknown.
+
+If the external adapter succeeds but the factory fails, compare child-process executable, cwd, authentication mode, proxy/CA settings, and scoped network permissions. Request the specific access through supported controls; never disable the sandbox or silently substitute a model. Do not reinstall or reauthenticate without evidence, loop through all roles, or replace an uncertain builder session.
+
+Only the existing orchestrator publishes check evidence and observable usage. A standalone test does not update board.json. Keep current readiness separate from historical invocations. Show Ready/Blocked/Unchecked, last check time, environment and sanitized reason in the dashboard. Preserve old failures and unavailable usage after a successful recheck. Missing usage is not a measured zero.
+
+Separate offline validation, local readiness, live model access, and full feature completion. A doctor must not make model calls by default. Include offline tests for missing/failed responses, timeouts, model mismatch, secret-safe errors, environment differences, and recheck/history preservation. Live tests require explicit authorization and real usage accounting.
+
 TOKEN AND COST TRACKING
 
 Track usage for every agent invocation, builder revision, review round, feature, and factory orchestrator where runtime telemetry permits.

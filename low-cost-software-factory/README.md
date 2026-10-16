@@ -6,12 +6,18 @@ The factory keeps the same core workflow: specification, coding, five independen
 
 ## Get started
 
-1. Copy the complete contents of [generation.md](generation.md).
+1. Copy the complete contents of [GENERATION.md](GENERATION.md).
 2. Open your target project in a coding assistant.
 3. Paste the prompt and let it inspect the repository and generate the factory.
 4. Follow the generated `factory/README.md` for provider configuration and startup commands.
 
 The coding assistant builds the setup. The generated factory uses DeepSeek V4.1 Flash as its actual orchestrator.
+
+## Check connections before features
+
+The updated prompt requires local configuration checks, explicitly authorized live calls to each configured provider/model, and SAME builder continuation. Run checks from the runner's actual environment; external terminal success alone is insufficient. The Claude checker in the root package is for the Claude editions, not these providers.
+
+Keep current readiness separate from historical invocations, publish timestamps and sanitized reasons, and preserve unavailable usage. See the [startup guide](../README.md) and [environment/dashboard troubleshooting](../docs/TROUBLESHOOTING.md).
 
 ## Nine agent roles
 
@@ -104,7 +110,7 @@ Unknown usage is never treated as zero. Historical records retain their original
 
 ## Cost comparison with the original edition
 
-Reference: [original Software Factory](https://github.com/faiqfarooq/software-factory/tree/main/software%20factory).
+Reference: [original Software Factory](../software-factory/README.md).
 
 **Baseline verification:** The linked directory could not be retrieved while preparing this draft. The comparison uses the original nine-role GPT/Claude assignments supplied by the repository owner. Confirm those assignments against the linked edition before describing this as a verified repository comparison.
 
@@ -192,10 +198,10 @@ Use environment variables or the generated configuration instructions. Keep real
 After generation, start the dashboard from the project root:
 
 ```powershell
-python -m http.server 8000 --bind 127.0.0.1 --directory factory
+python -m http.server 8000 --bind 127.0.0.1 --directory <generated-public-directory>
 ```
 
-Open `http://localhost:8000/dashboard.html`.
+Replace `<generated-public-directory>` with the directory documented by your generated runner, containing only sanitized state and reports. Open `http://localhost:8000/dashboard.html`; private logs and credentials must stay outside the served directory.
 
 The generated runner should support:
 
