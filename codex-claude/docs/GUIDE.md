@@ -96,27 +96,49 @@ The authoring policy uses [Diataxis](https://diataxis.fr/start-here/) for docume
 
 Documentation changes are committed on the feature branch before checkpointing. The private documentation.md report records entry pages, coverage, checks and COMPLETE/CHANGES status separately for developer_documentation and end_user_manual. Overall completion requires both to be complete and current; the report cannot substitute for either guide.
 
-The five reviewers check the combined code-and-documentation commit. Code/QA verify developer onboarding and technical accuracy; UX/UI verify user instructions, navigation and accessibility; security checks safe configuration, permissions, examples and disclosure in both. Missing, incomplete or outdated required content in either deliverable blocks approval. Documentation updates after rework get a new checkpoint and complete review round; nothing is appended after human approval.
+The five reviewers check the combined code-and-documentation commit. Code/QA verify developer onboarding and technical accuracy; UX/UI verify user instructions, navigation and accessibility; security checks safe configuration, permissions, examples and disclosure in both. Missing, incomplete or outdated required content in either deliverable blocks merge approval. Documentation updates after rework get a new checkpoint and complete review round; nothing is appended after human merge approval.
+
+## Two approvals per feature
+
+The factory pauses for approval at two stages:
+
+| Stage | What you review | What you type |
+| --- | --- | --- |
+| Specification | Scope, acceptance criteria, both documentation plans, actual target branch, any baseline proposal, permissions and proposed costs/budget policy. Request edits until it is right. | go ahead |
+| Merge | Completed work, both guides, validation, five passing reviews, approver recommendation, target branch and full reviewed commit. | merge code |
+
+Type the phrase as your entire message in the owning chat or the generated runner's supported human-interactive session. These phrases are not standalone PowerShell commands. You do not need to type a job ID or commit SHA: the factory internally binds consent to the current displayed job/offer. Viewing evidence or typing a legacy approve command does not authorize implementation or merge.
+
+Between these gates, implementation, documentation, tests and in-scope review fixes run automatically. A changed specification, extra spending or new authorized scope returns to the first gate; routine corrections do not. Host, sandbox and provider tool permissions remain separate and cannot be bypassed by factory consent. Unresolved checks/recovery or exhausted review rounds show a blocker rather than another generic approval prompt; explicit in-scope rework is an instruction to continue that job.
+
+Only APPROVE plus all required valid evidence permits a merge offer; ESCALATE, failed reviews or incomplete docs stay blocked. A changed source/docs/target/evidence invalidates the displayed offer; affected checks/reviews and a fresh merge code are required at the same second gate. Refusal, wrong-stage, quoted, stale or agent-generated messages cannot approve anything. The factory asks once per unchanged offer, including across polling/resume, and consumes each human event once.
+
+After merging into the recorded target branch, show its latest commit, changed files/code diff, both guide links and actual post-merge checks, plus an existing authorized local preview when available. Preserve failures accurately. Merge consent alone does not authorize push or deployment.
+
+Existing generated factories need their owner to migrate gate states, spec/merge receipts, commands, human-input validation and dashboard views together, preserving jobs/sessions/history. Old consent is historical evidence and cannot approve a new offer.
 
 ## Feature workflow
 
-The orchestrator inspects the repository before workers start. Additional permission is requested before implementation when necessary.
+The orchestrator prepares the specification and proposed permissions/costs, then pauses for your go ahead before implementation. Host/tool permission checks are separate from the two factory approval gates.
 
 ```mermaid
 flowchart TD
     Feature["Feature request"] --> Inspect["Inspect repository"]
     Inspect --> Spec["Specification and plan for both guides"]
-    Spec --> Permission["Permission check"]
-    Permission --> Build["Implement and test"]
+    Spec --> SpecApproval["Gate 1: go ahead"]
+    SpecApproval -->|Request spec changes| Spec
+    SpecApproval -->|Approved scope| Build["Implement and test"]
     Build --> Docs["Write and verify developer docs and end-user manual"]
     Docs --> Reviews["Five independent reviews"]
     Reviews --> Wait["Wait for all five reports"]
     Wait --> Approver["Approver recommendation"]
-    Approver --> Human["Human approval required"]
+    Approver -->|APPROVE and valid evidence| Human["Gate 2: merge code"]
+    Approver -->|ESCALATE| Blocked["Blocked: resolve findings"]
     Human --> Merge["Merge into recorded target branch"]
+    Merge --> Latest["Show latest commit, diff, guides and post-merge checks"]
 
     classDef human fill:#fff3cd,stroke:#b7791f,color:#422006;
-    class Permission,Human human;
+    class SpecApproval,Human human;
 ```
 
 Requested changes follow the rework loop below.
@@ -145,14 +167,17 @@ flowchart TD
     Wait --> Verdict{"All reviews PASS?"}
 
     Verdict -->|Yes| Approver["Approver: Claude Opus 5.5"]
-    Approver --> Human["Human reviews recommendation"]
-    Human -->|Approve eligible job| Merge["Merge into target branch"]
-    Human -->|Request rework| Builder
+    Approver -->|APPROVE and valid evidence| Human["Gate 2: merge code"]
+    Approver -->|ESCALATE| Feedback["Blocked: resolve findings"]
+    Human -->|merge code| Merge["Merge into target branch and show latest code"]
+    Human -->|Request rework| Rework["Same builder or docs writer as appropriate"]
 
     Verdict -->|No| Budget{"Another round available?"}
-    Budget -->|Yes: resume same builder| Builder
-    Budget -->|No: two rounds used| Feedback["Human feedback required"]
-    Feedback -->|Explicit rework: new attempt| Builder
+    Budget -->|Yes| Rework
+    Budget -->|No: two rounds used| Feedback
+    Feedback -->|Explicit in-scope rework: new attempt| Rework
+    Rework -->|Source changes| Builder
+    Rework -->|Docs only| Docs
 
     classDef human fill:#fff3cd,stroke:#b7791f,color:#422006;
     class Human,Feedback human;
@@ -263,11 +288,12 @@ Only the orchestrator publishes state. The dashboard is read-only; viewing appro
 |---|---|
 | `factory <feature>` | Start a feature |
 | `factory next` | Run the next backlog item |
-| `factory approve <job-id>` | Open evidence for human review; no merge |
-| `factory approve <job-id> --commit <full-reviewed-SHA>` | Authorize only that eligible reviewed commit |
+| `factory review <job-id>` | Select job and show evidence/current gate offer; no approval or merge |
+| `go ahead` | Approve the displayed specification at gate 1 |
+| `merge code` | Approve only the displayed eligible merge offer at gate 2 |
 | `factory rework <job-id> <note>` | Resume the builder with feedback |
 
-The generated instructions explain the supported Codex invocation and Claude Code `/factory` launcher.
+Use the two approval phrases as your whole message in the owning Codex chat, optionally with its supported `$factory` prefix. Claude Code `/factory` forwards to that owner without manufacturing human provenance. Legacy approve commands are evidence-only/deprecated. Generated instructions explain skill discovery and supported forwarding.
 
 ## Files
 

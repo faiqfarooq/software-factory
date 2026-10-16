@@ -54,7 +54,7 @@ A non-interactive provider may deny a tool when no permission recipient exists. 
 
 Confirm the application Git root, source manifests and current target branch. The factory workspace may be a parent of the actual application. The generated project selection must use a validated relative path while keeping the original factory owner and ledger.
 
-A feature needs a reviewed committed base. Present an exact baseline proposal when work is uncommitted; do not run blanket staging, discard changes, invent a remote or create another nested repository. Use the real branch name. Never rewrite a recorded baseline after workers or reviews exist.
+A feature needs a reviewed committed base before the builder. Include an exact-path/content baseline proposal in the specification offer at gate 1; commit it only after go ahead and if unchanged, without another baseline approval. Do not run blanket staging, discard changes, invent a remote or create another nested repository. Use the real branch name. Never rewrite a recorded baseline after workers or reviews exist.
 
 ## /factory is not visible
 
@@ -80,7 +80,7 @@ Do not bypass a denial, accept unsupported evidence, weaken lint rules or use pr
 
 Preserve the session UUID, invocation evidence and lock. A timeout does not prove a process stopped. Use supported process/session evidence to determine whether it is still running before any resume. Do not start a replacement builder, fork the session or silently steal ownership.
 
-If continuation is uncertain, present the exact recovery decision. If existing explicit authorization already covers the proven safe continuation, do not ask for the same permission again. Record the resumed turn separately and keep unknown usage for the interrupted invocation.
+If continuation is uncertain, report a concrete blocked/recovery condition. Reconcile process/session evidence and continue safely within approved scope without another approval. Changed scope/permissions returns to specification gate 1; never use a generic approval to replace an uncertain worker or bypass host controls. Record the resumed turn separately and keep unknown usage for the interrupted invocation.
 
 ## A second native review spawn is rejected
 
@@ -90,11 +90,19 @@ Do not reuse the old verdict or the whole session's cumulative usage. Wait for a
 
 ## A valid human approval is rejected, or a vague approval is accepted
 
-`factory approve <job-id>` opens the review only. Merging needs `factory approve <job-id> --commit <full-reviewed-SHA>` from the actual human message in the owning current session/turn. The generated parser must support ordinary spaces/tabs and the installed skill prefix.
+There are two phrases: go ahead approves the currently displayed specification at awaiting-spec-approval; merge code approves the currently displayed eligible result at awaiting-merge-approval. Use the whole actual human message in the owning current session/turn. Normalize case and ordinary spaces/tabs; support exactly one installed factory skill prefix. No typed job ID or SHA is needed: the pending offer binds them internally. `$factory review <job-id>` selects a job and opens evidence without consent. Legacy approve commands are evidence-only/deprecated.
 
-Skill attachments are instructions, not the human approval text. They must not hide a genuine command. Reject attachment-only, stale, quoted, negated, incomplete or wrong-commit commands, and honor a later human refusal.
+Skill attachments are instructions, not human approval text. They must not hide a genuine phrase. Reject attachment-only, stale/replayed, quoted, negated, extra-prose, wrong-stage, ambiguous-job or model-generated messages/stdin, and honor a later actual refusal. Bind the original human event/session/turn to the most recently displayed unchanged offer. Consume it once, including across restarts.
 
-Fixing the parser must not weaken commit, report, validation or provenance checks. Review changed approval infrastructure independently, preserve the failed attempt and ask the human to review the concrete eligible commit when fresh consent is required.
+Fixing the parser must not weaken commit, report, validation or provenance checks. Revalidate the exact source/target/spec/contract/infrastructure/evidence immediately before merging; changed evidence invalidates consent and requires affected checks/reviews plus a fresh gate-2 offer. Review changed approval infrastructure independently and preserve the failed attempt. ESCALATE, failed reviews or incomplete docs cannot be overridden by merge code.
+
+## The factory asks for approval again and again
+
+Check whether the message comes from the factory workflow or the host/provider tool permission system. The factory has only two approval states: specification (go ahead) and eligible merge (merge code). After gate 1, routine implementation, documentation, tests, worker launches and in-scope review fixes use existing authorization. Store one pending offer and request it once; polling, resume, compaction and unchanged worker transitions must not produce another prompt.
+
+A changed specification, new scope/permissions or requested budget increase returns to gate 1. Changed code/docs/target/evidence requires revalidation and a fresh gate-2 offer. These are the same two gates, not additional approval stages. Exhausted review rounds or uncertain recovery show concrete blockers; explicit in-scope rework is a continuation instruction. Host/OS/sandbox/provider permissions remain separate: prepare supported scoped grants from approved scope, preserve deny rules and never suppress required security prompts.
+
+After a successful merge, show the actual target branch, latest commit, changed files/code diff, both guide links and post-merge check results. Missing or failed evidence stays visible rather than being turned into another generic approval request or a false success.
 
 ## Dashboard still shows old failures or no jobs
 
@@ -134,11 +142,11 @@ State which checks actually ran. HTTP responses, synthetic DOM fixtures, code re
 
 Use an already accepted alternative evidence rule when it applies. If the frozen specification requires real browser verification and no alternative was agreed, identify that unmet requirement. Do not repeatedly request a waiver already present in the specification or claim unperformed browser checks.
 
-## Documentation is missing, stale or written after approval
+## Documentation is missing, stale or written after merge approval
 
 The documentation-writer role runs after implementation and before checkpointing. Confirm it exists in central routing and explicit agent loading, has only the assigned application documentation write paths, and completed with the actual Sonnet model. The factory has ten roles and five independent reviewers.
 
-A factory documentation.md report is not a substitute for the app's developer documentation and end-user manual. Check the frozen documentation_plan for both deliverables, assigned paths/coverage/checks, the final combined commit, allowed doc-only diff, recorded standards sources/dates and executed checks. Each guide needs a distinct entry page linked from the application README/navigation, plus separate coverage and COMPLETE/CHANGES evidence in the report. A no-impact result needs concrete existing coverage for both. Missing, incomplete or stale required content in either guide blocks approval.
+A factory documentation.md report is not a substitute for the app's developer documentation and end-user manual. Check the frozen documentation_plan for both deliverables, assigned paths/coverage/checks, the final combined commit, allowed doc-only diff, recorded standards sources/dates and executed checks. Each guide needs a distinct entry page linked from the application README/navigation, plus separate coverage and COMPLETE/CHANGES evidence in the report. A no-impact result needs concrete existing coverage for both. Missing, incomplete or stale required content in either guide blocks merge approval.
 
 Developer documentation must explain how another developer understands, runs and maintains the app. The end-user manual must explain actual user tasks in plain language with prerequisites, steps, expected results and error recovery. Check instructions against implemented screens/commands and permissions; a list of features or source files alone is insufficient. The dashboard should expose both safe entry links and separate statuses, with the writer's report separately labelled.
 
@@ -168,7 +176,7 @@ Separate controller attempts from the provider's observable internal retries. De
 
 Budget policy defaults to no invented token/USD limit. When configured, evaluate it before new model dispatch, showing measured/estimated/unknown amounts and current completeness. Unknown cost must not be converted to zero to authorize more calls. Exhaustion blocks new dispatch while preserving sessions, artifacts and spend history. Collecting existing receipts must remain possible without a new model call.
 
-A real human-authorized budget increase is recorded without resetting spend, retry count or history. A local dispatch threshold cannot guarantee an exact total-spend ceiling for in-flight requests or delayed metadata. Do not claim hard dollar enforcement unless a provider/runtime mechanism was verified. Host permissions, documentation/review requirements and exact-commit merge approval still apply.
+A requested budget increase revises the specification at gate 1 and is authorized by go ahead for that displayed revision, without resetting spend, retry count or history. A local dispatch threshold cannot guarantee an exact total-spend ceiling for in-flight requests or delayed metadata. Do not claim hard dollar enforcement unless a provider/runtime mechanism was verified. Host permissions, documentation/review requirements and the internally bound merge code gate still apply.
 
 ## A reusable starter would overwrite files or includes private state
 

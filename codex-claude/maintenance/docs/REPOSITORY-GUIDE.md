@@ -2,7 +2,7 @@
 
 Shared maintainer reference. Commands below run from the prompt repository root. New users should start at the [edition chooser](../../../README.md); this material is optional for following an edition's generation prompt.
 
-Generation prompts for a small software factory: specify a feature and documentation plan, build it, write developer documentation and an end-user manual, wait for five independent reviews of the combined commit, and ask a human before merging. All three editions define ten roles. The generated dashboard shows progress, separate guide completion/links, observed tokens, and estimated USD costs.
+Generation prompts for a small software factory with two approval gates: specify a feature and both documentation plans, wait for the human's go ahead, build it, write developer documentation and an end-user manual, complete five independent reviews of the combined commit, then wait for merge code on the displayed eligible result. All three editions define ten roles. The factory binds that phrase to the commit internally and shows the latest merged branch/commit, code diff and post-merge checks. The dashboard shows progress, both approval states, separate guide completion/links, observed tokens, and estimated USD costs. Routine in-scope work needs no further factory approval; host/tool permissions remain separate.
 
 This repository contains prompts and a connection checker. **Cloning it does not install or start a generated factory.** Generate one in your own application repository.
 
@@ -18,7 +18,11 @@ flowchart LR
     Checks --> Generate[Generate in your application repo]
     Generate --> Live[Check providers from factory execution environment]
     Live --> Gate{Exact models and builder resume work?}
-    Gate -->|Yes| Feature[Spec and docs plan → Build → Both guides → Five reviews → Human approval]
+    Gate -->|Yes| Spec[Specification and both docs plans]
+    Spec --> First["Gate 1: go ahead"]
+    First --> Work[Build, both guides, checks and five reviews]
+    Work --> Second["Gate 2: merge code after valid APPROVE"]
+    Second --> Latest[Merge and show latest code/checks]
     Gate -->|No| Block[Show error and scoped recovery instructions]
 ```
 

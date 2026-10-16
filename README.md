@@ -14,7 +14,7 @@ This repository contains **generation prompts and support tools**. Cloning it do
 
 Each edition documents its actual requirements and features. Provider access and cost depend on your accounts and workload.
 
-All three editions plan and maintain two documentation deliverables: complete developer documentation so another developer can understand, run and maintain the app, and an end-user manual with step-by-step usage instructions. Both are reviewed with the implementation and must be complete and current before approval.
+All three editions plan and maintain two documentation deliverables: complete developer documentation so another developer can understand, run and maintain the app, and an end-user manual with step-by-step usage instructions. Both are reviewed with the implementation and must be complete and current before merge approval.
 
 ## Start in three steps
 
@@ -22,7 +22,7 @@ All three editions plan and maintain two documentation deliverables: complete de
 2. **Copy its complete GENERATION.md** into the indicated coding assistant opened in your own application project.
 3. **Follow the generated factory/README.md**, verify readiness, then submit your first feature.
 
-Keep account credentials out of prompts and Git. A successful file generation or login does not prove a live provider connection or a fully validated feature. Every edition requires independent reviews and human approval before merging.
+Keep account credentials out of prompts and Git. A successful file generation or login does not prove a live provider connection or a fully validated feature. Every edition uses two factory approval gates: **go ahead** after reviewing/editing the specification, and **merge code** after the completed work, both guides and valid passing reviews are shown. Routine in-scope implementation/tests/fixes proceed automatically between them. The factory binds merge consent internally to the displayed commit, merges into the recorded target branch and shows the latest code and check results. Computer/provider tool permissions remain separate.
 
 ## Repository layout
 

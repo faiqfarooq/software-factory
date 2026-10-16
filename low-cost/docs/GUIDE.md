@@ -51,11 +51,30 @@ Assess agreed baseline gaps in both guides on the first feature; later update af
 
 The private documentation.md report identifies implementation and final combined commits, permitted doc-only changes, standards and checks. It records entry pages, coverage, verification evidence/limitations and COMPLETE/CHANGES status separately for both deliverables. Both must be complete and current before overall completion. Verify real writer identity/completion and bind evidence to the commit and spec/contract; a shared Qwen access check is insufficient. The report cannot replace either guide.
 
-Check links and coverage, technical onboarding/API accuracy and user steps against actual screens/commands, roles and behavior. Distinguish executed walkthroughs from source-only checks. All five reviewers inspect the final combined commit: Code/QA check technical accuracy, UX/UI check manual usability/accessibility, and security checks safe configuration, permissions and disclosure in both. Missing, incomplete or stale required content in either guide blocks approval and merge.
+Check links and coverage, technical onboarding/API accuracy and user steps against actual screens/commands, roles and behavior. Distinguish executed walkthroughs from source-only checks. All five reviewers inspect the final combined commit: Code/QA check technical accuracy, UX/UI check manual usability/accessibility, and security checks safe configuration, permissions and disclosure in both. Missing, incomplete or stale required content in either guide blocks merge approval and merge.
 
-Source rework returns to the SAME Kimi builder; documentation findings return to the Qwen writer. Reassess both guides, checkpoint and run all five reviews again, including for documentation-only fixes. Writers stay idle during review; no docs are added after approval. Track documentation runs/revisions separately in usage.
+Source rework returns to the SAME Kimi builder; documentation findings return to the Qwen writer. Reassess both guides, checkpoint and run all five reviews again, including for documentation-only fixes. Writers stay idle during review; no docs are added after merge approval. Track documentation runs/revisions separately in usage.
 
 For an existing budget factory, have its owner upgrade role routing/loading, contracts, scoped tools/permissions, stage transitions, per-deliverable evidence, accounting, dashboard publication and review/approval gates together. Preserve jobs, sessions and history. Legacy completion alone is insufficient; active frozen contracts need an explicit scope update and fresh validation/reviews without rewriting past approvals.
+
+## Two approvals per feature
+
+The factory pauses for approval at two stages:
+
+| Stage | What you review | What you type |
+| --- | --- | --- |
+| Specification | Scope, acceptance criteria, both documentation plans, actual target branch, any baseline proposal, permissions and proposed costs/budget policy. Request edits until it is right. | go ahead |
+| Merge | Completed work, both guides, validation, five passing reviews, approver recommendation, target branch and full reviewed commit. | merge code |
+
+Type the phrase as your entire message in the owning chat or the generated runner's supported human-interactive session. These phrases are not standalone PowerShell commands. You do not need to type a job ID or commit SHA: the factory internally binds consent to the current displayed job/offer. Viewing evidence or typing a legacy approve command does not authorize implementation or merge.
+
+Between these gates, implementation, documentation, tests and in-scope review fixes run automatically. A changed specification, extra spending or new authorized scope returns to the first gate; routine corrections do not. Host, sandbox and provider tool permissions remain separate and cannot be bypassed by factory consent. Unresolved checks/recovery or exhausted review rounds show a blocker rather than another generic approval prompt; explicit in-scope rework is an instruction to continue that job.
+
+Only APPROVE plus all required valid evidence permits a merge offer; ESCALATE, failed reviews or incomplete docs stay blocked. A changed source/docs/target/evidence invalidates the displayed offer; affected checks/reviews and a fresh merge code are required at the same second gate. Refusal, wrong-stage, quoted, stale or agent-generated messages cannot approve anything. The factory asks once per unchanged offer, including across polling/resume, and consumes each human event once.
+
+After merging into the recorded target branch, show its latest commit, changed files/code diff, both guide links and actual post-merge checks, plus an existing authorized local preview when available. Preserve failures accurately. Merge consent alone does not authorize push or deployment.
+
+Existing generated factories need their owner to migrate gate states, spec/merge receipts, commands, human-input validation and dashboard views together, preserving jobs/sessions/history. Old consent is historical evidence and cannot approve a new offer.
 
 ## How it works
 
@@ -63,21 +82,24 @@ For an existing budget factory, have its owner upgrade role routing/loading, con
 flowchart TD
     Feature["Feature request"] --> Inspect["Inspect repository"]
     Inspect --> Spec["Qwen specification and plan for both guides"]
-    Spec --> Permission["Permission check"]
-    Permission --> Build["Builder: Kimi K3"]
+    Spec --> SpecApproval["Gate 1: go ahead"]
+    SpecApproval -->|Request spec changes| Spec
+    SpecApproval -->|Approved scope| Build["Builder: Kimi K3"]
     Build --> Docs["Qwen: developer docs and end-user manual"]
     Docs --> Checkpoint["Checkpoint combined code and docs"]
     Checkpoint --> Reviews["Five independent reviews"]
     Reviews --> Wait["Wait for all five reports"]
     Wait --> Approver["Approver: Qwen3.8 Max"]
-    Approver --> Human["Human approval required"]
+    Approver -->|APPROVE and valid evidence| Human["Gate 2: merge code"]
+    Approver -->|ESCALATE| Blocked["Blocked: resolve findings"]
     Human --> Merge["Merge reviewed code"]
+    Merge --> Latest["Show latest commit, diff, guides and post-merge checks"]
 
     classDef human fill:#fff3cd,stroke:#b7791f,color:#422006;
-    class Permission,Human human;
+    class SpecApproval,Human human;
 ```
 
-The DeepSeek orchestrator coordinates every stage. It requests additional permission before implementation when necessary.
+The DeepSeek orchestrator coordinates every stage. The specification includes proposed permissions/costs; your go ahead authorizes its scope before implementation. Host/tool permissions remain separate from factory approval.
 
 ## Review and rework loop
 
@@ -100,14 +122,15 @@ flowchart TD
 
     Wait --> Verdict{"All reviews PASS?"}
     Verdict -->|Yes| Approver["Qwen approver"]
-    Approver --> Human["Human review"]
-    Human -->|Approve eligible job| Merge["Merge"]
+    Approver -->|APPROVE and valid evidence| Human["Gate 2: merge code"]
+    Approver -->|ESCALATE| Feedback["Blocked: resolve findings"]
+    Human -->|merge code| Merge["Merge into target branch and show latest code"]
     Human -->|Request rework| Rework["Same builder or docs writer as appropriate"]
 
     Verdict -->|No| Budget{"Another round available?"}
     Budget -->|Yes| Rework
-    Budget -->|No: two rounds used| Feedback["Human feedback required"]
-    Feedback -->|Explicit rework: new attempt| Rework
+    Budget -->|No: two rounds used| Feedback
+    Feedback -->|Explicit in-scope rework: new attempt| Rework
     Rework -->|Source changes| Builder
     Rework -->|Docs only| Docs
 ```
@@ -239,11 +262,13 @@ The generated runner should support:
 ```powershell
 python factory/run.py new "Describe your feature"
 python factory/run.py next
-python factory/run.py approve <job-id>
+python factory/run.py review <job-id>
 python factory/run.py rework <job-id> "Describe the changes"
 ```
 
 If an existing factory requires a separate profile or directory, follow the generated instructions for its actual command paths.
+
+The runner must provide a supported human-interactive owner session, including a documented continuation command if needed. When it presents the specification offer, type go ahead there; when it presents the eligible merge offer, type merge code there. They are interactive responses, not standalone PowerShell commands or model-generated stdin. review selects a job and displays evidence/current offer without granting consent. Legacy approve commands cannot merge. If genuine human-input provenance cannot be established, the gate stays blocked.
 
 ## Contributing
 

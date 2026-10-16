@@ -37,7 +37,7 @@ git status --short
 
 Expected: the intended application folder, its Git root and its existing changes. Do not use `codex .` as a directory selector. If the app is nested inside a larger workspace, the generator must select the application Git root and keep factory ownership in the workspace.
 
-A feature needs a committed base. If the app has none or contains uncommitted work, have the generator prepare an explicit baseline proposal for your review. Do not blanket-stage, discard or stash existing work. Git remotes are not required for local features, and the generator must discover the actual target branch instead of assuming main.
+A feature needs a committed base before the builder. If the app has none or contains uncommitted work, include an exact-path/content baseline proposal in the specification approval at gate 1; do not ask for another baseline approval. Commit it only after go ahead and only if unchanged. Do not blanket-stage, discard or stash existing work. Git remotes are not required for local features, and the generator must discover the actual target branch instead of assuming main.
 
 If this application already has a factory, use its recorded owner and upgrade instructions. Do not overwrite jobs, replace its owner or generate a second active builder.
 
@@ -123,21 +123,29 @@ $factory Add an accessible settings screen
 
 In Claude Code, `/factory Add an accessible settings screen` forwards to Codex. Do not open another active orchestrator while the owner is running. If the skill is not discovered, follow the generated refresh/resume instructions; typing ordinary feature chat is not guaranteed to invoke it.
 
-The workflow uses all ten roles in stages: specification and documentation plan, implementation, developer documentation and end-user manual, five independent reviews, approver recommendation, then human review. The builder works on an isolated feature branch. Before implementation, the specification plans coverage, paths and verification for both guides. After implementation, the Sonnet documentation writer completes them and links both from the app README before checkpointing. Source revisions preserve the builder session and refresh affected docs; the combined commit receives a new complete review round.
+The workflow uses all ten roles with two factory approval gates. First the specification shows scope/acceptance criteria, both documentation plans, actual target branch, any baseline proposal, permissions and proposed costs/budget policy. Request changes until it is right, then send this whole message in the owning Codex chat:
+
+~~~text
+go ahead
+~~~
+
+No builder or baseline commit starts before that approval. Implementation, both guides, tests, five independent reviews and in-scope fixes then run without further factory approval prompts. The builder works on an isolated feature branch; the Sonnet documentation writer completes both guides before checkpointing. Source revisions preserve the builder session and refresh affected docs; the combined commit receives a new complete review round. New scope/permissions or extra spending returns to the same specification gate. Host/tool permission prompts remain separate.
 
 Review the evidence first:
 
 ~~~text
-$factory approve <job-id>
+$factory review <job-id>
 ~~~
 
-That command does not merge. Only after reviewing the reports and full commit, send:
+That command selects the job and opens evidence; it does not approve anything. Once all five reviews PASS, both guides/checks are current and the approver recommends APPROVE, the owner shows one pending merge offer with the completed work, guide/report links, target branch and full reviewed commit. To merge that displayed result, send:
 
 ~~~text
-$factory approve <job-id> --commit <full-reviewed-SHA>
+merge code
 ~~~
 
-Use the actual job and full reviewed commit. Changes to the feature, target branch, spec or required evidence invalidate the old approval. Rework uses `$factory rework <job-id> <note>`. Push and deployment require separate authorization.
+You do not type a job ID or SHA; the factory binds this human message internally to the displayed job, reviewed commit, target and evidence. The supported $factory prefix is optional for both phrases. Legacy approve commands are evidence-only/deprecated. Refusal, quoted/stale/wrong-stage messages and agent/tool output cannot approve anything. Changes to source/docs/target/evidence invalidate the offer and require affected checks/reviews plus a fresh gate-2 offer; changed scope/contract returns to gate 1. Rework uses `$factory rework <job-id> <note>`; in-scope corrections need no new specification approval. ESCALATE/unresolved evidence remains blocked, not merge-ready.
+
+The owner asks once per unchanged offer, including across polling/resume, and consumes each human event once. After merging into the recorded target branch, it shows the latest commit, changed files/code diff, both documentation links and actual post-merge check results, plus an existing authorized local preview if available. No automatic push or deployment follows merge consent.
 
 ## Documentation produced for your app
 
@@ -148,7 +156,7 @@ After the builder completes implementation, documentation-writer (Claude Sonnet 
 
 The first run assesses baseline gaps in both guides; later runs update affected pages and verify unchanged coverage remains accurate. Preserve existing docs locations; when none exist, use docs/developer/README.md and docs/user-manual/README.md. The application README and docs navigation must link to both. The specification and contract's documentation_plan defines each guide's coverage, paths and verification before implementation.
 
-Review the generated documentation report with the source changes. It lists the implementation input commit, final combined commit, changed pages, standards references with observation dates, actual validation results and remaining limitations. It records entry pages, coverage and COMPLETE/CHANGES status separately for developer_documentation and end_user_manual. The Documentation dashboard and job detail expose both guides with separate statuses and safe links. The factory must verify a real writer invocation and require both guides to be complete and current before approval.
+Review the generated documentation report with the source changes. It lists the implementation input commit, final combined commit, changed pages, standards references with observation dates, actual validation results and remaining limitations. It records entry pages, coverage and COMPLETE/CHANGES status separately for developer_documentation and end_user_manual. The Documentation dashboard and job detail expose both guides with separate statuses and safe links. The factory must verify a real writer invocation and require both guides to be complete and current before merge approval.
 
 No extra unique model check is required just because this role also uses Sonnet. Scoped file access, execution and documentation accuracy still need evidence. When applying this change to an existing factory, its owner must migrate documentation-plan contracts, writer instructions, permissions, per-deliverable evidence, review/approval gates and dashboard publication together while preserving existing jobs and history. Legacy completion alone is insufficient. Frozen active contracts need an explicit scope update and fresh validation/reviews; past approvals must not be rewritten.
 
@@ -161,7 +169,7 @@ No extra unique model check is required just because this role also uses Sonnet.
 | Local prerequisites | Required programs, baseline and effective permissions are available. |
 | Live models | Real responses report the assigned exact models in the factory environment. |
 | Builder resume | The initial diagnostic succeeded and its same session resumed. |
-| Full feature validation | Real implementation, complete current developer documentation and end-user manual, acceptance checks, five same-commit reviews, approver and exact human approval; post-merge results recorded. |
+| Full feature validation | Approved specification via go ahead, real implementation, both complete current guides, acceptance checks, five same-commit reviews, approver APPROVE and merge code bound internally to the displayed result; latest merged code and post-merge results recorded. |
 
 Rendered UI and keyboard checks need real browser evidence where required. HTTP 200, source inspection and synthetic DOM tests must be labelled accurately. Setup alone cannot claim a fully validated feature.
 
@@ -177,4 +185,4 @@ A reusable starter is exported only from validated, sanitized generated files. V
 
 ## Updating an existing factory
 
-Updating this prompt package does not patch a previously generated runtime. Ask its existing owner to apply the updated setup, efficiency and recovery requirements to that runtime while preserving job history, approvals, sessions and usage. Recheck changed behavior and publish current readiness without rewriting historical failures.
+Updating this prompt package does not patch a previously generated runtime. Ask its existing owner to migrate the two approval states, pending-offer schemas, spec/merge receipts, skills/commands, human-input validation and dashboard views, along with updated setup/efficiency/recovery requirements. Preserve job history, approvals, sessions and usage. Old receipts cannot authorize a new offer; collect any missing current go ahead or merge code at its proper gate. Recheck changed behavior and publish current readiness without rewriting historical failures.

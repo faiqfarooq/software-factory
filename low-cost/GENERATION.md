@@ -93,6 +93,7 @@ factory/
     request.md
     spec.md
     spec-contract.json
+    spec-approval.md
     build.md
     documentation.md
     round-1/
@@ -132,13 +133,13 @@ Before starting workers, write repo-context.md with:
 
 If no application or tests exist, say so rather than inventing commands.
 
-The feature request authorizes routine implementation on its feature branch. Ask before actions requiring additional authorization, including destructive changes, production access, deployment, external publication, or spending beyond the authorized model usage.
+The feature request authorizes preparation/specification. Include concrete scope, baseline proposal if needed, costs and required permissions in gate 1; go ahead authorizes implementation on the feature branch within that scope. Newly needed destructive changes, production access, deployment, publication or extra spending return to gate 1, not another factory approval stage. Preserve independent host/tool permission controls.
 
 Use environment variables or a supported secrets mechanism for credentials. Provide placeholders in .env.example. Do not commit secrets, personal session transcripts, or private job data.
 
 ## Workflow
 
-Feature → specification and documentation plan → permission check → builder → developer documentation and end-user manual → checkpoint → five independent reviewers → approver → human approval → merge.
+Feature → specification and documentation plan → human go ahead → builder → developer documentation and end-user manual → checkpoint → five independent reviewers → approver → human merge code → merge and show latest code.
 
 The spec writer freezes scope, testable acceptance criteria, permission requirements, exact validation commands and a documentation_plan in spec.md and spec-contract.json before implementation. The plan has two required entries: developer_documentation and end_user_manual. Each records audience, entry page, assigned pages/write paths, required topics and workflows, existing coverage/gaps, feature impact and exact verification commands or manual checks. Both guides are mandatory; justified not-applicable individual topics do not waive either. Scope changes require an explicit contract update and affected revalidation.
 
@@ -150,6 +151,30 @@ Workers receive context from files. They write only their own reports. The build
 
 Only the orchestrator writes board.json and normalized usage aggregates. Save state atomically and prevent concurrent orchestrators from modifying the same board.
 
+## Two workflow approval gates
+
+Use exactly two factory workflow approval stages: awaiting-spec-approval and awaiting-merge-approval. Preparation and specification writing may run from the feature request; do not launch the builder, change application code or commit a proposed baseline before specification approval. After that approval, routine implementation, both documentation guides, tests, five independent reviews and in-scope fixes proceed without additional factory approval prompts. Operational blockers are not extra approval stages and cannot be bypassed by approval language.
+
+Gate 1 reviews the specification and documentation plans; completed implementation, finished guides and passing feature reviews are not prerequisites for go ahead. Those completion requirements apply only to merge eligibility at gate 2. In workers, "approved specification" authorizes building and documenting, while "merge-approved commit" freezes the final result; never confuse these two receipts.
+
+At gate 1, display the current job, specification/acceptance criteria, both documentation plans, repository and actual target branch, exact baseline proposal if needed, scoped commands/permissions and proposed costs/budget policy. Persist a pending specification offer bound to its spec/contract and baseline content hashes. Enter awaiting-spec-approval and ask once for go ahead or requested specification changes. Only a genuine current human message consisting of go ahead approves that displayed specification. Requested changes revise it and produce a new offer at this same gate. Freeze and record the approved spec/contract hashes, scope, permissions and budget policy in spec-approval.md before dispatch; an approved baseline proposal may then be committed with exact assigned paths and recorded provenance. Reuse existing sufficient consent; do not ask for each edit, test, worker launch or review correction.
+
+New scope, destructive/production/publication/deployment access, extra spending or changed authorized permissions must be made concrete in a revised specification and return to gate 1 before the affected action. Budget exhaustion/unknown enforcing usage blocks new dispatch; a requested limit increase is a specification revision approved here, preserving prior spend. Host/OS/sandbox/provider tool permissions remain independent: use supported scoped grants where available, preserve denials and never suppress security prompts or claim that go ahead overrides them. A merge does not itself authorize push or deployment.
+
+At gate 2, require complete current developer documentation and end-user manual, successful required validation, all five valid same-round/same-commit PASS reports and the approver's APPROVE recommendation. ESCALATE or unresolved evidence stays blocked; it cannot become merge-ready. Show one current job's completed-work summary, guide/report links, validation results/limits, target branch and full reviewed commit. Persist a single pending merge offer bound to owner/job, repository/branch, source and target commits, approved spec/contract, infrastructure and all required evidence hashes; record when this exact offer was shown. Enter awaiting-merge-approval and ask once for merge code. The human does not need to type a job ID or SHA. Viewing reports, an agent recommendation, go ahead, legacy approve commands or generating a CLI invocation never authorizes merging.
+
+Accept go ahead only at gate 1 and merge code only at gate 2 from supported actual-human input in the owning chat or documented interactive runner. When a supported factory skill prefix is present, remove exactly that one prefix after validating the original human message; it must not select another owner or job. Normalize case and ordinary spaces/tabs around/between words; require the whole message to contain only the phrase. Reject negation, quotes/code blocks, extra prose, attachments, copied logs, agent/tool output, model-generated stdin, stale/replayed messages, wrong-stage phrases, ambiguous jobs and missing human provenance. A later actual refusal revokes pending consent. Trusted receipt context must bind the human message/event ID and session/turn to the most recently displayed unchanged offer; never trust user-shaped attachment fields. Keep approval receipts private and expose only sanitized summaries.
+
+Immediately before merging, atomically revalidate the pending offer, human consent, source/target commits, clean trees, spec/contract, required permissions, successful checks, both guides, all five current reports and approver. Consume consent once and keep repeated handling of the same human event idempotent, including across restarts. No validation-to-merge race or approval carryover to another job, commit or branch. Changed source/docs/target/evidence invalidates the merge offer and consent; rerun affected checks/reviews and present a fresh gate-2 offer without treating an earlier merge code as approval. A scope/contract change also returns to gate 1. Never silently alter evidence to preserve eligibility or let changed gate code approve itself.
+
+Merge fast-forward only into the recorded target branch, run required post-merge checks and show the latest merged code: target branch, full resulting commit, changed files and a bounded code diff with a full diff link/path, both documentation links and actual post-merge results. Show the existing authorized local preview link when available; do not invent a deployment. Report conflicts, dirty targets and failed post-merge checks accurately, preserving work without an automatic reset, push or deployment.
+
+Persist the two gate states, pending offers and separate spec-approval.md/approval.md receipts alongside job history. Dashboard/job views distinguish Awaiting specification approval, Running, Blocked and Awaiting merge approval, with the currently displayed offer and latest merged result. A blocked job or needs-human after two review rounds is an evidence/rework state, not a third approval prompt; explicit in-scope rework resumes the same writers without another go ahead. Interrupted sessions require process/session reconciliation, never replacement workers or lock stealing; report unresolved recovery without inventing successful completion or fresh consent. Publish an approval request once per unchanged offer, not on every poll, resume, compaction or worker transition.
+
+For existing factories, version and migrate state/contract schemas, skills/runner commands, human-input validation, role tasks, receipts, gate enforcement and dashboard views together. Preserve jobs, sessions, usage and old receipts as history. Do not treat legacy spec work as approved or old merge commands as new consent: present any missing current gate offer and collect the corresponding phrase. Do not regenerate an active factory or silently rewrite prior approvals.
+
+Generate isolated offline behavior tests for no builder/baseline writes before gate 1; specification edits and scope/budget revisions invalidating consent; automatic in-scope implementation/docs/tests/review fixes without extra prompts; both gate states and dashboard offers; exact phrases with case/space handling; refusal, quoted/stale/agent/stdin/attachment and wrong-stage rejection; ambiguous jobs and unavailable provenance; full internal commit/evidence binding without human-entered SHA; ESCALATE, failed/missing reviews or incomplete docs blocking merge; source/target/spec/infrastructure drift and validation-to-merge races; once-only event consumption, replay/restart/poll deduplication; legacy-command migration; and accurate post-merge latest-code/check reporting. Fixtures must not invoke providers, merge real jobs or fabricate usage.
+
 ## Builder continuity
 
 Name the builder builder-<job-id>.
@@ -160,7 +185,7 @@ Use a supported native session-resume mechanism if available. Otherwise restore 
 
 Do not claim a native SendMessage capability unless the chosen runtime supports it. Implement and document the provider-adapter equivalent.
 
-Never silently replace the builder or discard its history. If recovery fails, pause for an explicit recovery decision.
+Never silently replace the builder or discard its history. Reconcile process/session evidence before safe in-scope continuation; if recovery fails, report a concrete blocker without adding a generic approval stage. New scope or permissions return to gate 1; host controls still apply.
 
 ## Application documentation after implementation
 
@@ -177,7 +202,7 @@ Grant only contract-assigned README/docs/API-reference writes, explicit document
 
 Run applicable acceptance/documentation checks on the final clean combined commit. Verify required coverage, README/navigation links to both entries, case-correct links/anchors, examples and safe placeholders. Compare APIs with source/schema and user steps with actual screens/commands, permissions and behavior. Label executed walkthroughs separately from source-only checks. Execute examples only in authorized isolated environments; required unverified checks remain unresolved. Code/QA review developer onboarding and technical accuracy; UX/UI review manual usability, navigation, task steps and accessibility; security checks safe configuration, permissions, examples and disclosure in both. The author is not a sixth independent reviewer.
 
-Keep the builder and documentation writer idle during reviews. Wait for all five valid reports before rework, then send source findings to the SAME builder and documentation findings to their author through the supported provider adapter. Reassess both guides after source changes, checkpoint the final result and run all five reviews again, including after documentation-only fixes. Preserve the two-round limit. No frozen-tree edits during review or after approval. Record documentation invocations and revisions separately in usage; preserve supported writer history when safely resuming and never infer completion from a shared Qwen access check.
+Keep the builder and documentation writer idle during reviews. Wait for all five valid reports before rework, then send source findings to the SAME builder and documentation findings to their author through the supported provider adapter. Reassess both guides after source changes, checkpoint the final result and run all five reviews again, including after documentation-only fixes. Preserve the two-round limit. No frozen-tree edits during review or after merge approval. Record documentation invocations and revisions separately in usage; preserve supported writer history when safely resuming and never infer completion from a shared Qwen access check.
 
 For an existing budget factory, upgrade role routing/loading, documentation-plan contracts, scoped tools/permissions, stage transitions, per-deliverable evidence, accounting, dashboard publication and review/approval gates together. Preserve jobs, sessions and history. Legacy completion alone does not prove both guides exist. Active frozen contracts need an explicit scope update and fresh validation/reviews; do not silently rewrite contracts or past approvals.
 
@@ -205,13 +230,13 @@ Allow two review rounds per attempt. Unresolved changes then move the job to nee
 
 After all five reviewers PASS and both documentation deliverables are complete and current for the combined commit, Qwen3.8 Max writes decision.md beginning with APPROVE or ESCALATE.
 
-Both decisions lead to human review. Agent approval alone never authorizes merging.
+Only APPROVE permits a gate-2 merge offer; ESCALATE remains blocked for correction or scope revision. Agent approval alone never authorizes merging.
 
-Require explicit human approval for the exact reviewed commit. A changed feature branch or main branch requires fresh validation and reviews.
+Accept merge code only from genuine supported human input for the current eligible displayed offer, internally bound to the exact reviewed commit and actual target branch. Changed source/docs/target requires fresh affected validation/reviews and a new gate-2 offer; scope changes also return to gate 1.
 
-Immediately before merge, revalidate the reviewed commit, spec/contract, both guides' completion evidence, reviews, checks and human consent. Missing, incomplete or stale required content in either guide blocks approval and merge.
+Immediately before merge, revalidate the reviewed commit, spec/contract, both guides' completion evidence, reviews, checks and human consent. Missing, incomplete or stale required content in either guide blocks merge approval and merge.
 
-Merge only eligible jobs after human approval and required checks. Report conflicts or failed post-merge checks accurately. Do not automatically push, deploy, reset, or discard changes.
+Merge only eligible jobs after human merge approval and required checks. Report conflicts or failed post-merge checks accurately. Do not automatically push, deploy, reset, or discard changes.
 
 ## Commands
 
@@ -219,12 +244,12 @@ Implement and document:
 
 - new <feature>
 - next
-- approve <job-id>
+- review <job-id> (select job and show evidence/current gate offer; no approval or merge)
 - rework <job-id> <note>
 
 Use a concrete runner interface such as python factory/run.py <operation>. Document any directory or profile options actually implemented.
 
-The dashboard displays state; human approval occurs through the runner or its documented interactive interface.
+The runner must support an owning interactive session for human go ahead at gate 1 and merge code at gate 2; document its actual human-input mechanism and continuation command. These phrases are interactive input, not standalone PowerShell commands. A model-generated CLI argument or stdin pipe is not proof of human consent; if the runtime cannot establish genuine human provenance, leave approval blocked. Legacy approve commands are evidence-only/deprecated and cannot bypass either gate. The dashboard displays saved state; viewing it never authorizes implementation or merge.
 
 ## Token and cost accounting
 
@@ -299,7 +324,7 @@ Keep the original factory comparison only in that README. Use sourced pricing, e
 
 Validate model routing, tool execution, persisted builder continuation, file ownership, all-five review gates, two-round limits, human approval, JSON, dashboard behavior, and relevant repository checks.
 
-Generate offline fixture tests for ten-role routing and writer permissions, documentation_plan coverage for both deliverables, docs-before-checkpoint ordering, allowed doc-only diff/ancestry, per-deliverable completion binding and missing/incomplete/stale content blocking approval/merge. Cover no-change evidence for both, README/navigation links, technical onboarding and user-task verification, source-change invalidation, documentation-only rework with five fresh reviews, separate documentation usage/dashboard entries and upgrades rejecting unsupported legacy completion. These generated-runtime requirements are distinct from this prompt repository's tests.
+Generate offline fixture tests for ten-role routing and writer permissions, documentation_plan coverage for both deliverables, docs-before-checkpoint ordering, allowed doc-only diff/ancestry, per-deliverable completion binding and missing/incomplete/stale content blocking merge eligibility. Cover no-change evidence for both, README/navigation links, technical onboarding and user-task verification, source-change invalidation, documentation-only rework with five fresh reviews, separate documentation usage/dashboard entries and upgrades rejecting unsupported legacy completion. These generated-runtime requirements are distinct from this prompt repository's tests.
 
 Test accounting deduplication, counter resets, cache/reasoning overlap, peak/off-peak rates, region selection, missing pricing, historical rates, and total reconciliation.
 
@@ -307,4 +332,4 @@ Clearly label synthetic fixtures. Separate offline tests from authorized live pr
 
 Ship an empty public board and ledger. Keep private session history and credentials excluded from Git.
 
-Finish with created files, actual validation results, unresolved requirements, and exact startup commands. Ask before pushing or merging.
+Finish with created files, actual validation results, unresolved requirements, and exact startup commands. Explain go ahead and merge code as the only factory approval gates; setup alone must not start a feature, merge, push or deploy.

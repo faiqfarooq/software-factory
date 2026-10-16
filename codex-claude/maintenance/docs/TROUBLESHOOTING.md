@@ -53,6 +53,8 @@ Use quoted paths in PowerShell and open the coding assistant in the actual appli
 
 A generated feature needs a real Git root and committed base for isolated worktrees. Detect a missing base before dispatching workers and explain how to create it while preserving existing changes. Do not create commits or change remotes silently.
 
+Include an exact-path/content baseline proposal in specification gate 1 when needed, and commit only that unchanged proposal after go ahead. All three editions have two factory approval gates: go ahead for the displayed specification and merge code for the displayed eligible result. Routine in-scope work reuses authorization; host/provider tool permission prompts remain independent. The factory binds merge consent internally to the shown commit/branch/evidence rather than requiring a typed SHA, then shows the latest merged code and actual post-merge checks. Preserve pending offers/receipts across polling/resume so unchanged state does not repeatedly ask for approval.
+
 ## Reporting an issue
 
 Include runtime versions, the check's timestamp and environment label, requested/reported model, exit status, session-match status, sanitized error category or HTTP status, and whether the same adapter succeeds outside the factory. Exclude account identities, keys, authorization headers, raw transcripts, and `.local` files. Paste a redacted summary rather than uploading all diagnostics.

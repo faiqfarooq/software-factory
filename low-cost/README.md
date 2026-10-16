@@ -23,9 +23,11 @@ The assistant generates the files; the configured DeepSeek orchestrator runs the
 
 ## What this edition requests
 
-Specification and documentation plan → implementation → developer documentation and end-user manual → checkpoint → five independent reviews → approver → human approval → merge.
+Specification and documentation plan → your go ahead → implementation → developer documentation and end-user manual → checkpoint → five independent reviews → approver → your merge code → merge and show latest code.
 
-The Qwen3.8 Max documentation writer maintains complete developer documentation so another developer can understand, run and maintain the app, plus a plain-language end-user manual with step-by-step usage instructions. Both are planned before implementation, linked from the app README and reviewed on the final combined commit. Missing or stale required content in either blocks approval. The dashboard shows separate guide statuses and links.
+There are two factory approval gates. Review/edit the specification, branch, permissions and proposed costs, then type **go ahead** in the runner's supported human-interactive session. After the completed work, documentation and passing reviews are shown, type **merge code** there. The factory binds it to the displayed commit internally; no typed SHA is needed. Routine in-scope work needs no further factory approval. Host/tool permissions remain separate. See the [two-approval workflow](docs/GUIDE.md#two-approvals-per-feature).
+
+The Qwen3.8 Max documentation writer maintains complete developer documentation so another developer can understand, run and maintain the app, plus a plain-language end-user manual with step-by-step usage instructions. Both are planned before implementation, linked from the app README and reviewed on the final combined commit. Missing or stale required content in either blocks merge approval. The dashboard shows separate guide statuses and links.
 
 ## Costs and capabilities
 

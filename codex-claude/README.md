@@ -29,9 +29,11 @@ The generated Claude /factory launcher forwards to the Codex owner. It does not 
 
 ## What this edition requests
 
-Specification and documentation plan → implementation → developer documentation and end-user manual → checkpoint → five reviews → approver → exact human approval → merge.
+Specification and documentation plan → your go ahead → implementation → developer documentation and end-user manual → checkpoint → five reviews → approver → your merge code → merge and show latest code.
 
-The documentation writer maintains two deliverables: complete developer documentation so another developer can understand, run and maintain the app, and an end-user manual with step-by-step instructions for using it. The specification plans coverage and checks for both before implementation. Both must be complete and current before approval.
+There are two factory approval gates. Review/edit the specification, branch, permissions and proposed costs, then type **go ahead**. After the completed work, documentation and passing reviews are shown, type **merge code**. The factory binds that phrase to the displayed commit internally; you do not need to enter its SHA. Routine in-scope edits, tests and review fixes need no further factory approval. Host/tool permissions remain separate. See the [two-approval workflow](docs/GUIDE.md#two-approvals-per-feature).
+
+The documentation writer maintains two deliverables: complete developer documentation so another developer can understand, run and maintain the app, and an end-user manual with step-by-step instructions for using it. The specification plans coverage and checks for both before implementation. Both must be complete and current before merge approval.
 
 One dashboard home link opens jobs, reports, documentation, usage and readiness. Latest activity appears at the top, with pagination and selectable limits. Focused agent context, bounded logs, safe reuse and configurable budgets help control repeated work; real savings still need measurement.
 
