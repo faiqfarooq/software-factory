@@ -6,7 +6,7 @@ A GPT-6.1 Sol orchestrator coordinates nine specialist agents. Features move thr
 
 ## Get started
 
-This folder contains a reusable prompt, not an installed factory. Copy [GENERATION.md](GENERATION.md) into Codex opened in your application project. The prompt is self-contained: the generated factory must include its own helpers, tests and setup instructions.
+This folder contains a reusable prompt, not an installed factory. Copy [GENERATION.md](../GENERATION.md) into Codex opened in your application project. The prompt is self-contained: the generated factory must include its own helpers, tests and setup instructions.
 
 1. Install a current Node.js LTS, Git, Codex and Claude Code; install Python 3 for the dashboard. Sign in using your own provider accounts.
 2. Open the actual application folder in PowerShell, verify the programs, then start Codex with the pinned orchestrator model. See [SETUP.md](SETUP.md) for exact commands and expected results.
@@ -19,6 +19,7 @@ The generated quick-start commands are:
 ~~~powershell
 node factory/scripts/factory.mjs check
 node factory/scripts/factory.mjs validate
+node factory/scripts/factory.mjs efficiency
 node --test factory/scripts/*.test.mjs
 node factory/scripts/factory.mjs prepare-dashboard
 ~~~
@@ -31,13 +32,21 @@ The prompt includes early native-command and permission checks, Windows executab
 
 [SETUP.md](SETUP.md) is the beginner walkthrough. [TROUBLESHOOTING.md](TROUBLESHOOTING.md) maps known symptoms to recovery steps. Account/model availability and managed computer restrictions can still require human action; the factory must explain those requirements rather than claim success.
 
+## Reduce repeated work and token usage
+
+Read [EFFICIENCY.md](EFFICIENCY.md) for a short feature-request template and the daily workflow. The generated factory must load the full generation prompt only for setup/audit, then dispatch focused role tasks using one current project map and relevant source paths. Workers can still investigate additional in-scope evidence.
+
+The policy requires concise reports, bounded inline logs with complete private evidence, deduplicated fresh access checks, zero automatic outer diagnostic retries by default, and configurable job/stage budgets. Required acceptance, QA independence and all five reviews remain intact. The local efficiency operation and dashboard expose actual usage, retries, durations and budget completeness without another model call.
+
+Future installations can reuse a trusted versioned starter exported from a validated generated factory, with integrity checks and conflict-aware installation. This prompt package does not ship a complete prebuilt runtime. Existing factories receive focused upgrades rather than regeneration. Token/cost savings must be measured; shorter input and session reuse alone do not prove them.
+
 ## Check connections before features
 
 Local checks do not prove account access to a model. After generation, ask the owning Codex orchestrator to check one unique Claude model at a time through the actual adapter, then verify the SAME recorded diagnostic builder session can resume. Preserve failed invocation history and record real usage.
 
 An external PowerShell success does not prove a Codex child process can connect. A direct adapter test does not update the dashboard; the owner must publish a fresh check with its timestamp and execution environment.
 
-The optional checker in the [parent repository guide](../README.md) can help diagnose connections. It belongs to the prompt repository, not to a newly generated application. The pasted prompt must generate equivalent checks without requiring that repository to be present.
+The optional checker in the [maintainer reference](../maintenance/docs/REPOSITORY-GUIDE.md) can help diagnose connections. It belongs to the prompt repository, not to a newly generated application. The pasted prompt must generate equivalent checks without requiring that repository to be present.
 
 ## Requirements
 
@@ -251,13 +260,17 @@ The generated instructions explain the supported Codex invocation and Claude Cod
 
 ## Files
 
-Before generation, the reusable package contains:
+Before generation, this edition contains:
 
 ```text
 README.md
 GENERATION.md
-SETUP.md
-TROUBLESHOOTING.md
+docs/
+  GUIDE.md
+  SETUP.md
+  TROUBLESHOOTING.md
+  EFFICIENCY.md
+maintenance/
 ```
 
 After generation, the project also contains:
@@ -271,6 +284,7 @@ factory/
   project.json           # optional nested application selection
   models.json
   pricing.json
+  efficiency.json
   board.json
   usage.jsonl
   dashboard.html         # published as index.html and dashboard.html
@@ -280,6 +294,7 @@ factory/
   SETUP.md
   TROUBLESHOOTING.md
   VALIDATION.md
+  EFFICIENCY.md
   scripts/
   .local/                # ignored private state and sanitized public projection
   .worktrees/            # ignored feature worktrees
@@ -292,4 +307,4 @@ Open an issue to suggest improvements or submit a pull request updating the prom
 
 ## License
 
-MIT. See [LICENSE](../LICENSE).
+MIT. See [LICENSE](../../LICENSE).

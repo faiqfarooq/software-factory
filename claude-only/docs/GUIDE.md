@@ -12,7 +12,7 @@ A reusable generation prompt for building a small, visual software factory in yo
 
 ## Get started
 
-1. Open [the generation prompt](software-factory.md).
+1. Open [the generation prompt](../GENERATION.md).
 2. Copy its complete contents.
 3. Open your target project in local Codex or Claude Code.
 4. Paste the prompt and let the agent inspect your project and create the files.
@@ -22,9 +22,9 @@ Use your own AI provider account.
 
 ## Check connections before features
 
-Use the [repository startup guide](../README.md) to check installation and authentication, then explicitly authorize live checks using your configured models. Verify access and builder continuation from the same runtime and permission environment used by workers. Codex running the generator does not itself run Claude models.
+Use the [repository startup guide](../../README.md) to check installation and authentication, then explicitly authorize live checks using your configured models. Verify access and builder continuation from the same runtime and permission environment used by workers. Codex running the generator does not itself run Claude models.
 
-The updated prompt requires bounded checks, actionable sanitized errors, readiness timestamps, and preserved failure history. Manual tests do not update the board; the existing orchestrator publishes fresh readiness and observable usage. See [troubleshooting](../docs/TROUBLESHOOTING.md) when external PowerShell works but factory workers fail.
+The updated prompt requires bounded checks, actionable sanitized errors, readiness timestamps, and preserved failure history. Manual tests do not update the board; the existing orchestrator publishes fresh readiness and observable usage. See [troubleshooting](../../codex-claude/maintenance/docs/TROUBLESHOOTING.md) when external PowerShell works but factory workers fail.
 
 ## How a feature moves through the factory
 
@@ -149,4 +149,4 @@ Open an issue to suggest improvements, or submit a pull request updating the pro
 
 ## License
 
-MIT. See [LICENSE](../LICENSE).
+MIT. See [LICENSE](../../LICENSE).

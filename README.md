@@ -1,65 +1,44 @@
 # Software Factory
 
-Generation prompts for a small software factory: specify a feature, build it, wait for five independent reviews, and ask a human before merging. The generated dashboard shows progress, observed tokens, and estimated USD costs.
+Choose an edition, copy its generation prompt into your application's coding assistant, and follow the generated setup guide.
 
-This repository contains prompts and a connection checker. **Cloning it does not install or start a generated factory.** Generate one in your own application repository.
+This repository contains **generation prompts and support tools**. Cloning it does not install or start a running factory.
 
-| Edition | Generation prompt | Guide |
+## Choose your edition
+
+| Edition | Runtime and accounts | Start here |
 | --- | --- | --- |
-| Codex + Claude | [GENERATION.md](software-factory/GENERATION.md) | [README](software-factory/README.md) |
-| Claude Code | [software-factory.md](software-factory-with-claude/software-factory.md) | [README](software-factory-with-claude/README.md) |
-| Budget providers | [GENERATION.md](low-cost-software-factory/GENERATION.md) | [README](low-cost-software-factory/README.md) |
+| **Claude only** | Claude Code and your Claude account; nine configured roles | [Claude-only guide](claude-only/README.md) |
+| **Codex + Claude** | Both tools and accounts; ten roles, including a documentation writer, with token-efficiency and unified-dashboard requirements | [Codex + Claude guide](codex-claude/README.md) |
+| **Low-cost providers** | Generated Python runner and DeepSeek, Qwen and Kimi API credentials; nine configured roles | [Low-cost guide](low-cost/README.md) |
 
-```mermaid
-flowchart LR
-    Clone[Clone prompt repository] --> Checks[Check runtimes and authentication]
-    Checks --> Generate[Generate in your application repo]
-    Generate --> Live[Check providers from factory execution environment]
-    Live --> Gate{Exact models and builder resume work?}
-    Gate -->|Yes| Feature[Spec → Build → Five reviews → Human approval]
-    Gate -->|No| Block[Show error and scoped recovery instructions]
-```
+Each edition documents its actual requirements and features. Provider access and cost depend on your accounts and workload.
 
-## Start on Windows
+## Start in three steps
 
-```powershell
-git clone https://github.com/faiqfarooq/software-factory.git
-Set-Location -LiteralPath '.\software-factory'
-node scripts/check-claude.mjs
-```
+1. **Choose an edition** from the table and check its requirements.
+2. **Copy its complete GENERATION.md** into the indicated coding assistant opened in your own application project.
+3. **Follow the generated factory/README.md**, verify readiness, then submit your first feature.
 
-For the Claude editions, install Git, a current Node.js LTS, Claude Code, and Python for the generated dashboard server. The hybrid edition also needs Codex. Use your own accounts and verify access to the assigned models. The budget edition needs its configured provider credentials rather than Claude.
+Keep account credentials out of prompts and Git. A successful file generation or login does not prove a live provider connection or a fully validated feature. Every edition requires independent reviews and human approval before merging.
 
-Copy your edition's full generation prompt into the coding assistant opened in your **application repository**. Follow the generated instructions. Additional permissions may be needed for child processes, provider connections, or application writes; allow the specific operation when required.
+## Repository layout
 
-## Check a Claude connection
+~~~text
+claude-only/     Claude Code edition
+codex-claude/    Codex + Claude edition
+low-cost/        API-provider edition
+~~~
 
-The default checker only checks local installation and authentication; it makes no model request. An explicitly requested live check consumes provider usage:
+Each folder has a short README, one GENERATION.md and a docs folder for details. Required guides stay in the repository so a clone contains the instructions.
 
-```powershell
-node scripts/check-claude.mjs --live --model claude-opus-5-5
-node scripts/check-claude.mjs --live --model claude-sonnet-5-5
-```
+## More help
 
-After generation, test the **actual adapter** from the same working directory and execution environment as the factory:
+- [Claude-only details](claude-only/docs/GUIDE.md)
+- [Codex + Claude setup](codex-claude/docs/SETUP.md), [troubleshooting](codex-claude/docs/TROUBLESHOOTING.md) and [efficient daily use](codex-claude/docs/EFFICIENCY.md)
+- [Low-cost details and historical pricing example](low-cost/docs/GUIDE.md)
+- [Shared maintainer tools and checks](codex-claude/maintenance/README.md)
 
-```powershell
-# Replace this example path with your generated application's path.
-node scripts/check-claude.mjs --live --adapter 'D:\my-app\factory\scripts\provider.mjs' --cwd 'D:\my-app' --model claude-opus-5-5
-```
-
-The adapter mode expects the documented `launchClaude(options)` export; adapt the checker if your generated runtime uses another interface. Run the same check from the factory's approved execution tools as well as normal PowerShell. An external success does not prove the child process has the same network access. The checker returns evidence to the terminal and **never writes the board or ledger**; the orchestrator must collect real usage and publish its own check results.
-
-[Troubleshooting](docs/TROUBLESHOOTING.md) covers blocked Claude workers, stale dashboard state, missing Codex binaries, and Windows sandbox failures. Connection failures cannot be eliminated on every machine; the prompts require early checks and actionable failures instead of claiming success.
-
-## Validate this prompt repository
-
-For an existing generated factory, updating this prompt repository does not modify its runtime. Ask its existing orchestrator to apply the **startup checks and connection recovery** section of the updated generation prompt. Preserve jobs, usage history, approval evidence, and builder session IDs; rerun authorized checks and publish fresh readiness rather than regenerating over active state.
-
-```powershell
-node --test scripts/check-claude.test.mjs scripts/docs.test.mjs
-```
-
-These are offline tests. They do not validate account access, model availability, an application build, or the generated factory end to end.
+The editions are generation designs, not three bundled production-ready runtime installers. Updating this repository does not patch an existing generated factory; use that factory's owner to apply an appropriate upgrade while preserving its sessions and history.
 
 MIT licensed. See [LICENSE](LICENSE).

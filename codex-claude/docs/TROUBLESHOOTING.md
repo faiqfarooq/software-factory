@@ -144,6 +144,34 @@ Source rework invalidates the documentation completion evidence until the writer
 
 If a claimed newest standard cannot be verified, report its currency as unverified. Preserve compatible existing API/doc tooling instead of changing schema versions or installing a site generator automatically. Follow the accepted scope and distinguish checked commands/examples from unexecuted ones.
 
+## The factory repeatedly reads the project or spends too many tokens
+
+Check the loaded runtime instructions and role task packets, not just the visible task message. The full generation prompt and setup guides belong to setup/audit; common rules and a worker's relevant paths should be concise. Verify the project map's source/config/instruction fingerprint before reuse, updating affected areas. Workers must retain access to additional evidence when needed.
+
+Inspect the local efficiency summary or dashboard Usage view for actual per-role input/output/cache categories, retries and durations. Missing usage remains unavailable. Prompt byte size is not a token measurement. Stable instructions can help supported caching, but a resumed session alone does not prove a cache hit.
+
+For long tool outputs, retain full private evidence and return the bounded useful excerpt with truncation/log pointer. Required errors, finding details and provenance must stay visible or directly retrievable. Avoid copying full logs into every report. Do not reduce usage by hiding findings, skipping required tests/reviews or replacing the recorded builder.
+
+## Cached readiness or check results are stale
+
+Readiness cache entries need a valid age and matching executable/version, model, project/cwd and effective auth/permission/network fingerprint, plus relevant role-tool capability. Failure, expiry, changed conditions or unknown binding invalidates reuse. A model-access probe does not prove role file permissions or feature correctness.
+
+Acceptance evidence is tied to the final code/docs commit, spec/contract, commands and required tooling/environment. Reuse only as permitted by the contract. Source/docs/target/spec or relevant environment changes require affected revalidation. QA still independently verifies required acceptance; do not use a shared cache to remove that independence.
+
+## Retries multiply or a token budget blocks work
+
+Separate controller attempts from the provider's observable internal retries. Default outer diagnostic retries are zero. A known safe failed diagnostic may be retried only under the validated bounded policy and valid authorization. Uncertain/time-out runs must be reconciled first; do not relaunch or clear locks to make progress appear faster.
+
+Budget policy defaults to no invented token/USD limit. When configured, evaluate it before new model dispatch, showing measured/estimated/unknown amounts and current completeness. Unknown cost must not be converted to zero to authorize more calls. Exhaustion blocks new dispatch while preserving sessions, artifacts and spend history. Collecting existing receipts must remain possible without a new model call.
+
+A real human-authorized budget increase is recorded without resetting spend, retry count or history. A local dispatch threshold cannot guarantee an exact total-spend ceiling for in-flight requests or delayed metadata. Do not claim hard dollar enforcement unless a provider/runtime mechanism was verified. Host permissions, documentation/review requirements and exact-commit merge approval still apply.
+
+## A reusable starter would overwrite files or includes private state
+
+Verify the selected trusted starter's version and checksum manifest, then inspect its installation preview. Stop for conflicting files rather than replace existing configuration or application docs. Reject absolute/traversing paths, symlinks and mismatched contents. Hash integrity alone does not establish publisher trust.
+
+Starter exports must contain only an explicit sanitized allowlist of reusable files. Exclude .local data, personal jobs, sessions, grants, usage, worktrees, credentials and project-specific context/settings. Source files under a generated factory are not automatically safe to redistribute. Preserve the destination's work and use its own new owner/context when setting up another application.
+
 ## Share a useful issue report
 
 Provide runtime versions, the failing stage, timestamp/environment, requested/reported model, exit status, session-match status, sanitized error category and whether the same adapter succeeds externally. For a native startup failure, include the sandbox implementation and a redacted relevant diagnostic summary.

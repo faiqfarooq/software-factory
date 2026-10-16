@@ -1,6 +1,6 @@
 # Set up the Codex + Claude factory
 
-Use this guide when generating a new factory from [GENERATION.md](GENERATION.md). The prompt package does not contain an installed factory. Commands under factory/scripts become available only after generation.
+Use this guide when generating a new factory from [GENERATION.md](../GENERATION.md). The prompt package does not contain an installed factory. Commands under factory/scripts become available only after generation.
 
 ## 1. Check the programs in normal PowerShell
 
@@ -43,7 +43,7 @@ If this application already has a factory, use its recorded owner and upgrade in
 
 ## 3. Paste the complete prompt
 
-Paste the entire [GENERATION.md](GENERATION.md) into Codex. The generator must:
+Paste the entire [GENERATION.md](../GENERATION.md) into Codex. The generator must:
 
 - Inspect project instructions, source, Git state and exact validation commands.
 - Prove a harmless native command can start before spending usage on provider checks.
@@ -60,6 +60,7 @@ From the generated factory workspace in normal PowerShell:
 ~~~powershell
 node factory/scripts/factory.mjs check
 node factory/scripts/factory.mjs validate
+node factory/scripts/factory.mjs efficiency
 node --test factory/scripts/*.test.mjs
 ~~~
 
@@ -159,6 +160,16 @@ No extra unique model check is required just because this role also uses Sonnet.
 
 Rendered UI and keyboard checks need real browser evidence where required. HTTP 200, source inspection and synthetic DOM tests must be labelled accurately. Setup alone cannot claim a fully validated feature.
 
+## Efficient daily use
+
+Use [EFFICIENCY.md](EFFICIENCY.md) for a compact feature brief. Specify the intended behavior, constraints and verification, and reference relevant files instead of pasting large logs or old chats. Send related corrections together. Keep the existing owner and builder session.
+
+After generation, efficiency prints a local policy/usage summary without model calls. The owner uses one current project map and focused role task packets, bounds inline logs while retaining full evidence, and refreshes documentation after implementation. It keeps all ten roles and five independent reviews.
+
+Readiness reuse is conditional on freshness and matching environment fingerprints. Automatic outer diagnostic retries default to zero. Optional job/stage budgets must be explicitly configured; exhaustion blocks new model dispatch while preserving partial work and accounting. Existing in-flight requests and delayed telemetry prevent claiming a precise hard spending cap without verified provider enforcement.
+
+A reusable starter is exported only from validated, sanitized generated files. Verify its version/manifest and preview conflicts for future projects; exclude all private state and project-specific settings. If none is available, generate once. Do not assume this prompt repository contains a full runtime installer.
+
 ## Updating an existing factory
 
-Updating this prompt package does not patch a previously generated runtime. Ask its existing owner to apply the updated setup and recovery requirements to that runtime while preserving job history, approvals, sessions and usage. Recheck changed behavior and publish current readiness without rewriting historical failures.
+Updating this prompt package does not patch a previously generated runtime. Ask its existing owner to apply the updated setup, efficiency and recovery requirements to that runtime while preserving job history, approvals, sessions and usage. Recheck changed behavior and publish current readiness without rewriting historical failures.

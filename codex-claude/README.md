@@ -1,0 +1,44 @@
+# Codex + Claude Software Factory
+
+Codex coordinates the factory; Claude plans, builds and documents the app. This edition specifies ten roles, five independent reviews, a documentation stage after implementation, and human approval of the exact reviewed commit.
+
+[Choose another edition](../README.md) · [Detailed guide](docs/GUIDE.md)
+
+## Requirements
+
+- Local Codex and Claude Code, your own authenticated accounts, and access to the exact models in the prompt.
+- A current Node.js LTS and Git.
+- Python 3 available as python or py for dashboard serving.
+- Your application project, a reviewed clean Git base before workers, and the required scoped host/provider permissions.
+
+## Start in three steps
+
+1. Open your application in **Codex using gpt-6.1-sol**.
+2. Copy the complete [GENERATION.md](GENERATION.md) and paste it into that session. Let Codex generate and validate the factory.
+3. Follow the generated factory/README.md to finish readiness checks, open the dashboard and start your first feature.
+
+For a full Windows walkthrough and expected results, use [SETUP.md](docs/SETUP.md). Commands under factory/scripts exist only after generation.
+
+In the owning Codex chat, a first feature request looks like:
+
+~~~text
+$factory Add an accessible settings screen
+~~~
+
+The generated Claude /factory launcher forwards to the Codex owner. It does not start a second orchestrator.
+
+## What this edition requests
+
+Specification → implementation → application documentation → checkpoint → five reviews → approver → exact human approval → merge.
+
+One dashboard home link opens jobs, reports, documentation, usage and readiness. Latest activity appears at the top, with pagination and selectable limits. Focused agent context, bounded logs, safe reuse and configurable budgets help control repeated work; real savings still need measurement.
+
+## Help
+
+- [Step-by-step setup](docs/SETUP.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Efficient daily use and a feature-request template](docs/EFFICIENCY.md)
+- [Role assignments, workflow diagrams and detailed guide](docs/GUIDE.md)
+- [Shared maintainer tools and tests](maintenance/README.md)
+
+The generation prompt is self-contained. This package does not include a complete prebuilt runtime; an existing generated factory needs an appropriate upgrade rather than another owner or overwritten history.

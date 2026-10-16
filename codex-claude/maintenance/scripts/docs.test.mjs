@@ -4,7 +4,7 @@ import { readdir, readFile, access } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 async function markdown(dir) {
   const result = [];
   for (const entry of await readdir(dir, { withFileTypes: true })) {
@@ -33,8 +33,8 @@ test('all relative Markdown links resolve with exact case for Linux clones', asy
   }
 });
 test('every edition requires explicit live checks and current readiness separated from history', async () => {
-  for (const file of ['software-factory/GENERATION.md', 'software-factory-with-claude/software-factory.md',
-    'low-cost-software-factory/GENERATION.md']) {
+  for (const file of ['codex-claude/GENERATION.md', 'claude-only/GENERATION.md',
+    'low-cost/GENERATION.md']) {
     const text = await readFile(path.join(root, file), 'utf8');
     assert.match(text, /--live/);
     assert.match(text, /SAME/);
