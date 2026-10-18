@@ -83,3 +83,8 @@ Compare similar completed tasks using the recorded token categories, elapsed tim
 The reusable generation instructions are shorter and require focused task packets, bounded inline output, safe readiness reuse, retry accounting, validated budgets and local efficiency diagnostics. Savings for future generated factories must be measured from their real execution. Documentation checks in this prompt repository do not prove live token savings or a finished prebuilt starter.
 
 For failures, use [TROUBLESHOOTING.md](TROUBLESHOOTING.md). For first-time setup, use [SETUP.md](SETUP.md).
+
+
+## Complete-product work
+
+Use the [product workflow](PRODUCT.md) to map requirements and dependencies once, then send each worker only its approved child contract and relevant design frames. Keep one active build, reuse unchanged source/design snapshots safely and invalidate affected descendants when references change. Attribute planning, children, repairs and final aggregate validation separately while reconciling product totals. Five final-product reviews are required in addition to child reviews; report their usage rather than advertise feature-only totals as the entire product cost. Dashboard polling, status and paused receipt collection must not generate model calls. Unknown enforcing usage blocks new paid dispatch.

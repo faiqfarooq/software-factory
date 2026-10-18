@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "id": "add-tasks",
+  "mode": "feature",
+  "revision": 1,
+  "repository": "EXAMPLE_ONLY_REPLACE_WITH_REAL_REPOSITORY",
+  "target_branch": "main",
+  "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "requirements": [
+    {
+      "id": "R1",
+      "text": "Users can create, list and complete tasks; changes persist after reload.",
+      "source": "requirements.md#tasks",
+      "mandatory": true
+    }
+  ],
+  "features": [
+    {
+      "id": "tasks",
+      "title": "Create, list and complete tasks",
+      "depends_on": [],
+      "requirement_ids": [
+        "R1"
+      ],
+      "design_screen_ids": [],
+      "acceptance_criteria": [
+        {
+          "id": "A1",
+          "text": "A newly created task can be completed and both changes persist after reload.",
+          "requirement_ids": [
+            "R1"
+          ],
+          "verification": "Run the isolated create/list/complete/persistence acceptance walkthrough."
+        }
+      ]
+    }
+  ],
+  "design": {
+    "status": "none",
+    "screens": []
+  },
+  "documentation_plan": {
+    "developer_documentation": {
+      "entry_page": "docs/developer/README.md",
+      "required_topics": [
+        "Architecture",
+        "Setup",
+        "Storage",
+        "Tests"
+      ],
+      "verification": "Check developer onboarding against implemented commands."
+    },
+    "end_user_manual": {
+      "entry_page": "docs/user-manual/README.md",
+      "required_topics": [
+        "Create tasks",
+        "Complete tasks",
+        "Filter tasks"
+      ],
+      "verification": "Walk through the documented user tasks."
+    }
+  },
+  "final_checks": [
+    "Create, complete and reload a task."
+  ]
+}

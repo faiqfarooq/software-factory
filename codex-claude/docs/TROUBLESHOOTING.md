@@ -189,3 +189,17 @@ Starter exports must contain only an explicit sanitized allowlist of reusable fi
 Provide runtime versions, the failing stage, timestamp/environment, requested/reported model, exit status, session-match status, sanitized error category and whether the same adapter succeeds externally. For a native startup failure, include the sandbox implementation and a redacted relevant diagnostic summary.
 
 Exclude keys, account identity, authorization headers, raw transcripts, private .local files and database connection strings. Preserve evidence locally; share the smallest redacted explanation needed.
+
+
+## Product planning, designs and dashboard controls
+
+- **Wrong mode:** check the saved request mode. Before dispatch, revise and reapprove the plan; after dispatch create a new properly scoped request rather than reinterpret active jobs.
+- **Requirements missing:** inspect source extraction and requirement-to-feature-to-check coverage. Unsupported scans/tables need an explicit export/reader step.
+- **Next feature not starting:** inspect dependencies, current review attempt, owner connection, active/uncertain worker, approved plan hash, design access and enforcing budgets. Integrated is not final acceptance.
+- **Figma/design unavailable:** reconnect the supported connector, select accessible frames or provide exports. Never mark an unread URL as verified.
+- **Controls disabled:** a static dashboard is read-only. Reconnect the recorded owning session through the edition's supported bridge. Missing supported ingress/human receipts cannot be repaired by substituting another orchestrator.
+- **Pending action:** inspect its acknowledgement and stable command ID; do not submit duplicate paid starts after an uncertain timeout. A stale offer needs refreshed evidence and a newly displayed offer.
+- **Pause/cancel requested:** wait for supported worker reconciliation; requested does not mean stopped. Restarting the page must not resume workers.
+- **All children integrated but product pending:** run whole-product journeys, current guides and five fresh final reviews. Child passes do not approve the combined app.
+
+See the [complete workflow and recovery guide](PRODUCT.md).

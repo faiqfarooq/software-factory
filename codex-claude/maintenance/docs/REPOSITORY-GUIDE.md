@@ -4,7 +4,9 @@ Shared maintainer reference. Commands below run from the prompt repository root.
 
 Generation prompts for a small software factory with two approval gates: specify a feature and both documentation plans, wait for the human's go ahead, build it, write developer documentation and an end-user manual, complete five independent reviews of the combined commit, then wait for merge code on the displayed eligible result. All three editions define ten roles. The factory binds that phrase to the commit internally and shows the latest merged branch/commit, code diff and post-merge checks. The dashboard shows progress, both approval states, separate guide completion/links, observed tokens, and estimated USD costs. Routine in-scope work needs no further factory approval; host/tool permissions remain separate.
 
-This repository contains prompts and a connection checker. **Cloning it does not install or start a generated factory.** Generate one in your own application repository.
+Workflow version 2 adds [complete-product planning, design references and verified dashboard controls](../../docs/PRODUCT.md), with explicit feature/product modes. Product children integrate on a product branch under the approved parent plan; the complete product receives fresh checks/reviews and its own final target-merge offer. Static serving remains read-only.
+
+This repository contains prompts, a connection checker and offline product-workflow reference helpers. **Cloning it does not install or start a generated factory.** Generate one in your own application repository.
 
 | Edition | Generation prompt | Guide |
 | --- | --- | --- |
@@ -63,7 +65,7 @@ The adapter mode expects the documented `launchClaude(options)` export; adapt th
 For an existing generated factory, updating this prompt repository does not modify its runtime. Ask its existing orchestrator to apply the current setup/check requirements in the updated generation prompt. Preserve jobs, usage history, approval evidence, and builder session IDs; rerun authorized checks and publish fresh readiness rather than regenerating over active state.
 
 ```powershell
-node --test codex-claude/maintenance/scripts/check-claude.test.mjs codex-claude/maintenance/scripts/docs.test.mjs
+node --test codex-claude/maintenance/scripts/check-claude.test.mjs codex-claude/maintenance/scripts/docs.test.mjs codex-claude/maintenance/scripts/product-workflow.test.mjs
 ```
 
 These are offline tests. They do not validate account access, model availability, an application build, or the generated factory end to end.

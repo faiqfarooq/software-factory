@@ -43,3 +43,33 @@ test('every edition requires explicit live checks and current readiness separate
     assert.match(text, /bounded|Bound|Bounded/i);
   }
 });
+
+
+test('all editions carry the same self-contained product/design/control contract', async () => {
+  const contracts = [];
+  for (const edition of ['claude-only', 'codex-claude', 'low-cost']) {
+    const prompt = await readFile(path.join(root, edition, 'GENERATION.md'), 'utf8');
+    const start = prompt.indexOf('## Product mode, design references and dashboard control (workflow version 2)');
+    const end = prompt.indexOf('### Explicit generated entry points');
+    assert.ok(start > 0 && end > start, 'Missing product extension: ' + edition);
+    contracts.push(prompt.slice(start, end));
+    const guide = await readFile(path.join(root, edition, 'docs/PRODUCT.md'), 'utf8');
+    for (const heading of ['## Beginner setup', '## Choose the mode explicitly', '## Requirements and roadmap', '## Follow a supplied design', '## Automatic sequential execution', '## One dashboard for visibility and control', '## Pause, changes and recovery']) assert.ok(guide.includes(heading), edition + ': ' + heading);
+  }
+  assert.equal(contracts[0], contracts[1]);
+  assert.equal(contracts[1], contracts[2]);
+});
+
+test('generation contracts preserve ownership, modes, final acceptance and control boundaries', async () => {
+  for (const edition of ['claude-only', 'codex-claude', 'low-cost']) {
+    const prompt = await readFile(path.join(root, edition, 'GENERATION.md'), 'utf8');
+    for (const invariant of [
+      'mode=product', 'mode=feature', 'dependency cycles', 'mandatory requirement',
+      'not a target-branch merge', 'five fresh independent final-product reviews',
+      'Child verdicts alone cannot approve the aggregate', 'Owner disconnected',
+      'CSRF', 'Origin', 'existing verified owner', 'same immutable',
+      'go ahead', 'merge code', 'Control available', 'reference changes',
+      'whole-product', 'Pause requested', 'Cancellation requested'
+    ]) assert.ok(prompt.toLowerCase().includes(invariant.toLowerCase()), edition + ' missing invariant: ' + invariant);
+  }
+});

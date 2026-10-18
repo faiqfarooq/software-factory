@@ -1,5 +1,7 @@
 # Software Factory — Budget Edition
 
+Workflow version 2 adds explicit product/feature modes, requirements planning, design references and verified owner-backed controls. Start with [Build a product or change a feature](PRODUCT.md) for the full beginner path and product-level approvals. The feature diagrams and per-feature approval walkthroughs below describe feature mode; product children integrate internally and receive a separate final whole-product review and target-merge offer.
+
 A reusable generation prompt for building a visual software factory using DeepSeek, Qwen, and Kimi.
 
 The factory keeps the same core workflow: specification and documentation plan, coding, developer documentation and end-user manual, five independent reviews, and human approval. Its dashboard records progress, guide completion, tokens, and USD costs.

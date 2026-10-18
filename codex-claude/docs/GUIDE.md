@@ -1,5 +1,7 @@
 # Software Factory
 
+Workflow version 2 adds explicit product/feature modes, requirements planning, design references and verified owner-backed controls. Start with [Build a product or change a feature](PRODUCT.md) for the full beginner path and product-level approvals. The feature diagrams and per-feature approval walkthroughs below describe feature mode; product children integrate internally and receive a separate final whole-product review and target-merge offer.
+
 A reusable generation prompt for building a small, visual software factory using local Codex and Claude Code together.
 
 A GPT-6.1 Sol orchestrator coordinates nine specialist agents. Features move through specification, implementation, documentation, independent reviews, and human approval. One dashboard link opens jobs, reports, documentation and usage, with the latest activity at the top and paginated history.

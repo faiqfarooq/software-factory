@@ -7,6 +7,10 @@ These supporting files are kept under the Codex + Claude edition to leave only t
 - [check-claude.mjs](scripts/check-claude.mjs): read-only local/auth or explicitly requested live Claude checks.
 - [check-claude.test.mjs](scripts/check-claude.test.mjs): offline evidence/timeout/parser tests.
 - [docs.test.mjs](scripts/docs.test.mjs): links and generation requirements across all three editions.
+- [product-workflow.mjs](scripts/product-workflow.mjs): offline reference plan/coverage validation, dependency selection, change impact, checkpoint evidence bindings and typed control envelopes. No dispatch, authentication, server or Git execution.
+- [product-workflow.test.mjs](scripts/product-workflow.test.mjs): offline behavioral regression tests for those invariants.
+- [check-plan.mjs](scripts/check-plan.mjs): read-only JSON plan validator.
+- [Synthetic product/feature examples and API boundaries](examples/README.md).
 - [Connection and validation reference](docs/REPOSITORY-GUIDE.md): the former root guide, with updated paths.
 - [Shared troubleshooting](docs/TROUBLESHOOTING.md): connection, environment and saved-dashboard issues.
 
@@ -15,7 +19,7 @@ These supporting files are kept under the Codex + Claude edition to leave only t
 From the prompt repository root:
 
 ~~~powershell
-node --test codex-claude/maintenance/scripts/check-claude.test.mjs codex-claude/maintenance/scripts/docs.test.mjs
+node --test codex-claude/maintenance/scripts/check-claude.test.mjs codex-claude/maintenance/scripts/docs.test.mjs codex-claude/maintenance/scripts/product-workflow.test.mjs
 ~~~
 
 These tests make no live model calls and do not prove account access, application acceptance or a full generated factory run.
@@ -45,3 +49,13 @@ The low-cost edition requires its own provider checks. The reusable prompts must
 Edition setup and detailed guides now live under each edition's docs directory. Claude-only's former software-factory.md is now GENERATION.md. The generation prompt's example paths for files created inside a user's application are runtime paths, not old repository links.
 
 Useful previous guides have been moved rather than discarded. Existing external links to renamed repository paths need updating; the new root README and relative links are the supported entry points. GitHub Wiki pages or Releases can be added separately later; this reorganization creates no remote publication.
+
+
+## Validate a reference plan
+
+~~~powershell
+node codex-claude/maintenance/scripts/check-plan.mjs codex-claude/maintenance/examples/product-plan.json
+node codex-claude/maintenance/scripts/check-plan.mjs codex-claude/maintenance/examples/feature-plan.json
+~~~
+
+VALID_PLAN_METADATA proves only the documented reference metadata invariants. The helpers are not a running factory, a control backend, a human authentication mechanism, a Figma reader or proof of actual review results. They do not approve/dispatch/merge anything. Their validators must be supplied trusted owner state and verified evidence by a separately implemented generated runtime. Each generation prompt remains self-contained and requires its own executable integrations and behavior tests. See the [product/design/dashboard guide](../docs/PRODUCT.md). No trusted prebuilt runtime starter is bundled here.

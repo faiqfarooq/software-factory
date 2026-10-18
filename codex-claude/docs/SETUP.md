@@ -1,5 +1,7 @@
 # Set up the Codex + Claude factory
 
+For the workflow version 2 beginner path, start with [product/feature modes, requirements, designs and dashboard controls](PRODUCT.md). Choose a mode explicitly. The feature commands below remain compatible; complete-product mode approves the parent plan and automatically schedules its children. Static Python serving is read-only: controls require the separately verified authenticated service and existing-owner bridge. If unavailable, use the documented owner-chat path rather than start a second owner.
+
 Use this guide when generating a new factory from [GENERATION.md](../GENERATION.md). The prompt package does not contain an installed factory. Commands under factory/scripts become available only after generation.
 
 ## 1. Check the programs in normal PowerShell

@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "id": "task-tracker",
+  "mode": "product",
+  "revision": 1,
+  "repository": "EXAMPLE_ONLY_REPLACE_WITH_REAL_REPOSITORY",
+  "target_branch": "main",
+  "base_commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "requirements": [
+    {
+      "id": "R1",
+      "text": "Users can create, list and complete tasks; changes persist after reload.",
+      "source": "requirements.md#tasks",
+      "mandatory": true
+    },
+    {
+      "id": "R2",
+      "text": "Users can filter tasks by completion.",
+      "source": "requirements.md#filters",
+      "mandatory": true
+    }
+  ],
+  "features": [
+    {
+      "id": "tasks",
+      "title": "Create, list and complete tasks",
+      "depends_on": [],
+      "requirement_ids": [
+        "R1"
+      ],
+      "design_screen_ids": [],
+      "acceptance_criteria": [
+        {
+          "id": "A1",
+          "text": "A newly created task can be completed and both changes persist after reload.",
+          "requirement_ids": [
+            "R1"
+          ],
+          "verification": "Run the isolated create/list/complete/persistence acceptance walkthrough."
+        }
+      ]
+    },
+    {
+      "id": "filters",
+      "title": "Filter completed and open tasks",
+      "depends_on": [
+        "tasks"
+      ],
+      "requirement_ids": [
+        "R2"
+      ],
+      "design_screen_ids": [],
+      "acceptance_criteria": [
+        {
+          "id": "A2",
+          "text": "Each filter shows only the matching persisted tasks.",
+          "requirement_ids": [
+            "R2"
+          ],
+          "verification": "Run filter tests and the create-complete-filter user journey."
+        }
+      ]
+    }
+  ],
+  "design": {
+    "status": "none",
+    "screens": []
+  },
+  "documentation_plan": {
+    "developer_documentation": {
+      "entry_page": "docs/developer/README.md",
+      "required_topics": [
+        "Architecture",
+        "Setup",
+        "Storage",
+        "Tests"
+      ],
+      "verification": "Check developer onboarding against implemented commands."
+    },
+    "end_user_manual": {
+      "entry_page": "docs/user-manual/README.md",
+      "required_topics": [
+        "Create tasks",
+        "Complete tasks",
+        "Filter tasks"
+      ],
+      "verification": "Walk through the documented user tasks."
+    }
+  },
+  "final_checks": [
+    "Create, persist, complete and filter a task in one journey.",
+    "Verify both documentation deliverables against the final product."
+  ]
+}

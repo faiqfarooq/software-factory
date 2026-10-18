@@ -2,6 +2,14 @@
 
 Codex coordinates the factory; Claude plans, builds and documents the app. This edition specifies ten roles, five independent reviews, a documentation stage after implementation, and human approval of the exact reviewed commit.
 
+## Build a product or change a feature
+
+Choose **Build a complete app** for requirements-to-roadmap-to-sequential-features, or **Add or change a feature** for one scoped job. The updated generation contract includes optional design references, whole-product acceptance, guided setup and owner-backed dashboard controls. Product mode approves the parent plan once, integrates reviewed children into a product branch, then requires a separate approval of the final target merge. Feature mode retains its own two approvals per job.
+
+Read the [beginner product, design and dashboard guide](docs/PRODUCT.md). Controls require a verified authenticated bridge to the existing owner; otherwise the generated dashboard must say Read-only or Owner disconnected with reconnect/chat instructions. This repository does not ship a running dashboard service or prebuilt runtime installer.
+
+The feature walkthrough below remains valid for feature mode. Product mode follows the linked guide; it automatically advances eligible approved children without another next command.
+
 [Choose another edition](../README.md) · [Detailed guide](docs/GUIDE.md)
 
 ## Requirements
