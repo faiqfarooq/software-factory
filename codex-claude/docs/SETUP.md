@@ -101,7 +101,7 @@ If external PowerShell succeeds but the owner fails, compare the actual executab
 From the factory workspace:
 
 ~~~powershell
-node factory/scripts/factory.mjs prepare-dashboard
+node factory/scripts/factory.mjs serve
 python -m http.server 8765 --bind 127.0.0.1 --directory factory/.local/public
 ~~~
 
