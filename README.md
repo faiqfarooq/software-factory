@@ -41,6 +41,12 @@ factory/
 
 Only required native discovery skills live outside factory/. App source and app guides retain their existing locations. Setup creates no sample jobs, empty board/usage files, copied generation prompts or extra factory guides. Versioned upgrades preserve configuration and history; conflicts/unmanaged legacy factories stop for an explicit migration.
 
+## Optional integrations
+
+The same dashboard includes an Integrations view. Bundled Agent Skills load per role; Context7, Graphify, 21st.dev and Strix are optional and default off. Select during setup with --integrations context7,graphify or enable later while idle. Credentials stay in the server environment/approved secret storage. Availability is distinct from a real verified connection. Tool usage needs explicit request/plan scope; scanner targets/model/budget are displayed before approval. Raw results and caches remain private. See [the owner protocol](factory/runtime/WORKFLOW.md) for actual adapters, supported operations and recovery.
+
+Observed metrics show completed jobs, elapsed time including human waits, known usage subtotals, rework requests and actual tool/cache counts. Similar-work comparisons are needed before claiming a speed or cost improvement. External integrations do not replace the owner, five reviews or either workflow approval.
+
 ## Development
 
 [Package setup and recovery](factory/README.md) ? [Owner protocol](factory/runtime/WORKFLOW.md)

@@ -33,7 +33,7 @@ export async function atomic(file, value) {
   await mkdir(path.dirname(file), { recursive: true });
   const temp = file + '.' + uid() + '.tmp';
   try {
-    await writeFile(temp, typeof value === 'string' ? value : JSON.stringify(value, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+    await writeFile(temp, typeof value === 'string' || Buffer.isBuffer(value) ? value : JSON.stringify(value, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
     await rename(temp, file);
   } finally { await unlink(temp).catch(e => { if (e.code !== 'ENOENT') throw e; }); }
 }

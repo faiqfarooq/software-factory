@@ -16,6 +16,7 @@
     <nav aria-label="Factory sections" id="nav">
       <button data-page="overview" class="selected">Overview</button>
       <button data-page="setup">Setup & connections</button>
+      <button data-page="integrations">Integrations</button>
       <button data-page="plan">Plan & features</button>
       <button data-page="reviews">Tests & reviews</button>
       <button data-page="docs">Documentation</button>
@@ -51,6 +52,7 @@
       </div></fieldset>
       <label for="requirements">Requirements</label><textarea id="requirements" rows="7" maxlength="50000" placeholder="Who is it for? What should it do? What must work before it is finished?" required></textarea>
       <label for="design">Design reference <span class="muted">optional</span></label><input id="design" type="url" placeholder="https://…">
+      <label id="planning-docs-option" hidden><input id="planning-docs" type="checkbox"> Allow up to 10 Context7 lookups while preparing this plan. Only public library questions are sent.</label>
       <p class="muted">Preparing a plan can consume provider usage. Implementation starts after your approval.</p>
       <button type="submit" class="primary">Prepare plan</button>
     </form>

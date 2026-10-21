@@ -8,13 +8,15 @@ import { atomic, digest, exists, json, safePath, stamp, readState, saveState, lo
 import { inspect } from './runtime/checks.mjs';
 import { options, openBrowser } from './runtime/cli.mjs';
 import { serve } from './runtime/server.mjs';
+import { integrationDefaults, integrationSettings, prerequisites } from './runtime/integrations.mjs';
 
 export const SOURCE = path.dirname(fileURLToPath(import.meta.url));
 const normalized = value => value.replaceAll('\r\n', '\n');
 export const BUNDLE_FILES = [
   'README.md', 'runtime/profiles.mjs', 'runtime/storage.mjs', 'runtime/checks.mjs',
   'runtime/workflow.mjs', 'runtime/server.mjs', 'runtime/cli.mjs', 'runtime/WORKFLOW.md',
-  'runtime/LICENSE', 'dashboard/index.html', 'dashboard/style.css', 'dashboard/app.js'
+  'runtime/LICENSE', 'dashboard/index.html', 'dashboard/style.css', 'dashboard/app.js',
+  'runtime/integrations.mjs', 'runtime/skills/planning/SKILL.md', 'runtime/skills/building/SKILL.md', 'runtime/skills/reviewing/SKILL.md'
 ];
 export async function buildManifest(source = SOURCE) {
   const files = {};
@@ -37,9 +39,9 @@ function skill(edition, location) {
   return '---\nname: factory\ndescription: Run this project\'s software factory through its shared dashboard, with plan and merge approvals.\n---\n\n' +
     (forwarder ? 'Forward this request to the registered Codex factory owner. Never register Claude as an owner or create another orchestrator. If no supported forwarding bridge is available, direct the user to invoke `$factory` in the same project\'s Codex session.\n' :
       'Read [the owner protocol](../../../factory/runtime/WORKFLOW.md) from the application root, then connect this existing ' + (edition === 'claude-only' ? 'Claude' : 'Codex') + ' session and listen for typed dashboard commands. Use the real host session identity and the edition/model routing in factory/config.json. Never claim background control without an active listener.\n\n' +
-      'Only the owner dispatches specialists. Preserve ten roles, five independent reviews, the same builder for rework, and the separate plan/start and final-merge approvals. Execute only an acknowledged scoped command. Publish actual progress and evidence through factory/runtime/cli.mjs; do not rewrite the dashboard or normalized state directly. Missing native capabilities stay visible as blocked.\n');
+      'Only the owner dispatches specialists. Preserve ten roles, five independent reviews, the same builder for rework, and the separate plan/start and final-merge approvals. Execute only an acknowledged scoped command. Use the role-context operation to load only the assigned shared task skill and discover enabled role-specific integrations. Invoke optional tools through the owner bridge under explicit planning consent/approved plan scope. Publish actual progress and evidence through factory/runtime/cli.mjs; do not rewrite the dashboard or normalized state directly. Missing native capabilities stay visible as blocked.\n');
 }
-export async function planInstall(root, edition, source = SOURCE) {
+export async function planInstall(root, edition, source = SOURCE, { integrations } = {}) {
   const selected = profile(edition), manifest = await verifyBundle(source);
   root = await realpath(path.resolve(root));
   const rootBinding = digest(process.platform === 'win32' ? root.toLowerCase() : root);
@@ -79,6 +81,8 @@ export async function planInstall(root, edition, source = SOURCE) {
     schema_version: 1, version: VERSION, edition, project_name: path.basename(root),
     target_branch: report.target_branch, models: models(edition), roles: selected.roles, budgets: { usd: null, tokens: null }
   };
+  config.integrations = integrationSettings(existingConfig?.integrations);
+  if (integrations !== undefined) config.integrations = integrationSettings(integrations);
   if (!config.roles || Object.keys(config.roles).length !== Object.keys(selected.roles).length ||
       Object.entries(selected.roles).some(([role, runtime]) => config.roles[role] !== runtime)) throw new Error('Existing role routing differs from the edition; resolve it explicitly before upgrade.');
   await add('factory/config.json', JSON.stringify(config, null, 2) + '\n', false);
@@ -105,6 +109,8 @@ export async function install(plan) {
       bundle_hash: digest(JSON.stringify(plan.manifest)), installed_at: stamp()
     });
     const state = await readState(plan.root);
+    state.integration_checks = Object.fromEntries(Object.entries(await prerequisites(plan.root, plan.config)).map(([id, value]) => [id, { ...value, time: stamp() }]));
+    state.integration_profile = Object.entries(plan.config.integrations).filter(([, v]) => v.enabled).map(([id]) => id);
     for (const check of plan.report.checks) if (!['live', 'continuation', 'browser', 'acceptance'].includes(check.id) || !state.checks.some(c => c.id === check.id)) {
       state.checks = state.checks.filter(c => c.id !== check.id); state.checks.push(check);
     }
@@ -120,10 +126,10 @@ export async function install(plan) {
 }
 export async function main(args = process.argv.slice(2)) {
   const { flags, positionals } = options(args);
-  const allowed = ['project', 'edition', 'yes', 'no-serve', 'no-open', 'verify', 'build-manifest', 'help'];
+  const allowed = ['project', 'edition', 'integrations', 'yes', 'no-serve', 'no-open', 'verify', 'build-manifest', 'help'];
   if (positionals.length || Object.keys(flags).some(k => !allowed.includes(k))) throw new Error('Unknown option. Use --help.');
   for (const name of ['yes', 'no-serve', 'no-open', 'verify', 'build-manifest', 'help']) if (flags[name] !== undefined && flags[name] !== true) throw new Error('--' + name + ' does not take a value.');
-  if (flags.help) { console.log('node factory/setup.mjs --project <app> [--edition claude-only|codex-claude|low-cost] [--yes] [--no-serve]\n--verify verifies package files; --build-manifest refreshes the release manifest after maintainer edits.'); return; }
+  if (flags.help) { console.log('node factory/setup.mjs --project <app> [--edition claude-only|codex-claude|low-cost] [--integrations context7,graphify,twentyfirst,strix] [--yes] [--no-serve]\nOptional tools remain off unless selected. Setup makes no provider requests or tool installs.\n--verify verifies package files; --build-manifest refreshes the release manifest after maintainer edits.'); return; }
   if (flags['build-manifest']) { await buildManifest(); console.log('Package manifest updated. Run the offline tests before distribution.'); return; }
   if (flags.verify) { await verifyBundle(); console.log('Package checksums verified: ' + VERSION); return; }
   await verifyBundle();
@@ -140,9 +146,19 @@ export async function main(args = process.argv.slice(2)) {
       edition = ({ 1: 'claude-only', 2: 'codex-claude', 3: 'low-cost' })[choice];
     }
     profile(edition);
-    const plan = await planInstall(root, edition);
+    let integrations;
+    if (flags.integrations !== undefined) {
+      if (typeof flags.integrations !== 'string') throw new Error('--integrations needs a comma-separated selection.');
+      integrations = integrationDefaults();
+      for (const id of flags.integrations.split(',').map(s => s.trim()).filter(Boolean)) {
+        if (!Object.hasOwn(integrations, id)) throw new Error('Unknown integration: ' + id);
+        integrations[id].enabled = true;
+      }
+    }
+    const plan = await planInstall(root, edition, SOURCE, { integrations });
     console.log('\n' + profile(edition).label + ' → ' + plan.root);
     console.log(plan.changes.length ? plan.changes.map(c => '  ' + (c.before_hash ? 'Update ' : 'Create ') + c.path).join('\n') : 'Already installed. Existing files match.');
+    console.log('Optional tools: ' + (Object.entries(plan.config.integrations).filter(([id, value]) => id !== 'skills' && value.enabled).map(([id]) => id).join(', ') || 'none') + '. Enable more in the dashboard when needed.');
     console.log('Also record the setup receipt and local checklist under ignored factory/.local/.\nScope: local package setup and checks. No account changes, dependency installs, paid calls or app build.');
     if (!flags.yes && (await ask('Approve this setup? [y/N] ')).trim().toLowerCase() !== 'y') { console.log('Setup cancelled. No files changed.'); return; }
     const result = await install(plan);
@@ -151,7 +167,7 @@ export async function main(args = process.argv.slice(2)) {
     const server = await serve(plan.root);
     console.log('Dashboard: ' + server.url + '\nOpen this private link in your browser. Keep this terminal running.');
     if (!flags['no-open']) await openBrowser(server.url).catch(() => console.log('Browser could not be opened automatically. Use the printed link.'));
-    const stop = async () => { await server.close(); process.exit(0); };
+    const stop = async () => { try { await server.close(); process.exit(0); } catch (error) { console.error(error.message); } };
     process.once('SIGINT', stop); process.once('SIGTERM', stop);
     return server;
   } finally { rl?.close(); }

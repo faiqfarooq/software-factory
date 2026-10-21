@@ -5,7 +5,7 @@ import path from 'node:path';
 import { tmpdir } from 'node:os';
 import http from 'node:http';
 import { planInstall, install, verifyBundle, buildManifest, SOURCE } from '../setup.mjs';
-import { profile } from '../runtime/profiles.mjs';
+import { profile, VERSION } from '../runtime/profiles.mjs';
 import { exists, json, atomic, safePath, readState, digest } from '../runtime/storage.mjs';
 import { git } from '../runtime/checks.mjs';
 import { serve, assertMergeBinding } from '../runtime/server.mjs';
@@ -63,7 +63,7 @@ function planning() {
 }
 
 test('release manifest verifies every shipped runtime and dashboard file', async () => {
-  const manifest = await verifyBundle(); assert.equal(manifest.version, '1.0.0'); assert.ok(Object.keys(manifest.files).length >= 10);
+  const manifest = await verifyBundle(); assert.equal(manifest.version, VERSION); assert.ok(Object.keys(manifest.files).length >= 10);
 });
 test('fresh Claude setup preserves the app and creates no Codex integration or placeholders', async t => {
   const root = await app(t);

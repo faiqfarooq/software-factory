@@ -37,6 +37,7 @@ Whole-product acceptance runs complete journeys/regressions, design comparisons 
 | --- | --- |
 | Overview | Current work, stage, preview when available, readiness and latest activity |
 | Setup & connections | Package/local prerequisites, owner connection, model/continuation/acceptance status and next actions |
+| Integrations | Opt-in role tools, local versus verified status, scoped receipts, usage/cache counts and observed performance |
 | Plan & features | Requirements, design reference, scope, permissions, budget, acceptance checks and feature progress |
 | Tests & reviews | Real check outcomes and security/UX/UI/code/QA verdicts bound to the final commit |
 | Documentation | Separate developer and end-user guide status, app paths and approved published text |

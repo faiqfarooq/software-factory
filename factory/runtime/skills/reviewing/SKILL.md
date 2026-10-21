@@ -1,0 +1,12 @@
+---
+name: reviewing
+description: Review the frozen factory result independently for the assigned security, UX, UI, code, QA or approver role using authentic commit-bound evidence.
+---
+
+Read the frozen plan and exact combined source/docs commit. Keep the five reviewer identities independent and do not read another reviewer's conclusions before the initial verdict. Verify actual acceptance and both guides; distinguish executed checks from source-only inspection. The approver evaluates all five real verdicts and blockers.
+
+Ask the owner for `role-context`. Graphify is available only to its listed technical roles and only within approved index/query scope. Its graph can miss dynamic or unsupported relationships, so inspect original source and never use graph absence as evidence of safety. UI/UX may inspect 21st.dev catalog inspiration within scope, but must review the actual rendered app and interactions independently.
+
+Only the security role can request Strix. Scan exactly an approved local/staging URL with the approved call count, USD budget and turn limit. The adapter never mounts the app as a writable local-directory target. A scan's process exit, partial report or budget stop is not a security PASS. Inspect terminal completion, reproduction evidence and limitations, then issue your own verdict. Strix findings supplement the existing security review; they do not replace it or authorize fixes/pushes/deployment. Fixes return to the same builder and invalidate affected evidence.
+
+Do not confirm pause, cancellation, final review readiness or merge while an integration process is running or uncertain. Reconcile actual processes/containers and private receipts first. Bind authentic findings, role/session identity and checks to the current commit. Keep raw tool output, source details and credentials out of published dashboard summaries.

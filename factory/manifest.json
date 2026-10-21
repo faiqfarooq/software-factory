@@ -1,18 +1,22 @@
 {
   "schema_version": 1,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "files": {
-    "README.md": "8ce625710c08d378a2ee46791c815acdedb8959d80d08181a70323a2e36915f7",
-    "runtime/profiles.mjs": "02a2d67377d4397ade94a18afac9bd3dd438f60e63e46ea3458896db26f00cd5",
-    "runtime/storage.mjs": "6b9a43f049c824e6d6340450b1a96eb2c8496eef7176668d773fd4a528c214c3",
+    "README.md": "ac42b497b220965be84977916cec97b5a8d132e63131c3dc49b21c2b226c18ab",
+    "runtime/profiles.mjs": "d1809501e5c302a30c4c27afeb816e3a5ce21e04d21675661a122bee452dd3b0",
+    "runtime/storage.mjs": "52a71de0504516ee732bc7bb26275c9619555eb426a65db72005ff37bedcc0c5",
     "runtime/checks.mjs": "2299184554c95595c2f7ca11ac690492f366e10891dc136bbc7fad173dc76ddd",
-    "runtime/workflow.mjs": "a59ab1754a89a710a7ff269139b2e1533d20a97702b1cc751114ae1791f97400",
-    "runtime/server.mjs": "89e28ea0a661d99ea318a9e388cb60a5b384adc52c0ee277561f656c270c1dc0",
-    "runtime/cli.mjs": "59f3b0cd25924682fa4edf1086933275d7a54f1ba5df305782b5676e67f0d8a5",
-    "runtime/WORKFLOW.md": "729e5f07cfc6fd09ab91a97b837d47d1c25ce18e5927e43107658695e3731c5d",
+    "runtime/workflow.mjs": "2015b712cfabad7e8509c7f0b7a86a4af487b56707e6054bb39038284e171d8a",
+    "runtime/server.mjs": "c721b726300f572b1f54a0d571f1f023023fc5d464b39af115c1f1c413925bc8",
+    "runtime/cli.mjs": "d2f26e4d197fe96ccce34d452dadcf6ecb1eaac0559774304347f77dc6eaa7ff",
+    "runtime/WORKFLOW.md": "071b9e6b7ed22a1c8dfc8f0b954c7b6fee724bea833e1ed6d6567f2a10cc8078",
     "runtime/LICENSE": "d03409d4442a7b1b0841b1366aadda0e4067bb2245d7f95db0bb5e68fd4429f7",
-    "dashboard/index.html": "bf44d36b664859a99dcf2cc7eba277dfbb7b89743ccc90b7cd3c0b6d19a31333",
-    "dashboard/style.css": "1ef475b7dba976494047b85bf0edd925ad7bfd570f60ef14d7950c49fd0f37ee",
-    "dashboard/app.js": "c73066e8dae6c9af85b48c595e2598ed6a6a5228fb7a3bf038d0760100d6acf8"
+    "dashboard/index.html": "5fcafdd0989f70ffb48d8c30e50b01b81412f5c3d152d3ee5dce5673263abe81",
+    "dashboard/style.css": "ded8177984ece3bc4394f2aa20e7c78ab1f6063496012e257e681512162a0dba",
+    "dashboard/app.js": "5eb76c802a08154ff65be9d4d633b7fb0090070d07bf88467869629839228262",
+    "runtime/integrations.mjs": "0f4f666246b289d90029ae1ecc3968107732799891c00fea3204e305fbd4663c",
+    "runtime/skills/planning/SKILL.md": "e93324e2ffd6047dfc4787893076ea3e7084eafdd7ee55095d545a7e02f22ab9",
+    "runtime/skills/building/SKILL.md": "fe3fd7deca4393b7df81cd066fbca54a507601e6e6066d2313d5c5330929a9a5",
+    "runtime/skills/reviewing/SKILL.md": "69d5ea40d58b8ae70ae3dfaf9e5bd83e9e3a56199167271c02d3a0342498a30f"
   }
 }

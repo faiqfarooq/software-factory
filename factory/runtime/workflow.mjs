@@ -1,5 +1,6 @@
 import { stamp, uid, digest, event } from './storage.mjs';
 import { REVIEWERS } from './profiles.mjs';
+import { integrationScopes, integrationView, performance } from './integrations.mjs';
 
 const fail = message => { throw new Error(message); };
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -26,7 +27,8 @@ export function enqueue(state, input, now = Date.now()) {
   let job;
   if (input.action === 'request') {
     if (input.job_id !== undefined || input.offer_id !== undefined) fail('Unexpected request binding.');
-    fields(input.input, ['mode', 'requirements', 'design']);
+    fields(input.input, ['mode', 'requirements', 'design', 'allow_documentation']);
+    if (input.input.allow_documentation !== undefined && typeof input.input.allow_documentation !== 'boolean') fail('Invalid planning documentation consent.');
     if (!['feature', 'product'].includes(input.input.mode) || !text(input.input.requirements, 50000) ||
         (input.input.design !== undefined && typeof input.input.design !== 'string')) fail('Choose a mode and supply requirements.');
     if (state.jobs.some(j => !['merged', 'cancelled'].includes(j.status)) || pending.some(c => c.action === 'request')) fail('Finish or cancel the current job first.');
@@ -46,6 +48,7 @@ export function enqueue(state, input, now = Date.now()) {
       cancel: ['planning', 'awaiting-plan', 'running', 'reviewing', 'blocked', 'paused', 'awaiting-merge']
     };
     if (!stages[input.action]?.includes(job.status)) fail('Action is unavailable at this stage.');
+    if (['rework', 'resume'].includes(input.action) && (!job.plan || job.approved_plan_hash !== digest(JSON.stringify(job.plan)))) fail('Revise and approve the current plan before resuming implementation.');
     if (input.action.startsWith('approve-')) {
       if (!job.offer || job.offer.id !== input.offer_id || Date.parse(job.offer.expires_at) <= now || job.offer.kind !== input.action) fail('Approval offer changed or expired.');
       if (input.action === 'approve-merge' && !mergeReady(job)) fail('Merge evidence is incomplete.');
@@ -79,6 +82,7 @@ export function claim(state, now = Date.now()) {
     if (command.action === 'request') {
       const job = { id: uid(), mode: command.input.mode, requirements: command.input.requirements,
         design: command.input.design || '', status: 'planning', plan: null, offer: null,
+        planning_docs_consent: command.input.allow_documentation === true, integration_profile: state.integration_profile || [],
         features: [], reviews: [], checks: [], documentation: [], usage: null, created_at: stamp() };
       state.jobs.push(job); command.job_id = job.id;
     }
@@ -125,7 +129,8 @@ export function publish(state, input, now = Date.now()) {
   if (!statuses.includes(input.status)) fail('Invalid job status.');
   if (input.plan !== undefined) {
     if (command.action !== 'request' && command.action !== 'revise') fail('Plan revisions need a revise command.');
-    fields(input.plan, ['summary', 'scope', 'acceptance', 'permissions', 'budget', 'target_branch', 'base_commit', 'documentation', 'features']);
+    fields(input.plan, ['summary', 'scope', 'acceptance', 'permissions', 'budget', 'target_branch', 'base_commit', 'documentation', 'features', 'integrations']);
+    integrationScopes(input.plan.integrations);
     if (!text(input.plan.summary) || !Array.isArray(input.plan.scope) || !input.plan.scope.length ||
         !Array.isArray(input.plan.acceptance) || !input.plan.acceptance.length ||
         !Array.isArray(input.plan.permissions) || !text(input.plan.target_branch, 250) || !(input.plan.base_commit === null || sha(input.plan.base_commit)) ||
@@ -152,6 +157,7 @@ export function publish(state, input, now = Date.now()) {
       !sha(job.target_commit) || !job.checks.some(c => c.kind === 'post-merge' && c.status === 'passed' && c.commit === job.target_commit))) fail('Merge consent and passing post-merge evidence are required.');
   if (input.status === 'paused' && command.action !== 'pause') fail('Pause needs a pause request.');
   if (input.status === 'cancelled' && command.action !== 'cancel') fail('Cancellation needs a cancel request.');
+  if (['paused', 'cancelled', 'awaiting-merge', 'merged'].includes(input.status) && (state.integration_runs || []).some(r => r.job_id === job.id && ['running', 'uncertain'].includes(r.status))) fail('Reconcile active or uncertain integration processes before confirming this stage.');
   job.status = input.status; job.updated_at = stamp();
   if (['paused', 'cancelled'].includes(job.status)) {
     for (const other of state.commands.filter(c => c.job_id === job.id && c.id !== command.id && ['running', 'uncertain'].includes(c.status))) {
@@ -174,6 +180,7 @@ export function finish(state, input) {
   const command = state.commands.find(c => c.id === input.id);
   if (!command || !['running', 'uncertain'].includes(command.status) || !['completed', 'failed', 'blocked'].includes(input.status)) fail('No matching command to finish.');
   const job = state.jobs.find(j => j.id === command.job_id);
+  if (input.status === 'completed' && (state.integration_runs || []).some(r => r.command_id === command.id && ['running', 'uncertain'].includes(r.status))) fail('Resolve outstanding integration results before completing the command.');
   if (input.status === 'completed' && job && !['awaiting-plan', 'awaiting-merge', 'merged', 'paused', 'cancelled', 'blocked'].includes(job.status)) fail('Publish the actual gate or terminal job result before completing this command.');
   command.status = input.status; command.finished_at = stamp();
   command.message = typeof input.message === 'string' ? input.message.slice(0, 1000) : '';
@@ -185,10 +192,10 @@ export function publicState(state, config) {
   const line = value => typeof value === 'string' ? value.slice(0, 50000) : '';
   const check = c => ({ label: line(c.label), status: line(c.status), detail: line(c.detail), action: line(c.action), time: c.time, commit: c.commit });
   const jobs = state.jobs.map(j => ({
-    id: j.id, mode: j.mode, status: j.status, requirements: line(j.requirements), design: line(j.design),
+    id: j.id, mode: j.mode, status: j.status, plan_approved: Boolean(j.plan && j.approved_plan_hash === digest(JSON.stringify(j.plan))), requirements: line(j.requirements), design: line(j.design),
     plan: j.plan ? { summary: line(j.plan.summary), scope: j.plan.scope.map(line), acceptance: j.plan.acceptance.map(line),
       permissions: j.plan.permissions.map(line), budget: typeof j.plan.budget === 'number' ? j.plan.budget : line(j.plan.budget),
-      target_branch: line(j.plan.target_branch), base_commit: line(j.plan.base_commit) } : null,
+      target_branch: line(j.plan.target_branch), base_commit: line(j.plan.base_commit), integrations: j.plan.integrations || [] } : null,
     offer: j.offer, commit: line(j.commit), target_base_commit: line(j.target_base_commit || j.plan?.base_commit || j.baseline_commit), message: line(j.message),
     features: j.features.map(f => ({ title: line(f.title), status: line(f.status) })),
     checks: j.checks.map(check), reviews: j.reviews.map(r => ({ role: line(r.role), verdict: line(r.verdict), commit: line(r.commit), summary: line(r.summary) })),
@@ -197,6 +204,7 @@ export function publicState(state, config) {
     preview: typeof j.preview === 'string' && /^http:\/\/(127\.0\.0\.1|localhost):\d+\//.test(j.preview) ? j.preview : null
   }));
   return { revision: state.revision, project: config.project_name, edition: config.edition, version: config.version,
+    integrations: integrationView(state, config), performance: performance(state),
     models: [...new Set(Object.values(config.models).filter(Boolean))],
     owner: { connected: connected(state), runtime: state.owner?.runtime || null, listening: Boolean(state.owner?.listening) },
     checks: [...state.checks.map(check), { label: 'Dashboard owner connection', status: connected(state) ? 'passed' : 'needs-action', detail: connected(state) ? 'The edition owner is paired. Live model identity is checked separately.' : 'No active owner lease.', action: 'Invoke the installed factory skill in the original owning session.' }], jobs,

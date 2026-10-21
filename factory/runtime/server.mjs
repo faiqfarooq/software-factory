@@ -2,10 +2,11 @@ import http from 'node:http';
 import path from 'node:path';
 import { readFile, unlink, open, mkdir } from 'node:fs/promises';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
-import { atomic, safePath, readConfig, readState, saveState, locked, stamp, uid, event } from './storage.mjs';
+import { atomic, safePath, readConfig, readState, saveState, locked, stamp, uid, event, json } from './storage.mjs';
 import { profile } from './profiles.mjs';
 import { inspect, git } from './checks.mjs';
 import { enqueue, claim, publish, finish, publicState, fields, connected } from './workflow.mjs';
+import { CATALOG, integrationSettings, prerequisites, reserveRun, executeIntegration } from './integrations.mjs';
 
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -22,9 +23,10 @@ export async function assertMergeBinding(root, job) {
   if (commit !== job.commit) throw new Error('Reviewed commit is unavailable.');
   await git(root, ['merge-base', '--is-ancestor', target, commit]);
 }
-export async function serve(root, { port = 0 } = {}) {
+export async function serve(root, { port = 0, integrationDependencies = {} } = {}) {
   root = path.resolve(root);
-  const config = await readConfig(root), selected = profile(config.edition);
+  let config = await readConfig(root);
+  const selected = profile(config.edition), toolTasks = new Map();
   const lockPath = await safePath(root, 'factory/.local/server.lock');
   await mkdir(path.dirname(lockPath), { recursive: true });
   let lock;
@@ -75,6 +77,34 @@ export async function serve(root, { port = 0 } = {}) {
       if (!ownerRoute && (req.headers.origin !== origin || !equal(req.headers['x-factory-csrf'], browserKey))) return send(403, { error: 'Browser origin and CSRF token are required.' });
       if (!String(req.headers['content-type'] || '').startsWith('application/json')) return send(415, { error: 'Expected JSON.' });
       const input = await body(req);
+      if (route === '/api/integrations/check') {
+        fields(input, []);
+        const checks = await prerequisites(root, config);
+        await mutate(state => {
+          state.integration_checks = Object.fromEntries(Object.entries(checks).map(([id, value]) => [id, { ...value, time: stamp() }]));
+          event(state, 'Integration prerequisites checked locally. No provider requests or installs.');
+        });
+        return send(200, { status: 'completed' });
+      }
+      if (route === '/api/integrations/settings') {
+        fields(input, ['id', 'enabled', 'revision']);
+        if (!Object.hasOwn(CATALOG, input.id) || input.id === 'skills' || typeof input.enabled !== 'boolean') throw new Error('Choose an optional integration and its enabled flag.');
+        await mutate(async state => {
+          if (input.revision !== state.revision) throw new Error('State changed. Refresh before changing integration settings.');
+          if (state.commands.some(c => ['pending', 'running', 'uncertain'].includes(c.status)) || (state.integration_runs || []).some(r => ['running', 'uncertain'].includes(r.status)) ||
+              state.jobs.some(j => !['merged', 'cancelled', 'awaiting-plan', 'paused', 'blocked'].includes(j.status))) throw new Error('Pause/finish and reconcile active work before changing tools. Affected plans must be revised after a change.');
+          const settings = integrationSettings(config.integrations); settings[input.id].enabled = input.enabled;
+          const updated = { ...config, integrations: settings };
+          await atomic(await safePath(root, 'factory/config.json'), updated); config = updated;
+          state.integration_profile = Object.entries(settings).filter(([, v]) => v.enabled).map(([id]) => id);
+          state.integration_checks = Object.fromEntries(Object.entries(await prerequisites(root, config)).map(([id, value]) => [id, { ...value, time: stamp() }]));
+          for (const job of state.jobs.filter(j => ['awaiting-plan', 'paused', 'blocked'].includes(j.status))) {
+            job.offer = null; job.approved_plan_hash = null; job.status = 'blocked'; job.message = 'Integration settings changed. Request a revised plan before approval; existing work and history were preserved.';
+          }
+          event(state, CATALOG[input.id].name + (input.enabled ? ' enabled; connection still requires verification.' : ' disabled.'));
+        });
+        return send(200, { status: 'completed' });
+      }
       if (route === '/api/check') {
         fields(input, []);
         const report = await inspect(root, config.edition);
@@ -95,6 +125,73 @@ export async function serve(root, { port = 0 } = {}) {
         return send(200, { id: command.id, status: command.status });
       }
       if (!ownerRoute) return send(404, { error: 'Not found.' });
+      if (route === '/api/owner/tool') {
+        fields(input, ['owner_id', 'request']);
+        const reservation = await mutate(state => { requireOwner(state, input.owner_id); touch(state); return reserveRun(state, config, input.request); });
+        const run = reservation.run;
+        if (!reservation.duplicate) {
+          const controller = new AbortController();
+          const started = Date.now();
+          const task = (async () => {
+            // Start on the next event-loop turn, after the receipt has been durably reserved.
+            await delay(0);
+            let result;
+            try { result = await executeIntegration(root, config, run, { ...integrationDependencies, signal: controller.signal }); }
+            catch (error) {
+              result = { status: error.uncertain || controller.signal.aborted || ['TimeoutError', 'AbortError'].includes(error.name) ? 'uncertain' : 'failed',
+                data: { error: error.message.startsWith('Integration HTTP') || error.message.startsWith('21st.dev HTTP') ? error.message : 'Integration did not complete. Inspect its local prerequisites and approved inputs.' },
+                external_calls: run.tool === 'graphify' ? 0 : null, usd: run.tool === 'graphify' ? 0 : null };
+            }
+            const file = 'factory/.local/integrations/runs/' + run.id + '.json';
+            await atomic(await safePath(root, file), { ...result, trust: 'Untrusted integration output; not an agent verdict or merge approval.' });
+            await mutate(state => {
+              const saved = state.integration_runs.find(r => r.id === run.id);
+              Object.assign(saved, { status: result.status, external_calls: result.external_calls, usd: result.usd ?? null,
+                cache_hit: Boolean(result.cache_hit), connection_binding: result.connection_binding || null,
+                duration_ms: Date.now() - started, finished_at: stamp(), result_file: file,
+                source_commit: result.commit || null });
+              event(state, CATALOG[run.tool].name + ' ' + run.operation + ': ' + result.status + '. Results require owner review.');
+            });
+          })();
+          toolTasks.set(run.id, { task, controller });
+          task.catch(async () => {
+            // A storage/receipt failure must not silently leave a reusable Running invocation.
+            await mutate(state => {
+              const saved = state.integration_runs?.find(r => r.id === run.id);
+              if (saved && saved.status === 'running') { saved.status = 'uncertain'; saved.failure = 'Receipt persistence needs reconciliation.'; }
+            }).catch(() => {});
+          }).finally(() => toolTasks.delete(run.id));
+        }
+        return send(202, { id: run.id, status: run.status, duplicate: reservation.duplicate });
+      }
+      if (route === '/api/owner/tool-result') {
+        fields(input, ['owner_id', 'id']);
+        const state = await readState(root); requireOwner(state, input.owner_id);
+        const run = state.integration_runs?.find(r => r.id === input.id && r.owner_id === input.owner_id);
+        if (!run) throw new Error('Unknown tool invocation for this owner.');
+        const result = run.result_file ? await json(await safePath(root, run.result_file)) : null;
+        return send(200, { id: run.id, status: run.status, result });
+      }
+      if (route === '/api/owner/tool-cancel') {
+        fields(input, ['owner_id', 'id']);
+        const state = await readState(root); requireOwner(state, input.owner_id);
+        const run = state.integration_runs?.find(r => r.id === input.id && r.owner_id === input.owner_id);
+        if (!run || !state.commands.some(c => c.job_id === run.job_id && ['pause', 'cancel'].includes(c.action) && c.status === 'running')) throw new Error('A matching acknowledged pause/cancel command is required.');
+        toolTasks.get(run.id)?.controller.abort();
+        return send(200, { id: run.id, status: 'cancellation-requested', note: 'Inspect actual processes/containers before confirming stopped.' });
+      }
+      if (route === '/api/owner/tool-reconcile') {
+        fields(input, ['owner_id', 'id', 'note']);
+        if (typeof input.note !== 'string' || input.note.trim().length < 10 || input.note.length > 2000) throw new Error('Describe the actual process/container reconciliation.');
+        await mutate(state => {
+          requireOwner(state, input.owner_id);
+          const run = state.integration_runs?.find(r => r.id === input.id && r.owner_id === input.owner_id);
+          if (!run || run.status !== 'uncertain' || toolTasks.has(run.id)) throw new Error('Only a conclusively stopped, uncertain invocation can be reconciled.');
+          run.reconciliation = { time: stamp(), note: input.note, previous_status: run.status };
+          run.status = 'reconciled'; event(state, 'Tool interruption reconciled by the same owner; previous usage and receipts preserved.');
+        });
+        return send(200, { status: 'reconciled' });
+      }
       if (route === '/api/owner/connect') {
         fields(input, ['id', 'runtime']);
         if (typeof input.id !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(input.id) || input.runtime !== selected.owner) throw new Error('Owner identity/runtime does not match the selected edition.');
@@ -216,7 +313,10 @@ export async function serve(root, { port = 0 } = {}) {
   });
   server.requestTimeout = 65000; server.headersTimeout = 10000;
   try {
-    await mutate(state => {
+    await mutate(async state => {
+      state.integration_checks = Object.fromEntries(Object.entries(await prerequisites(root, config)).map(([id, value]) => [id, { ...value, time: stamp() }]));
+      state.integration_profile = Object.entries(integrationSettings(config.integrations)).filter(([, v]) => v.enabled).map(([id]) => id);
+      for (const run of state.integration_runs || []) if (run.status === 'running') run.status = 'uncertain';
       if (state.owner) { state.owner.connected = false; state.owner.listening = false; }
       for (const command of state.commands) {
         if (command.status === 'pending') command.status = 'expired';
@@ -228,6 +328,7 @@ export async function serve(root, { port = 0 } = {}) {
     origin = 'http://127.0.0.1:' + server.address().port;
     await atomic(await safePath(root, 'factory/.local/connection.json'), { origin, owner_key: ownerKey, browser_key: browserKey, pid: process.pid });
     const close = async () => {
+      if (toolTasks.size) throw new Error('Integration tools are running. Pause/cancel and reconcile them before stopping the dashboard.');
       if (closing) return; closing = true;
       await mutation;
       await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); });

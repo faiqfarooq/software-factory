@@ -5,6 +5,7 @@ import { execFile } from 'node:child_process';
 import { serve } from './server.mjs';
 import { json, readConfig, safePath, readState, locked, saveState, event } from './storage.mjs';
 import { inspect } from './checks.mjs';
+import { roleContext, integrationView } from './integrations.mjs';
 
 export function options(args) {
   const positionals = [], flags = {};
@@ -37,14 +38,14 @@ export async function openBrowser(url) {
 export async function main(args = process.argv.slice(2)) {
   const { positionals: words, flags } = options(args);
   const root = path.resolve(typeof flags.project === 'string' ? flags.project : process.cwd());
-  const allowed = words[0] === 'start' ? ['project', 'port', 'no-open'] : words[0] === 'owner' ? ['project', 'session', 'runtime', 'wait', 'file'] : ['project'];
+  const allowed = words[0] === 'start' ? ['project', 'port', 'no-open'] : words[0] === 'owner' ? ['project', 'session', 'runtime', 'wait', 'file'] : words[0] === 'role-context' ? ['project', 'role'] : ['project'];
   if (Object.keys(flags).some(k => !allowed.includes(k))) throw new Error('Unknown option for this operation.');
   if (words[0] === 'start') {
     if (flags.port !== undefined && (!/^\d+$/.test(String(flags.port)) || Number(flags.port) > 65535)) throw new Error('Invalid dashboard port.');
     const server = await serve(root, { port: flags.port === undefined ? 0 : Number(flags.port) });
     console.log('Dashboard: ' + server.url + '\nKeep this process running. Pairing links are private.');
     if (!flags['no-open']) await openBrowser(server.url).catch(() => console.log('Open the printed link in your browser.'));
-    const stop = async () => { await server.close(); process.exit(0); };
+    const stop = async () => { try { await server.close(); process.exit(0); } catch (error) { console.error(error.message); } };
     process.once('SIGINT', stop); process.once('SIGTERM', stop);
     return server;
   }
@@ -64,17 +65,23 @@ export async function main(args = process.argv.slice(2)) {
     const result = { jobs: state.jobs.map(j => ({ id: j.id, mode: j.mode, status: j.status })), commands: state.commands.filter(c => ['pending', 'running', 'uncertain'].includes(c.status)).map(c => ({ id: c.id, action: c.action, status: c.status })) };
     console.log(JSON.stringify(result, null, 2)); return result;
   }
+  if (words[0] === 'role-context') {
+    const result = roleContext(await readConfig(root), flags.role); console.log(JSON.stringify(result, null, 2)); return result;
+  }
+  if (words[0] === 'integrations') {
+    const result = integrationView(await readState(root), await readConfig(root)); console.log(JSON.stringify(result, null, 2)); return result;
+  }
   if (words[0] === 'owner') {
     const action = words[1], id = flags.session;
     if (typeof id !== 'string') throw new Error('Use --session with the actual owning session id; keep it stable across reconnection.');
     let payload;
     if (action === 'connect') payload = { id, runtime: flags.runtime };
     else if (['next', 'heartbeat', 'disconnect'].includes(action)) payload = { owner_id: id, ...(action === 'next' ? { wait_ms: flags.wait === undefined ? 50000 : Number(flags.wait) } : {}) };
-    else if (['publish', 'finish', 'checks'].includes(action)) {
+    else if (['publish', 'finish', 'checks', 'tool', 'tool-result', 'tool-cancel', 'tool-reconcile'].includes(action)) {
       if (typeof flags.file !== 'string') throw new Error('Use --file with a private JSON payload.');
       const input = JSON.parse(await readFile(path.resolve(root, flags.file), 'utf8'));
-      payload = action === 'publish' ? { owner_id: id, update: input } : action === 'finish' ? { owner_id: id, result: input } : { owner_id: id, ...input };
-    } else throw new Error('Owner operations: connect, next, heartbeat, publish, checks, finish, disconnect.');
+      payload = action === 'publish' ? { owner_id: id, update: input } : action === 'finish' ? { owner_id: id, result: input } : action === 'tool' ? { owner_id: id, request: input } : { owner_id: id, ...input };
+    } else throw new Error('Owner operations: connect, next, heartbeat, publish, checks, tool, tool-result, tool-cancel, tool-reconcile, finish, disconnect.');
     const result = await ownerCall(root, action, payload);
     console.log(JSON.stringify(result, null, 2)); return result;
   }

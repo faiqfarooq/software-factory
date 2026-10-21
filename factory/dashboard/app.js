@@ -1,7 +1,7 @@
 /* Shared dashboard. All project text is rendered with textContent, never HTML. */
 'use strict';
 const $ = id => document.getElementById(id);
-const titles = { overview: 'Overview', setup: 'Setup & connections', plan: 'Plan & features', reviews: 'Tests & reviews', docs: 'Documentation', usage: 'Usage', activity: 'Activity' };
+const titles = { overview: 'Overview', setup: 'Setup & connections', integrations: 'Integrations', plan: 'Plan & features', reviews: 'Tests & reviews', docs: 'Documentation', usage: 'Usage', activity: 'Activity' };
 let token = /^[a-f0-9]{64}$/.test(location.hash.slice(1)) ? location.hash.slice(1) : sessionStorage.getItem('factory-key') || '';
 if (location.hash) history.replaceState(null, '', location.pathname);
 if (token) sessionStorage.setItem('factory-key', token);
@@ -64,7 +64,7 @@ function actions(current) {
   const add = (text, action, primary = false) => box.append(button(text, () => openAction(action, current), primary, online && (!busy || ['pause', 'cancel'].includes(action))));
   if (current.status === 'awaiting-plan') { add('Approve plan and start', 'approve-plan', true); add('Request plan changes', 'revise'); }
   if (current.status === 'awaiting-merge') { add('Approve merge', 'approve-merge', true); add('Request rework', 'rework'); }
-  if (current.status === 'blocked') add('Request rework', 'rework', true);
+  if (current.status === 'blocked' && current.plan_approved) add('Request rework', 'rework', true);
   if (['blocked', 'paused', 'awaiting-merge'].includes(current.status)) add('Revise scope or budget', 'revise');
   if (['running', 'reviewing'].includes(current.status)) add('Pause', 'pause');
   if (current.status === 'paused') add('Resume', 'resume', true);
@@ -79,6 +79,10 @@ function planContent(current) {
   e.append(node('p', p.summary, 'details'), node('h3', 'Scope'), list(p.scope), node('h3', 'Acceptance checks'), list(p.acceptance),
     node('h3', 'Permissions'), list(p.permissions), node('h3', 'Budget'), node('p', p.budget === '' ? 'Not specified — resolve before approval.' : String(p.budget), 'details'),
     node('h3', 'Merge target'), node('p', p.target_branch), node('code', p.base_commit));
+  if (p.integrations?.length) {
+    e.append(node('h3', 'Approved tool scope', 'section-gap'), table(['Tool', 'Operations / limits'], p.integrations.map(s => [s.tool,
+      s.operations.join(', ') + ' · ' + s.max_calls + ' invocations' + (s.targets ? ' · Targets: ' + s.targets.join(', ') + ' · Model: ' + s.model + ' · $' + s.max_usd + ' per scan (best effort), ' + s.max_turns + ' turns per agent' : '')])));
+  }
   if (current.commit) e.append(node('h3', 'Reviewed commit', 'section-gap'), node('code', current.commit));
   return e;
 }
@@ -89,6 +93,8 @@ function activity(limit = 100) {
   return ul;
 }
 function render() {
+  $('planning-docs-option').hidden = !state.integrations?.some(i => i.id === 'context7' && i.enabled);
+  if ($('planning-docs-option').hidden) $('planning-docs').checked = false;
   $('project').textContent = state.project; $('edition').textContent = ({ 'claude-only': 'Claude only', 'codex-claude': 'Codex + Claude', 'low-cost': 'API providers' })[state.edition]; $('version').textContent = 'v' + state.version;
   $('page-label').textContent = titles[page]; $('owner-label').textContent = state.owner.connected ? state.owner.listening ? 'Owner listening' : 'Owner paired' : 'Owner disconnected'; $('owner-dot').classList.toggle('online', state.owner.connected);
   for (const e of document.querySelectorAll('[data-page]')) { e.classList.toggle('selected', e.dataset.page === page); e.setAttribute('aria-current', e.dataset.page === page ? 'page' : 'false'); }
@@ -121,6 +127,39 @@ function render() {
   } else if (page === 'setup') {
     const setup = card('Setup checklist', checksList(state.checks));
     const a = node('div', undefined, 'actions'); a.append(button('Recheck local setup', async () => { try { await api('check', {}); toast('Local checks refreshed.'); await refresh(); } catch (e) { toast(e.message, true); } }), button('Check live access', () => openAction('check-live'), true, state.owner.connected)); setup.append(a, node('p', 'Local checks make no model calls. Live checks require your explicit consent and can consume provider usage.', 'muted section-gap')); main.append(setup);
+  } else if (page === 'integrations') {
+    main.append(node('p', 'Enable only what this project needs. Enabling does not install software, connect accounts, spend credits, or authorize a scan. The owner uses tools within the displayed plan scope.', 'subtitle'));
+    const controls = node('div', undefined, 'actions');
+    controls.append(button('Check local availability', async () => { try { await api('integrations/check', {}); toast('Local availability checked. No provider calls.'); await refresh(); } catch (e) { toast(e.message, true); } })); main.append(controls);
+    const grid = node('div', undefined, 'integration-grid');
+    const settingsLocked = state.commands.some(c => ['pending', 'running', 'uncertain'].includes(c.status)) || state.jobs.some(j => !['merged', 'cancelled', 'awaiting-plan', 'paused', 'blocked'].includes(j.status));
+    for (const tool of state.integrations || []) {
+      const c = card(tool.name); c.append(badge(tool.status), node('p', tool.description, 'details section-gap'), node('p', tool.detail, 'muted'));
+      c.append(node('p', 'Roles: ' + tool.roles.join(', '), 'integration-note'));
+      if (tool.enabled && tool.action) c.append(node('p', 'Next: ' + tool.action, 'integration-note'));
+      c.append(node('p', 'Known external requests: ' + tool.calls + (tool.calls_complete ? '' : ' · partial') + ' · Cache hits: ' + tool.cache_hits + ' · Cost: ' + (tool.usd === null ? 'unavailable' : '$' + tool.usd.toFixed(6)), 'integration-note'));
+      if (tool.last_checked) c.append(node('p', 'Checked: ' + new Date(tool.last_checked).toLocaleString() + (tool.last_verified ? ' · Verified: ' + new Date(tool.last_verified).toLocaleString() : ''), 'integration-note'));
+      const a = node('div', undefined, 'actions');
+      if (tool.id !== 'skills') a.append(button(tool.enabled ? 'Disable' : 'Enable', async () => {
+        try { await api('integrations/settings', { id: tool.id, enabled: !tool.enabled, revision: state.revision }); toast(tool.name + (tool.enabled ? ' disabled.' : ' enabled. Review its next action and include use in your plan.')); await refresh(); } catch (e) { toast(e.message, true); }
+      }, !tool.enabled, !settingsLocked));
+      const link = node('a', 'Official setup guide ↗'); link.href = tool.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; a.append(link); c.append(a);
+      if (tool.latest.length) c.append(table(['Recent operation', 'Result', 'Duration'], tool.latest.map(r => [r.operation + (r.cache_hit ? ' · cached' : ''), badge(r.status), r.duration_ms === null ? '—' : (r.duration_ms / 1000).toFixed(1) + ' s'])));
+      grid.append(c);
+    }
+    main.append(grid);
+    if (settingsLocked) main.append(node('p', 'Tool settings are locked while work is active. Pause/finish and reconcile it first. Changes require a revised plan offer and preserve existing work.', 'muted'));
+    const p = state.performance;
+    if (p) main.append(card('Measure before expanding', table(['Observed metric', 'Value'], [
+      ['Completed jobs', String(p.completed_jobs)], ['Known measured tokens', p.measured_tokens === null ? 'Unavailable' : p.measured_tokens.toLocaleString()],
+      ['Known API-equivalent cost', p.known_usd === null ? 'Unavailable' : '$' + p.known_usd.toFixed(6) + (p.usage_complete ? '' : ' · partial')],
+      ['Elapsed time including approval waits', p.elapsed_ms === null ? 'Unavailable' : (p.elapsed_ms / 60000).toFixed(1) + ' min'],
+      ['Completed rework requests', String(p.rework_requests)], ['Escaped defects', 'Not measured']
+    ])), node('p', 'These are observations from this project, not claimed savings. Compare similar accepted work with and without each optional tool.', 'muted'));
+    if (p?.cohorts.length) main.append(card('Compare observed tool use', table(['Tools actually invoked', 'Completed jobs', 'Mean elapsed, including waits', 'Mean known tokens'], p.cohorts.map(c => [
+      c.tools.length ? c.tools.join(', ') : 'No optional tools', String(c.jobs), c.average_elapsed_ms === null ? 'Unavailable' : (c.average_elapsed_ms / 60000).toFixed(1) + ' min',
+      c.average_known_tokens === null ? 'Unavailable' : Math.round(c.average_known_tokens).toLocaleString() + ' (' + c.token_samples + ' samples)'
+    ]))));
   } else if (page === 'plan') {
     const c = card(current ? 'Approved scope & acceptance' : null, planContent(current)); if (current) { c.append(actions(current)); if (current.design) c.append(node('h3', 'Design reference', 'section-gap'), node('p', current.design, 'details')); } main.append(c);
     if (current?.features.length) main.append(card('Features', table(['Feature', 'Progress'], current.features.map(f => [f.title, badge(f.status)]))));
@@ -172,7 +211,7 @@ for (const e of document.querySelectorAll('[data-close]')) e.addEventListener('c
 $('pair-form').addEventListener('submit', async e => { e.preventDefault(); token = $('pair-key').value.trim(); try { state = await api('state'); sessionStorage.setItem('factory-key', token); $('pair-dialog').close(); signature = ''; render(); } catch (error) { $('pair-error').textContent = error.message; } });
 $('request-form').addEventListener('submit', async e => {
   e.preventDefault(); const submit = e.submitter; submit.disabled = true;
-  const ok = await submitCommand({ action: 'request', revision: state.revision, input: { mode: new FormData(e.target).get('mode'), requirements: $('requirements').value, design: $('design').value } });
+  const ok = await submitCommand({ action: 'request', revision: state.revision, input: { mode: new FormData(e.target).get('mode'), requirements: $('requirements').value, design: $('design').value, allow_documentation: $('planning-docs').checked } });
   submit.disabled = false; if (ok) { $('request-dialog').close(); e.target.reset(); }
 });
 $('action-form').addEventListener('submit', async e => {
