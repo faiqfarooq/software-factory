@@ -54,7 +54,7 @@ test('all editions reuse the same minimal-file and product/control contract', as
     assert.ok(start > 0 && end > start, 'Missing shared contract: ' + edition);
     contracts.push(prompt.slice(start, end));
     const guide = await readFile(path.join(root, edition, 'docs/PRODUCT.md'), 'utf8');
-    for (const heading of ['## Beginner setup', '## Choose the mode explicitly', '## Requirements and roadmap', '## Follow a supplied design', '## Automatic sequential execution', '## One dashboard for visibility and control', '## Pause, changes and recovery']) assert.ok(guide.includes(heading), edition + ': ' + heading);
+    for (const heading of ['## Beginner setup', '## Choose the mode explicitly', '## Requirements and roadmap', '## Follow a supplied design', '## Human-approved sequential execution', '## One dashboard for visibility and control', '## Pause, changes and recovery']) assert.ok(guide.includes(heading), edition + ': ' + heading);
   }
   assert.equal(contracts[0], contracts[1]);
   assert.equal(contracts[1], contracts[2]);

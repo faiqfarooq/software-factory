@@ -56,6 +56,8 @@ function planning() {
   const state = unitState();
   enqueue(state, { id: 'request1', action: 'request', revision: state.revision, input: { mode: 'product', requirements: 'Build a task app.' } });
   const command = claim(state), job = state.jobs[0];
+  // Persisted v1 fixtures retain their historical validation; HTTP requests always create v2 jobs.
+  delete job.lifecycle;
   const plan = { summary: 'Task app', scope: ['Tasks'], acceptance: ['Create a task'], permissions: ['Application source edits and local tests'], budget: 'Approved subscription usage', target_branch: 'main', base_commit: 'a'.repeat(40), documentation: ['developer', 'user'] };
   publish(state, { command_id: command.id, job_id: job.id, status: 'awaiting-plan', plan });
   finish(state, { id: command.id, status: 'completed' });
@@ -273,54 +275,23 @@ test('dashboard serves only the fixed shared assets with no inline executable co
   assert.equal((await fetch(server.origin + '/style.css')).status, 200);
 });
 
-test('both approvals complete a real disposable Git fast-forward with post-merge evidence', async t => {
-  const { root, request, owner } = await running(t);
-  const base = await git(root, ['rev-parse', 'HEAD']);
-  await owner('connect', { id: 'fixture-session', runtime: 'claude' });
-  const send = async input => {
-    const state = (await request('/api/state')).data;
-    const response = await request('/api/commands', { revision: state.revision, ...input });
-    assert.equal(response.status, 200, JSON.stringify(response.data)); return response;
-  };
-  const next = async () => (await owner('next', { owner_id: 'fixture-session', wait_ms: 0 })).data.command;
-  const update = async value => {
-    const response = await owner('publish', { owner_id: 'fixture-session', update: value });
-    assert.equal(response.status, 200, JSON.stringify(response.data)); return response;
-  };
-  const done = async id => {
-    const result = await owner('finish', { owner_id: 'fixture-session', result: { id, status: 'completed', message: 'Synthetic test fixture only.' } });
-    assert.equal(result.status, 200, JSON.stringify(result.data));
-  };
-  await send({ id: 'request-e2e', action: 'request', input: { mode: 'feature', requirements: 'Synthetic fixture: add a task file.' } });
-  const prepared = await next(), id = prepared.job_id;
-  await update({ command_id: prepared.id, job_id: id, status: 'awaiting-plan', plan: {
-    summary: 'Synthetic test plan', scope: ['Create task.txt in a disposable test repository'],
-    acceptance: ['task.txt contains Task'], permissions: ['Disposable fixture file writes and local Git merge'],
-    budget: 'Zero live providers', target_branch: 'main', base_commit: base, documentation: ['developer', 'user']
-  } }); await done(prepared.id);
-  let job = (await request('/api/state')).data.jobs[0];
-  await send({ id: 'approve-e2e', action: 'approve-plan', job_id: id, offer_id: job.offer.id });
-  assert.equal((await next()).action, 'approve-plan');
-  await git(root, ['switch', '-c', 'fixture-feature']);
-  await writeFile(path.join(root, 'task.txt'), 'Task\n'); await git(root, ['add', 'task.txt']);
-  await git(root, ['-c', 'user.name=Factory Test', '-c', 'user.email=factory@example.invalid', 'commit', '-m', 'Synthetic fixture feature']);
-  const commit = await git(root, ['rev-parse', 'HEAD']); await git(root, ['switch', 'main']);
-  const checks = [{ label: 'Synthetic acceptance fixture', status: 'passed', commit }];
-  await update({ command_id: 'approve-e2e', job_id: id, status: 'awaiting-merge', commit,
-    checks, reviews: ['security', 'ux', 'ui', 'code', 'qa'].map(role => ({ role, verdict: 'PASS', commit, reviewer_id: 'synthetic-' + role, summary: 'Fixture, not real agent evidence.' })),
-    documentation: ['developer', 'user'].map(kind => ({ kind, status: 'complete', commit, entry: 'docs/' + kind + '.md', text: 'Synthetic test guide.' })),
-    approver: { verdict: 'APPROVE', commit } }); await done('approve-e2e');
-  job = (await request('/api/state')).data.jobs[0];
-  await send({ id: 'merge-e2e', action: 'approve-merge', job_id: id, offer_id: job.offer.id });
-  assert.equal((await next()).action, 'approve-merge');
-  await git(root, ['merge', '--ff-only', 'fixture-feature']);
-  const target = await git(root, ['rev-parse', 'HEAD']);
-  await update({ command_id: 'merge-e2e', job_id: id, status: 'merged', target_commit: target,
-    checks: [...checks, { label: 'Synthetic post-merge fixture', kind: 'post-merge', status: 'passed', commit: target }] });
-  await done('merge-e2e');
-  assert.equal((await request('/api/state')).data.jobs[0].status, 'merged');
-  assert.equal((await readFile(path.join(root, 'task.txt'), 'utf8')).trim(), 'Task');
-  const persisted = await readState(root); assert.equal(persisted.jobs[0].plan_receipt.command_id, 'approve-e2e'); assert.equal(persisted.jobs[0].merge_receipt.command_id, 'merge-e2e');
+test('an active v1 job requires explicit migration and never imports old approvals', async t => {
+  const root = await app(t), state = await readState(root);
+  state.jobs.push({ id: 'old-job', mode: 'feature', requirements: 'Preserve previous work', design: '', status: 'awaiting-merge',
+    plan: { summary: 'Old plan', scope: ['Old scope'], acceptance: ['Old check'], permissions: [], budget: 'Old budget', target_branch: 'main', base_commit: 'a'.repeat(40) },
+    features: [], checks: [], reviews: [], documentation: [], offer: { id: 'old-offer' }, approved_plan_hash: 'old-approval' });
+  await atomic(path.join(root, 'factory/.local/state.json'), state);
+  const server = await serve(root); resources.get(root).push(() => server.close());
+  const after = await readState(root);
+  assert.equal(after.jobs[0].needs_migration, true); assert.equal(after.jobs[0].offer, null);
+  after.owner = unitState().owner;
+  assert.throws(() => enqueue(after, { id: 'old-merge', action: 'approve-merge', revision: after.revision, job_id: 'old-job', offer_id: 'old-offer' }), /Adopt/);
+  enqueue(after, { id: 'adopt', action: 'migrate-workflow', revision: after.revision, job_id: 'old-job' });
+  claim(after); const migrated = after.jobs[0];
+  assert.equal(migrated.lifecycle, 2); assert.equal(migrated.cursor, 0);
+  assert.equal(migrated.previous_workflow.approved_plan_hash, 'old-approval');
+  assert.equal(migrated.approved_plan_hash, undefined);
+  assert.match(migrated.workspace.branch, /^feature\/preserve-previous-work-/);
 });
 
 test('an expired lease and explicit live consent prevent accidental paid dispatch', () => {

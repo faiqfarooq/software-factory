@@ -1,6 +1,7 @@
 import { stamp, uid, digest, event } from './storage.mjs';
 import { REVIEWERS } from './profiles.mjs';
 import { integrationScopes, integrationView, performance } from './integrations.mjs';
+import { validateLifecycleCommand, claimLifecycle, publishLifecycle, lifecycleView, hasActiveWorkers } from './lifecycle.mjs';
 
 const fail = message => { throw new Error(message); };
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -21,10 +22,19 @@ export function enqueue(state, input, now = Date.now()) {
   if (!connected(state, now)) fail('Owner disconnected. Reconnect the original owning session.');
   if (input.revision !== state.revision) fail('State changed. Refresh and review the current offer.');
   const allowed = ['request', 'check-live', 'approve-plan', 'approve-merge', 'revise', 'rework', 'pause', 'resume', 'cancel'];
-  if (!allowed.includes(input.action)) fail('Unsupported action.');
   const pending = state.commands.filter(c => ['pending', 'running', 'uncertain'].includes(c.status));
   if (pending.length >= 100) fail('Too many outstanding commands.');
   let job;
+  const lifecycleJob = state.jobs.find(j => j.id === input.job_id);
+  if (input.action === 'request' || lifecycleJob?.lifecycle === 2 || lifecycleJob?.needs_migration) {
+    if (pending.some(c => c.job_id === lifecycleJob?.id && lifecycleJob && (!['pause', 'cancel'].includes(input.action) || ['pause', 'cancel'].includes(c.action)))) fail('This job already has an outstanding command.');
+    validateLifecycleCommand(state, input, lifecycleJob);
+    const command = { ...input, hash, owner_id: state.owner.id, owner_generation: state.owner.generation,
+      job_binding: lifecycleJob ? digest(JSON.stringify(lifecycleJob)) : null, status: 'pending', created_at: stamp(),
+      expires_at: new Date(now + 10 * 60000).toISOString() };
+    state.commands.push(command); event(state, input.action + ' queued; awaiting the owner.'); return command;
+  }
+  if (!allowed.includes(input.action)) fail('Unsupported action.');
   if (input.action === 'request') {
     if (input.job_id !== undefined || input.offer_id !== undefined) fail('Unexpected request binding.');
     fields(input.input, ['mode', 'requirements', 'design', 'allow_documentation']);
@@ -71,7 +81,7 @@ export function enqueue(state, input, now = Date.now()) {
 }
 export function claim(state, now = Date.now()) {
   const busy = state.commands.some(c => ['running', 'uncertain'].includes(c.status));
-  for (const command of state.commands.filter(c => c.status === 'pending' && (!busy || ['pause', 'cancel'].includes(c.action)))) {
+  for (const command of state.commands.filter(c => c.status === 'pending' && (!busy || ['pause', 'cancel'].includes(c.action))).sort((a, b) => Number(['pause', 'cancel'].includes(b.action)) - Number(['pause', 'cancel'].includes(a.action)))) {
     const job = state.jobs.find(j => j.id === command.job_id);
     if (Date.parse(command.expires_at) <= now || command.owner_id !== state.owner.id ||
         command.owner_generation !== state.owner.generation ||
@@ -79,6 +89,9 @@ export function claim(state, now = Date.now()) {
       command.status = 'expired'; event(state, command.action + ' expired after its context changed.'); continue;
     }
     command.status = 'running'; command.started_at = stamp();
+    if (command.action === 'request' || job?.lifecycle === 2 || job?.needs_migration) {
+      claimLifecycle(state, command, job); event(state, command.action + ' acknowledged by the owner.'); return command;
+    }
     if (command.action === 'request') {
       const job = { id: uid(), mode: command.input.mode, requirements: command.input.requirements,
         design: command.input.design || '', status: 'planning', plan: null, offer: null,
@@ -120,11 +133,13 @@ export function mergeReady(job) {
     job.approver?.verdict === 'APPROVE' && job.approver.commit === job.commit);
 }
 export function publish(state, input, now = Date.now()) {
-  fields(input, ['command_id', 'job_id', 'status', 'plan', 'features', 'checks', 'reviews', 'documentation', 'usage', 'commit', 'baseline_commit', 'target_base_commit', 'target_commit', 'target_branch', 'approver', 'message', 'preview']);
+  fields(input, ['command_id', 'job_id', 'status', 'plan', 'features', 'checks', 'reviews', 'documentation', 'usage', 'commit', 'baseline_commit', 'target_base_commit', 'target_commit', 'target_branch', 'approver', 'message', 'preview', 'preview_commit', 'deliverable']);
   const command = state.commands.find(c => c.id === input.command_id && c.status === 'running');
   if (!command || command.owner_id !== state.owner?.id || command.owner_generation !== state.owner?.generation) fail('No matching running owner command.');
   const job = state.jobs.find(j => j.id === input.job_id);
   if (!job || job.id !== command.job_id) fail('Wrong job for this command.');
+  if (job.needs_migration && !(command.action === 'cancel' && input.status === 'cancelled')) fail('Adopt the staged workflow before publishing more work.');
+  if (job.lifecycle === 2) return publishLifecycle(state, input, command, job);
   const statuses = ['planning', 'awaiting-plan', 'running', 'reviewing', 'awaiting-merge', 'blocked', 'paused', 'cancelled', 'merged'];
   if (!statuses.includes(input.status)) fail('Invalid job status.');
   if (input.plan !== undefined) {
@@ -181,8 +196,11 @@ export function finish(state, input) {
   if (!command || !['running', 'uncertain'].includes(command.status) || !['completed', 'failed', 'blocked'].includes(input.status)) fail('No matching command to finish.');
   const job = state.jobs.find(j => j.id === command.job_id);
   if (input.status === 'completed' && (state.integration_runs || []).some(r => r.command_id === command.id && ['running', 'uncertain'].includes(r.status))) fail('Resolve outstanding integration results before completing the command.');
-  if (input.status === 'completed' && job && !['awaiting-plan', 'awaiting-merge', 'merged', 'paused', 'cancelled', 'blocked'].includes(job.status)) fail('Publish the actual gate or terminal job result before completing this command.');
+  if (input.status === 'completed' && job && (hasActiveWorkers(job) || !['awaiting-plan', 'awaiting-merge', 'awaiting-stage', 'ready-feature', 'ready-acceptance', 'merged', 'paused', 'cancelled', 'blocked'].includes(job.status))) fail('Publish the actual gate or terminal job result before completing this command.');
   command.status = input.status; command.finished_at = stamp();
+  if (job?.lifecycle === 2 && ['failed', 'blocked'].includes(input.status) && !['merged', 'cancelled', 'paused'].includes(job.status)) {
+    job.status = 'blocked'; job.offer = null; job.message = typeof input.message === 'string' ? input.message.slice(0, 1000) : 'The owner reported a blocker. Reconcile activity, then request changes.';
+  }
   command.message = typeof input.message === 'string' ? input.message.slice(0, 1000) : '';
   event(state, command.action + ': ' + input.status + '.');
   return command;
@@ -201,7 +219,8 @@ export function publicState(state, config) {
     checks: j.checks.map(check), reviews: j.reviews.map(r => ({ role: line(r.role), verdict: line(r.verdict), commit: line(r.commit), summary: line(r.summary) })),
     documentation: j.documentation.map(d => ({ kind: line(d.kind), status: line(d.status), commit: line(d.commit), entry: line(d.entry), text: line(d.text) })),
     usage: j.usage ? { tokens: Number.isFinite(j.usage.tokens) ? j.usage.tokens : null, usd: Number.isFinite(j.usage.usd) ? j.usage.usd : null, completeness: line(j.usage.completeness) } : null,
-    preview: typeof j.preview === 'string' && /^http:\/\/(127\.0\.0\.1|localhost):\d+\//.test(j.preview) ? j.preview : null
+    preview: typeof j.preview === 'string' && /^http:\/\/(127\.0\.0\.1|localhost):\d+\//.test(j.preview) ? j.preview : null,
+    ...lifecycleView(j)
   }));
   return { revision: state.revision, project: config.project_name, edition: config.edition, version: config.version,
     integrations: integrationView(state, config), performance: performance(state),

@@ -7,6 +7,8 @@ import { profile } from './profiles.mjs';
 import { inspect, git } from './checks.mjs';
 import { enqueue, claim, publish, finish, publicState, fields, connected } from './workflow.mjs';
 import { CATALOG, integrationSettings, prerequisites, reserveRun, executeIntegration } from './integrations.mjs';
+import { currentUnit, stage, recordWorker } from './lifecycle.mjs';
+import { workspaceView, workspaceDiff, workspaceOperation, assertWorkspace } from './workspace.mjs';
 
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -16,6 +18,7 @@ const body = async req => {
   return JSON.parse(Buffer.concat(chunks).toString('utf8'));
 };
 export async function assertMergeBinding(root, job) {
+  if (job?.lifecycle === 2) return assertWorkspace(root, job, { frozen: true });
   if (!job?.plan || !job.commit) throw new Error('Missing merge binding.');
   const target = await git(root, ['rev-parse', '--verify', 'refs/heads/' + job.plan.target_branch]);
   if (target !== (job.target_base_commit || job.plan.base_commit || job.baseline_commit)) throw new Error('Target branch changed. Reconcile and review before offering merge again.');
@@ -72,7 +75,19 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
       const auth = (req.headers.authorization || '').replace(/^Bearer /, '');
       const ownerRoute = route.startsWith('/api/owner/');
       if (!equal(auth, ownerRoute ? ownerKey : browserKey)) return send(401, { error: 'Pair this dashboard using the local link printed by setup.' });
-      if (req.method === 'GET' && route === '/api/state') return send(200, publicState(await readState(root), config));
+      if (req.method === 'GET' && route === '/api/state') {
+        const state = await readState(root), result = publicState(state, config);
+        result.workspace = await workspaceView(root, state.jobs.find(j => !['merged', 'cancelled'].includes(j.status)) || state.jobs.at(-1));
+        result.roles = Object.entries(config.roles).map(([role, provider]) => ({ role, provider, model: config.models[role] }));
+        return send(200, result);
+      }
+      if (req.method === 'GET' && route === '/api/workspace/diff') {
+        const state = await readState(root), job = state.jobs.find(j => j.id === new URL(req.url, origin).searchParams.get('job'));
+        if (!job || job.lifecycle !== 2) throw new Error('Select a staged feature/product.');
+        const featureId = new URL(req.url, origin).searchParams.get('feature');
+        if (featureId && (job.mode !== 'product' || !job.features.some(f => f.id === featureId))) throw new Error('Unknown feature.');
+        return send(200, await workspaceDiff(root, featureId ? { ...job, phase: 'feature', active_feature: featureId } : job));
+      }
       if (req.method !== 'POST') return send(404, { error: 'Not found.' });
       if (!ownerRoute && (req.headers.origin !== origin || !equal(req.headers['x-factory-csrf'], browserKey))) return send(403, { error: 'Browser origin and CSRF token are required.' });
       if (!String(req.headers['content-type'] || '').startsWith('application/json')) return send(415, { error: 'Expected JSON.' });
@@ -92,13 +107,14 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
         await mutate(async state => {
           if (input.revision !== state.revision) throw new Error('State changed. Refresh before changing integration settings.');
           if (state.commands.some(c => ['pending', 'running', 'uncertain'].includes(c.status)) || (state.integration_runs || []).some(r => ['running', 'uncertain'].includes(r.status)) ||
-              state.jobs.some(j => !['merged', 'cancelled', 'awaiting-plan', 'paused', 'blocked'].includes(j.status))) throw new Error('Pause/finish and reconcile active work before changing tools. Affected plans must be revised after a change.');
+              state.jobs.some(j => !['merged', 'cancelled', 'awaiting-plan', 'awaiting-stage', 'paused', 'blocked'].includes(j.status))) throw new Error('Pause/finish and reconcile active work before changing tools. Affected plans must be revised after a change.');
           const settings = integrationSettings(config.integrations); settings[input.id].enabled = input.enabled;
           const updated = { ...config, integrations: settings };
           await atomic(await safePath(root, 'factory/config.json'), updated); config = updated;
           state.integration_profile = Object.entries(settings).filter(([, v]) => v.enabled).map(([id]) => id);
           state.integration_checks = Object.fromEntries(Object.entries(await prerequisites(root, config)).map(([id, value]) => [id, { ...value, time: stamp() }]));
-          for (const job of state.jobs.filter(j => ['awaiting-plan', 'paused', 'blocked'].includes(j.status))) {
+          for (const job of state.jobs.filter(j => ['awaiting-plan', 'awaiting-stage', 'paused', 'blocked'].includes(j.status))) {
+            if (job.lifecycle === 2) { currentUnit(job).approved_plan_hash = null; job.configuration_changed = true; }
             job.offer = null; job.approved_plan_hash = null; job.status = 'blocked'; job.message = 'Integration settings changed. Request a revised plan before approval; existing work and history were preserved.';
           }
           event(state, CATALOG[input.id].name + (input.enabled ? ' enabled; connection still requires verification.' : ' disabled.'));
@@ -119,12 +135,22 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
       }
       if (route === '/api/commands') {
         const command = await mutate(async state => {
-          if (input.action === 'approve-merge') await assertMergeBinding(root, state.jobs.find(j => j.id === input.job_id));
+          const job = state.jobs.find(j => j.id === input.job_id);
+          if (input.action === 'approve-merge') await assertMergeBinding(root, job);
+          if (job?.lifecycle === 2 && input.action === 'approve-stage' && ['specification', 'design', 'implementation', 'qa', 'acceptance'].includes(stage(job))) await assertWorkspace(root, job, { frozen: ['implementation', 'qa', 'acceptance'].includes(stage(job)) });
           return enqueue(state, input);
         });
         return send(200, { id: command.id, status: command.status });
       }
       if (!ownerRoute) return send(404, { error: 'Not found.' });
+      if (route === '/api/owner/workspace') {
+        const result = await mutate(async state => { requireOwner(state, input.owner_id); touch(state); return workspaceOperation(root, state, input); });
+        return send(200, result);
+      }
+      if (route === '/api/owner/worker') {
+        const result = await mutate(state => { requireOwner(state, input.owner_id); touch(state); return recordWorker(state, config, input); });
+        return send(200, result);
+      }
       if (route === '/api/owner/tool') {
         fields(input, ['owner_id', 'request']);
         const reservation = await mutate(state => { requireOwner(state, input.owner_id); touch(state); return reserveRun(state, config, input.request); });
@@ -216,6 +242,13 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
         try {
           const next = async current => {
             requireOwner(current, input.owner_id);
+            for (const c of current.commands.filter(c => c.status === 'pending' && c.action === 'approve-stage')) {
+              const j = current.jobs.find(j => j.id === c.job_id);
+              if (j?.lifecycle === 2 && ['specification', 'design', 'implementation', 'qa', 'acceptance'].includes(stage(j))) {
+                try { await assertWorkspace(root, j, { frozen: ['implementation', 'qa', 'acceptance'].includes(stage(j)) }); }
+                catch { c.status = 'blocked'; event(current, 'Stage approval blocked: branch, target or reviewed commit changed.'); }
+              }
+            }
             const pendingMerge = current.commands.find(c => c.status === 'pending' && c.action === 'approve-merge');
             if (pendingMerge) {
               try { await assertMergeBinding(root, current.jobs.find(j => j.id === pendingMerge.job_id)); }
@@ -244,6 +277,16 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
         const result = await mutate(async state => {
           requireOwner(state, input.owner_id); touch(state);
           const job = publish(state, input.update);
+          if (job.lifecycle === 2) {
+            if (job.status === 'awaiting-stage' && ['specification', 'design', 'implementation', 'qa', 'integration', 'acceptance', 'final-merge'].includes(stage(job))) {
+              await assertWorkspace(root, job, { frozen: ['implementation', 'qa', 'integration', 'acceptance', 'final-merge'].includes(stage(job)) });
+              if (['qa', 'integration', 'acceptance', 'final-merge'].includes(stage(job))) for (const guide of currentUnit(job).documentation) {
+                await safePath(root, guide.entry);
+                if (guide.entry.startsWith('factory/.local/') || await git(root, ['cat-file', '-t', currentUnit(job).commit + ':' + guide.entry]) !== 'blob') throw new Error('Guide entry must be a committed application file.');
+              }
+            }
+            return { status: job.status };
+          }
           if (job.status === 'awaiting-merge') await assertMergeBinding(root, job);
           if (job.status === 'merged') {
             const actual = await git(root, ['rev-parse', '--verify', 'refs/heads/' + job.plan.target_branch]);
@@ -317,6 +360,12 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
       state.integration_checks = Object.fromEntries(Object.entries(await prerequisites(root, config)).map(([id, value]) => [id, { ...value, time: stamp() }]));
       state.integration_profile = Object.entries(integrationSettings(config.integrations)).filter(([, v]) => v.enabled).map(([id]) => id);
       for (const run of state.integration_runs || []) if (run.status === 'running') run.status = 'uncertain';
+      for (const job of state.jobs) {
+        for (const worker of job.workers || []) if (worker.status === 'running') worker.status = 'uncertain';
+        if (job.lifecycle !== 2 && !['merged', 'cancelled'].includes(job.status)) {
+          job.needs_migration = true; job.offer = null; job.status = 'blocked'; job.message = 'Adopt the staged workflow to continue. Previous work and approval history are preserved.';
+        }
+      }
       if (state.owner) { state.owner.connected = false; state.owner.listening = false; }
       for (const command of state.commands) {
         if (command.status === 'pending') command.status = 'expired';

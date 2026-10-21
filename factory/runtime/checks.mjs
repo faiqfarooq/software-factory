@@ -18,7 +18,7 @@ export async function executable(name, environment = process.env) {
 }
 export async function git(root, args) {
   const { stdout } = await exec('git', ['-C', root, ...args], { timeout: 10000, maxBuffer: 1024 * 1024, windowsHide: true });
-  return stdout.trim();
+  return stdout.trimEnd();
 }
 export async function inspect(root, edition) {
   const selected = profile(edition), checks = [];

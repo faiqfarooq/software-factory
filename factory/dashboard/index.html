@@ -17,7 +17,10 @@
       <button data-page="overview" class="selected">Overview</button>
       <button data-page="setup">Setup & connections</button>
       <button data-page="integrations">Integrations</button>
-      <button data-page="plan">Plan & features</button>
+      <button data-page="plan">Workflow & features</button>
+      <button data-page="workspace">Workspace & changes</button>
+      <button data-page="preview">App & design</button>
+      <button data-page="agents">Agents</button>
       <button data-page="reviews">Tests & reviews</button>
       <button data-page="docs">Documentation</button>
       <button data-page="usage">Usage</button>
@@ -45,23 +48,25 @@
   </dialog>
   <dialog id="request-dialog">
     <form id="request-form">
-      <div class="dialog-heading"><div><p class="eyebrow">START WITH A PLAN</p><h2>What are we building?</h2></div><button type="button" class="quiet" data-close="request-dialog" aria-label="Close request">×</button></div>
+      <div class="dialog-heading"><div><p class="eyebrow">ONE STAGE AT A TIME</p><h2>What are we building?</h2></div><button type="button" class="quiet" data-close="request-dialog" aria-label="Close request">×</button></div>
       <fieldset><legend>Choose the scope</legend><div class="mode-options">
         <label><input type="radio" name="mode" value="product" checked> Build a complete app</label>
         <label><input type="radio" name="mode" value="feature"> Add or change a feature</label>
       </div></fieldset>
+      <label for="work-title">Product or feature name</label><input id="work-title" maxlength="120" placeholder="Customer portal" required>
+      <label for="target-branch">Target branch</label><input id="target-branch" maxlength="200" placeholder="main" required>
       <label for="requirements">Requirements</label><textarea id="requirements" rows="7" maxlength="50000" placeholder="Who is it for? What should it do? What must work before it is finished?" required></textarea>
       <label for="design">Design reference <span class="muted">optional</span></label><input id="design" type="url" placeholder="https://…">
       <label id="planning-docs-option" hidden><input id="planning-docs" type="checkbox"> Allow up to 10 Context7 lookups while preparing this plan. Only public library questions are sent.</label>
-      <p class="muted">Preparing a plan can consume provider usage. Implementation starts after your approval.</p>
-      <button type="submit" class="primary">Prepare plan</button>
+      <p class="muted">Start authorizes a fresh named branch and feasibility analysis. Each later stage needs your approval. Existing changes must be reconciled before switching branches. Analysis can consume provider usage.</p>
+      <button type="submit" class="primary">Start feasibility</button>
     </form>
   </dialog>
   <dialog id="action-dialog">
     <form id="action-form">
       <div class="dialog-heading"><h2 id="action-title">Review action</h2><button type="button" class="quiet" data-close="action-dialog" aria-label="Close action">×</button></div>
       <div id="action-details"></div>
-      <div id="note-field" hidden><label for="action-note">Requested changes</label><textarea id="action-note" rows="5" maxlength="10000"></textarea></div>
+      <div id="note-field" hidden><label for="revision-stage">Return to stage</label><select id="revision-stage"></select><label for="action-note">Requested changes</label><textarea id="action-note" rows="5" maxlength="10000"></textarea></div>
       <button type="submit" class="primary" id="action-submit">Confirm</button>
     </form>
   </dialog>

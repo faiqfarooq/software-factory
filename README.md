@@ -24,9 +24,9 @@ You can also open your app in the chosen assistant and provide its setup prompt 
 
 Open the dashboard and follow its setup checklist. Missing login, tools, model access or native permissions show a specific next action. Live checks require explicit consent and can consume usage. Local pairing is distinct from verified model identity and an active owner listener.
 
-Choose **Build a complete app** or **Add or change a feature**, supply requirements and optional designs, then review the scope, checks, permissions and budget. **Approve plan and start** authorizes routine work within that plan. After implementation, both app guides, tests, five independent reviews and the approver pass, **Approve merge** authorizes the exact reviewed target merge. Setup approval is separate from these two workflow gates. Push/deployment require their own explicit scope.
+Choose **Build a complete app** or **Add or change a feature** and enter a name/target/requirements. Approve feasibility, requirements, specification and design separately. Every product/feature gets a fresh named branch in your application folder. Inspect the local app and diff before authorizing QA, then approve the exact feature merge and post-merge checks. Product features run one at a time and WAIT for **Start next feature**. After all features are accepted, explicitly start aggregate acceptance and separately approve the product-to-target merge. Push/deployment and branch deletion are separate.
 
-The existing owner carries out requests; the browser never runs arbitrary shell commands. A disconnected owner disables dependent controls. Pending, Running and Completed have separate receipts. Restart/reconnect does not replay approvals or paid work. Full app mode automatically advances approved dependency-ready children, then requires fresh whole-product acceptance before its final merge offer.
+The existing owner carries out requests; the browser never runs arbitrary shell commands. A disconnected owner disables dependent controls. Pending, Running and Completed have separate receipts. Restart/reconnect marks interrupted activity uncertain and never replays approvals or paid work. Workspace shows local branch/files/diff; Agents distinguishes ten configured roles from actual owner-reported executions. Active legacy jobs require explicit staged migration; previous work and decisions remain archived.
 
 ## Minimal app layout
 
@@ -45,7 +45,7 @@ Only required native discovery skills live outside factory/. App source and app 
 
 The same dashboard includes an Integrations view. Bundled Agent Skills load per role; Context7, Graphify, 21st.dev and Strix are optional and default off. Select during setup with --integrations context7,graphify or enable later while idle. Credentials stay in the server environment/approved secret storage. Availability is distinct from a real verified connection. Tool usage needs explicit request/plan scope; scanner targets/model/budget are displayed before approval. Raw results and caches remain private. See [the owner protocol](factory/runtime/WORKFLOW.md) for actual adapters, supported operations and recovery.
 
-Observed metrics show completed jobs, elapsed time including human waits, known usage subtotals, rework requests and actual tool/cache counts. Similar-work comparisons are needed before claiming a speed or cost improvement. External integrations do not replace the owner, five reviews or either workflow approval.
+Observed metrics show completed jobs, elapsed time including human waits, known usage subtotals, rework requests and actual tool/cache counts. Similar-work comparisons are needed before claiming a speed or cost improvement. External integrations do not replace the owner, five reviews or staged human approvals.
 
 ## Development
 

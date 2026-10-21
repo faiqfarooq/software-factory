@@ -16,7 +16,7 @@ export const BUNDLE_FILES = [
   'README.md', 'runtime/profiles.mjs', 'runtime/storage.mjs', 'runtime/checks.mjs',
   'runtime/workflow.mjs', 'runtime/server.mjs', 'runtime/cli.mjs', 'runtime/WORKFLOW.md',
   'runtime/LICENSE', 'dashboard/index.html', 'dashboard/style.css', 'dashboard/app.js',
-  'runtime/integrations.mjs', 'runtime/skills/planning/SKILL.md', 'runtime/skills/building/SKILL.md', 'runtime/skills/reviewing/SKILL.md'
+  'runtime/integrations.mjs', 'runtime/lifecycle.mjs', 'runtime/workspace.mjs', 'runtime/skills/planning/SKILL.md', 'runtime/skills/building/SKILL.md', 'runtime/skills/reviewing/SKILL.md'
 ];
 export async function buildManifest(source = SOURCE) {
   const files = {};
@@ -36,10 +36,10 @@ export async function verifyBundle(source = SOURCE) {
 }
 function skill(edition, location) {
   const forwarder = edition === 'codex-claude' && location.startsWith('.claude/');
-  return '---\nname: factory\ndescription: Run this project\'s software factory through its shared dashboard, with plan and merge approvals.\n---\n\n' +
+  return '---\nname: factory\ndescription: Run this project\'s staged software factory with human approval at each stage and separate named feature branches.\n---\n\n' +
     (forwarder ? 'Forward this request to the registered Codex factory owner. Never register Claude as an owner or create another orchestrator. If no supported forwarding bridge is available, direct the user to invoke `$factory` in the same project\'s Codex session.\n' :
       'Read [the owner protocol](../../../factory/runtime/WORKFLOW.md) from the application root, then connect this existing ' + (edition === 'claude-only' ? 'Claude' : 'Codex') + ' session and listen for typed dashboard commands. Use the real host session identity and the edition/model routing in factory/config.json. Never claim background control without an active listener.\n\n' +
-      'Only the owner dispatches specialists. Preserve ten roles, five independent reviews, the same builder for rework, and the separate plan/start and final-merge approvals. Execute only an acknowledged scoped command. Use the role-context operation to load only the assigned shared task skill and discover enabled role-specific integrations. Invoke optional tools through the owner bridge under explicit planning consent/approved plan scope. Publish actual progress and evidence through factory/runtime/cli.mjs; do not rewrite the dashboard or normalized state directly. Missing native capabilities stay visible as blocked.\n');
+      'Only the owner dispatches specialists. Preserve ten roles, five independent reviews and the same feature builder for fixes. Follow every staged human approval, create a fresh product/feature branch through the workspace bridge, and keep implementation visible in the application folder. Never automatically start the next feature or merge without its exact consent. Report actual workers/progress/preview/evidence through factory/runtime/cli.mjs. Use role-context to load only the assigned shared skill and enabled scoped integrations. Do not rewrite normalized state/dashboard. Missing native capabilities stay blocked.\n');
 }
 export async function planInstall(root, edition, source = SOURCE, { integrations } = {}) {
   const selected = profile(edition), manifest = await verifyBundle(source);

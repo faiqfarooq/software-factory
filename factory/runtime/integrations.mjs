@@ -3,6 +3,7 @@ import { readFile, mkdir, lstat, realpath, stat } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { atomic, digest, exists, json, safePath, stamp } from './storage.mjs';
 import { executable, git } from './checks.mjs';
+import { currentUnit, stage as lifecycleStage } from './lifecycle.mjs';
 
 export const CATALOG = Object.freeze({
   skills: { name: 'Agent Skills', roles: ['spec-writer', 'builder', 'documentation-writer', 'security', 'ux', 'ui', 'code', 'qa', 'approver'], operations: [], url: 'https://agentskills.io/specification', description: 'Bundled planning, building and review procedures, loaded on demand.' },
@@ -113,19 +114,22 @@ export function reserveRun(state, config, request) {
   if (!integrationSettings(config.integrations)[request.tool].enabled) throw new Error('Integration is disabled.');
   const command = state.commands.find(c => c.id === request.command_id && c.status === 'running' && c.owner_id === state.owner?.id && c.owner_generation === state.owner?.generation);
   const job = state.jobs.find(j => j.id === request.job_id);
-  if (!command || !job || command.job_id !== job.id || !['request', 'approve-plan', 'revise', 'rework', 'resume'].includes(command.action)) throw new Error('A running scoped owner command is required.');
+  if (!command || !job || command.job_id !== job.id || !['request', 'approve-plan', 'approve-stage', 'start-feature', 'start-acceptance', 'migrate-workflow', 'revise', 'revise-product', 'rework', 'resume'].includes(command.action)) throw new Error('A running scoped owner command is required.');
   if (!['planning', 'running', 'reviewing'].includes(job.status)) throw new Error('Tool calls are unavailable at this stage.');
-  if (job.status === 'planning' && request.role !== 'spec-writer') throw new Error('Only the spec writer can use tools while planning.');
-  const scope = job.status === 'planning' && request.tool === 'context7' && job.planning_docs_consent ?
+  const u = job.lifecycle === 2 ? currentUnit(job) : job;
+  const early = job.lifecycle === 2 ? ['feasibility', 'requirements', 'specification'].includes(lifecycleStage(job)) : job.status === 'planning';
+  if (early && request.role !== 'spec-writer') throw new Error('Only the spec writer can use tools while planning.');
+  if (job.lifecycle === 2 && request.tool === 'strix' && !['qa', 'acceptance'].includes(lifecycleStage(job))) throw new Error('Scanner calls require the authorized QA stage.');
+  const scope = early && request.tool === 'context7' && job.planning_docs_consent ?
     { tool: 'context7', operations: ['resolve', 'docs'], max_calls: 10 } :
-    job.approved_plan_hash === digest(JSON.stringify(job.plan)) ? integrationScopes(job.plan?.integrations).find(s => s.tool === request.tool) : null;
+    u.approved_plan_hash === digest(JSON.stringify(u.plan)) ? integrationScopes(u.plan?.integrations).find(s => s.tool === request.tool) : null;
   if (!scope?.operations.includes(request.operation)) throw new Error('This integration operation needs explicit scope in the approved plan (or planning documentation consent).');
   const used = state.integration_runs.filter(r => r.job_id === job.id && r.tool === request.tool);
   if (used.some(r => ['running', 'uncertain'].includes(r.status))) throw new Error('Reconcile the outstanding tool invocation before another call.');
   if (used.length >= scope.max_calls) throw new Error('Approved integration call limit reached. Revise the plan before more calls.');
   const run = { id: request.id, hash, tool: request.tool, operation: request.operation, role: request.role, command_id: command.id,
-    job_id: job.id, owner_id: state.owner.id, status: 'running', started_at: stamp(), commit: job.commit || job.plan?.base_commit || null,
-    plan_hash: job.approved_plan_hash || null, stage: job.status, scope: structuredClone(scope), parameters: structuredClone(request.parameters || {}),
+    job_id: job.id, owner_id: state.owner.id, status: 'running', started_at: stamp(), commit: u.commit || u.plan?.base_commit || null,
+    plan_hash: u.approved_plan_hash || null, stage: job.status, scope: structuredClone(scope), parameters: structuredClone(request.parameters || {}),
     external_calls: 0, usd: request.tool === 'graphify' ? 0 : null };
   state.integration_runs.push(run); return { duplicate: false, run };
 }

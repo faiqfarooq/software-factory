@@ -77,11 +77,11 @@ export async function main(args = process.argv.slice(2)) {
     let payload;
     if (action === 'connect') payload = { id, runtime: flags.runtime };
     else if (['next', 'heartbeat', 'disconnect'].includes(action)) payload = { owner_id: id, ...(action === 'next' ? { wait_ms: flags.wait === undefined ? 50000 : Number(flags.wait) } : {}) };
-    else if (['publish', 'finish', 'checks', 'tool', 'tool-result', 'tool-cancel', 'tool-reconcile'].includes(action)) {
+    else if (['publish', 'finish', 'checks', 'tool', 'tool-result', 'tool-cancel', 'tool-reconcile', 'worker', 'workspace'].includes(action)) {
       if (typeof flags.file !== 'string') throw new Error('Use --file with a private JSON payload.');
       const input = JSON.parse(await readFile(path.resolve(root, flags.file), 'utf8'));
       payload = action === 'publish' ? { owner_id: id, update: input } : action === 'finish' ? { owner_id: id, result: input } : action === 'tool' ? { owner_id: id, request: input } : { owner_id: id, ...input };
-    } else throw new Error('Owner operations: connect, next, heartbeat, publish, checks, tool, tool-result, tool-cancel, tool-reconcile, finish, disconnect.');
+    } else throw new Error('Owner operations: connect, next, heartbeat, publish, worker, workspace, checks, tool, tool-result, tool-cancel, tool-reconcile, finish, disconnect.');
     const result = await ownerCall(root, action, payload);
     console.log(JSON.stringify(result, null, 2)); return result;
   }
