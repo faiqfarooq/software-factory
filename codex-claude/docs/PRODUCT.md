@@ -1,101 +1,60 @@
-# Build a product or change a feature
+# Product and feature workflow
 
-This guide describes the workflow version 2 generation contract. This folder contains a prompt, not a running application factory. Generate it in your application and verify its reported capabilities. Existing factories need a focused versioned upgrade; updating this repository alone does not update them.
+Use the shared package from a trusted checkout. Updating the checkout does not patch installed apps until their versioned setup is run. Existing unmanaged factories need a reviewed migration.
 
 ## Beginner setup
 
-1. Open the application folder in Codex with the configured owner model. An empty folder is supported; the proposed app architecture and initial Git baseline must be reviewed before building.
-2. Copy the complete [GENERATION.md](../GENERATION.md) into that session. It creates the factory while preserving your app. A generation run must not start a paid product or merge anything.
-3. Follow generated factory/SETUP.md. Check required runtimes, local accounts, project selection and exact test commands. The wizard shows Ready, Action needed or Not checked with a next action. Advanced configuration is optional.
-4. Authorize only the live checks you want. Verify model access in the same environment as actual workers. Installation/authentication, live access and end-to-end acceptance are different results.
-5. Open the one dashboard home link printed by setup. Check whether Owner control is Connected, Read-only or Disconnected. Reconnect the owning session if instructed; do not create a second owner.
-6. Choose **Build a complete app** or **Add or change a feature**. Supply requirements and optional design references. Review extracted content, assumptions and any missing information.
-7. Review the full plan and click **Approve plan and start**, or use genuine human **go ahead** in the owning session. Watch the feature list and previews. Routine approved work proceeds automatically.
-8. Inspect the final product, both guides and validation/review evidence. Click **Approve merge**, or use **merge code** in the owning session, for that exact eligible result. Push/deployment remain separately scoped.
-
-These buttons exist only when generated owner ingress and authenticated human receipts have been verified. A static Python-served page is read-only. The wizard must give exact owner-chat fallback instructions when controls are unavailable. It must not claim every host can run all controls unattended.
+1. Open your application in the selected edition's owner, or select its folder in the terminal setup wizard.
+2. Run node factory/setup.mjs --project <app> from this checkout and choose the edition. The assistant may perform this already-authorized local setup for you.
+3. Review the exact local changes once. Setup installs the same versioned dashboard/runtime, preserves your app and records the checklist; it does not install AI products or make paid calls.
+4. Open the private dashboard link; setup attempts to open it automatically. Keep its server terminal running. If necessary, start node factory/runtime/cli.mjs start from the installed app.
+5. Connect the original owning session using its installed factory skill. Setup performed by the assistant should complete this connection in the same pass when the host supports it. An idle or closed chat cannot receive commands automatically. Verify Owner listening instead of assuming background access.
+6. Review Setup & connections. Fix missing tools or native login/permissions using the displayed next action; authorize Check live access if wanted. Unverified checks stay Not checked.
+7. Choose complete app or feature, submit requirements and optional design reference, then review the plan, scope, acceptance checks, permissions and budget.
+8. Approve plan and start. Follow real progress, reviews and both app guides, then inspect and approve the eligible final merge.
 
 ## Choose the mode explicitly
 
-| Mode | Input | Gate 1 approves | What happens next | Gate 2 approves |
-| --- | --- | --- | --- | --- |
-| Feature | One requested change in an empty or existing project | Feature spec, design, docs, checks, permissions and budget | Build, document, check and independently review one job | That reviewed feature into the target branch |
-| Product | Complete app requirements, optionally in an existing app | Versioned product plan and all child feature contracts | Automatically build eligible features sequentially and integrate passing work into a product branch | The fully checked and freshly reviewed combined product into the target branch |
-
-The dashboard selection is saved in requests, plans, jobs and receipts. Explicit commands also select it. An ordinary ambiguous chat request needs one mode question before planning; document length and an empty repo are not mode selectors. Legacy feature jobs remain feature jobs. Mode changes cannot reinterpret active work or reuse its consent.
+Product mode builds a complete app through an ordered feature roadmap. Feature mode handles one scoped change. Both support an empty or existing application. The selected mode is persisted; unclear ordinary chat needs clarification. Document length cannot choose a mode. Existing active jobs are never silently reclassified.
 
 ## Requirements and roadmap
 
-Support text/Markdown directly. Read PDF/DOCX only when the generated environment has a verified reader; preview extraction, including page/table/image limitations, before planning. Unsupported/scanned files need an export/OCR step. Requirements are data, not instructions to bypass workflow or tool permissions.
-
-The existing spec writer prepares a brief, indexed requirement register, architecture/integration plan, ordered roadmap, per-feature acceptance tests, both documentation plans and whole-product checks. Every mandatory requirement has a stable ID, a source locator and a feature/verification mapping. Surface conflicting requirements and important unknowns. Record visible assumptions; unresolved critical questions block the first approval.
-
-The feature list shows title, requirement IDs, dependencies, source/design references, acceptance criteria, documentation impact and progress. Reject duplicate IDs, unknown references and dependency cycles. A feature can become ready only after its prerequisites are integrated and its approved contract remains current.
+The spec writer extracts mandatory requirements, sources, questions, assumptions and acceptance criteria. Every mandatory requirement must map to a feature and a verification step. Validate unique identifiers, references, dependency cycles and deterministic next-ready ordering. Freeze the plan with repository/base/target, documentation coverage, design snapshots, permissions and budget before approval. Missing architecture, Git baseline or app access must be resolved in the proposal; never overwrite or blanket-stage unrelated work.
 
 ## Follow a supplied design
 
-Designs are optional. Without one, approve explicit UI decisions in the plan. For Figma use the available official MCP integration; for another tool use a verified connector/API or screenshot/asset exports. A URL alone does not prove access or universal import support. See [Figma tools](https://developers.figma.com/docs/figma-mcp-server/tools-and-prompts/) and [connection setup](https://developers.figma.com/docs/figma-mcp-server/remote-server-installation/).
-
-Capture selected screens/nodes, source/version/hash, screen-to-feature mapping, screenshots, actual local assets, fonts/tokens/components, viewports and interaction states. Missing mobile layouts, assets, fonts or error states become visible questions or agreed alternatives. Do not silently replace supplied design details or ship temporary asset URLs.
-
-UI review compares actual rendered app screens against the saved reference at agreed viewports. UX checks behavior/navigation/accessibility; QA checks acceptance. The dashboard shows references, actual screenshots and findings. Missing required browser evidence remains unresolved. Reference changes require an impact preview and invalidate affected acceptance evidence and plan offers. Design tool writes are not required for implementation and are not implicitly authorized.
+References are optional. Verify actual connector or export access; a URL alone proves neither access nor rendered fidelity. Record chosen screens, versions/hashes, assets/fonts/tokens, responsive states, viewport dimensions and feature mapping. Compare real rendered app screenshots against the agreed reference. Missing required assets/access/browser evidence remains blocked or unverified. Design changes invalidate affected descendants, checks and consent. See the provider's official design-tool documentation for actual connector capabilities.
 
 ## Automatic sequential execution
 
-After product-plan approval the existing owner selects the first dependency-ready feature, with one active build. Each child has its own branch/worktree and stable builder session, documentation updates, meaningful checks, five independent reviews and an approver decision. Only a current all-pass child is integrated fast-forward into the product branch. The next child starts from that updated product head.
+One existing owner schedules one active builder. Product children branch from the current product head, retain stable builders, update both app guides, pass actual checks and all five independent reviews plus approver, then integrate internally into the product branch. The next dependency-ready child starts automatically under the approved parent plan. Integrated is not final Accepted, and child integration is not a target-branch merge.
 
-Child integration is not a target-branch merge or final acceptance. The first approval explicitly authorizes these internal integrations. Final target merging still needs the second approval. Feature-mode next selects another backlog item and requires that new feature's own specification approval.
-
-Failed/blocked/cancelled prerequisites do not unlock dependents. Existing two-round review attempts remain bounded; unresolved findings become needs-human. No silent skipping, endless retry loop, replacement builder or automatic target reset is permitted. Child/repair work is checked against the parent-plan scope, budget and dependency bindings.
-
-Once all required children are integrated, run whole-product journeys, permissions/data/integration checks, regressions, design comparisons and both documentation checks on the complete app. Checkpoint the final combined commit and run five fresh final-product reviews plus the approver. Earlier child verdicts cannot approve the aggregate. Final completion also requires successful authorized target merge and required post-merge checks.
+Whole-product acceptance runs complete journeys/regressions, design comparisons and both documentation checks, followed by five fresh final reviews and approver of the same immutable combined commit. A child verdict cannot approve the whole app. Final acceptance requires the separately approved target merge and passing required post-merge checks. Failed/blocked dependencies, stale evidence or unknown/exhausted enforcing budgets stop new affected work. Rework is bounded to two review rounds before needs-human.
 
 ## One dashboard for visibility and control
 
-| Page | Contents |
+| View | Contents |
 | --- | --- |
-| Home | Current product/feature, approval stage, newest activity, counts, blockers and next action |
-| Requirements | Extracted source, questions, assumptions and requirement-to-feature-to-check coverage |
-| Plan and features | Ordered features, dependencies, milestone/status and affected work |
-| Designs | Saved references, local assets, actual rendered screenshots and mismatches |
-| Preview | Real authorized preview link, or a specific unavailable/reconnect state |
-| Reviews and tests | Five verdicts, review rounds, findings, fixes, final checks and evidence limits |
-| Documentation | Separate developer guide and end-user manual, completion/commit and entry links |
-| Usage | Observed usage, known subtotals, completeness, budgets and blocked dispatch |
-| Setup and connections | Tool/provider/design/owner/browser readiness and next actions |
+| Overview | Current work, stage, preview when available, readiness and latest activity |
+| Setup & connections | Package/local prerequisites, owner connection, model/continuation/acceptance status and next actions |
+| Plan & features | Requirements, design reference, scope, permissions, budget, acceptance checks and feature progress |
+| Tests & reviews | Real check outcomes and security/UX/UI/code/QA verdicts bound to the final commit |
+| Documentation | Separate developer and end-user guide status, app paths and approved published text |
+| Usage | Observed counters, completeness, API-equivalent known costs and approved budget terms |
+| Activity | Pending/Running/Completed/Blocked receipts and latest activity |
 
-Controls submit requirements/designs, request plan changes, approve the plan, request rework, pause/resume/cancel and approve the final merge. Only the verified existing owner executes them. The local authenticated control service validates scoped commands; the static publisher only displays sanitized saved state. No arbitrary shell endpoint or second orchestrator is allowed.
+Submit a request, approve the displayed plan, request revisions/rework, pause/resume/cancel and approve the reviewed final merge here. The authenticated loopback service forwards typed commands to the same owner; it never executes browser-supplied shell text. Host/Origin/CSRF checks, scoped offers, expiry, persistent replay handling and owner identity bind each action. Owner disconnected disables dependent controls. Local pairing does not itself prove model access. Never advertise a native background bridge that has not actually been verified.
 
-Commands show Pending until acknowledged, Running only with execution evidence, then Completed/Failed/Blocked. Unknown outcomes are not successful retries. A disconnected owner disables dependent controls. Approval buttons bind to the displayed mode, plan/offer or exact commit; changed state requires a fresh offer. Reading reports or clicking Preview never grants consent. Authentication, allowed Host/Origin, CSRF, expiry, once-only event handling and owner/scope binding are mandatory for control; loopback hosting alone is not authentication. Shared/network hosting is separate scope.
-
-Use descriptive counts such as 8 of 15 features integrated; final acceptance pending. Planned, Ready, Running, Reviewing, Integrated, Blocked, Accepted, Merged and Deployed mean different things. Do not check final backlog completion on internal child integration or invent ETAs.
+The two workflow approvals are Approve plan and start, then Approve merge. Setup's local installation approval is separate. Native tool permission/login dialogs stay native; setup cannot preapprove them. In-scope routine work proceeds automatically. Scope/budget/permission changes need a revised plan. Merge does not authorize push/deployment.
 
 ## Pause, changes and recovery
 
-Pause stops new dispatch and reaches a safe checkpoint; show Pause requested until confirmed. Cancel revokes applicable pending offers and requests supported cancellation; show Cancellation requested while a worker is running or uncertain. Preserve partial work, usage and receipts. Resume reconciles the same owner/workers, locks, plan and Git state before dispatch. Restarting the dashboard never restarts a paid job automatically.
+A pause/cancel request remains pending until acknowledged and confirmed by the owner. Stop new dispatch safely and preserve partial changes, receipts, worker identities and usage. Resume reconciles the same processes/owner/Git state. Restart expires pending commands and marks running commands uncertain; never automatically restart paid work. Revised scope invalidates old offers and preserves prior plans/evidence as history. Unrelated target changes require reconciliation and fresh final validation.
 
-A requirement/design change previews affected features and transitive dependents, docs/checks, cost/permission impact and invalidated approvals. Revise the plan at gate 1 when scope changes. Preserve history and spend; repair affected product-branch work without resets or false completion. Unknown/exhausted enforcing budgets block new paid calls, not existing receipt collection.
+## Installed entry points
 
-## Generated entry points
-
-The following are required generated interfaces, not commands installed by cloning this prompt repository. Setup must verify and document the edition's actual invocation before advertising it.
-
-~~~text
-$factory product --requirements requirements.md
-$factory product --requirements requirements.md --design <accessible-design-url>
-$factory feature Add a searchable task list
-$factory status
-$factory pause
-$factory resume
-$factory cancel
-~~~
-
-Existing next, review and rework operations remain supported. Product/feature creation prepares a plan; it never bypasses gate 1. Approval phrases belong in the real owning chat/interactive session, not a PowerShell pipeline. In product mode ordinary next is not required between approved children. Plan revisions and design uploads are available through verified dashboard controls or documented owning-session instructions.
+From the installed application use node factory/runtime/cli.mjs start, check or status. The owner uses the versioned [bridge protocol](../../factory/runtime/WORKFLOW.md). Native factory skills connect/listen; workflow requests and approvals are submitted in the dashboard. No static Python server or manually edited JSON board is required.
 
 ## Maintainer checks and delivery limits
 
-The optional [offline reference helpers](../../codex-claude/maintenance/README.md) validate plan metadata, dependency selection, change impact, checkpoint evidence bindings and control envelopes. They do not read Figma, extract PDFs, authenticate humans, run agents, merge Git or start a dashboard. Generated factories must implement and test their own runtime integration without depending on these helpers. Synthetic [example plans](../../codex-claude/maintenance/examples/README.md) are not real readiness or acceptance results.
-
-Ship generated README/SETUP/PRODUCT/DESIGN/DASHBOARD/troubleshooting guides together, including one dashboard URL, exact next steps and limitations. Reusable starters must be real trusted versioned exports with manifests, isolated verification and conflict previews; no runtime bundle is currently shipped here. Upgrade existing jobs/receipts/history explicitly rather than regenerating.
-
-Report Generated, Offline validated, Local ready, Live provider ready, Design accessible, Owner control connected, Browser verified and Full product accepted separately. For a release, verify a fresh-user sample from empty project -> requirements/design -> plan approval -> sequential features -> interruption/recovery -> final checks/reviews -> exact approved merge. Publish actual results and any unverified edition/platform capabilities. Deployment is a separate result.
+Run node factory/setup.mjs --verify and the shared package/offline reference tests from the checkout. The [metadata helpers](../../codex-claude/maintenance/README.md) remain optional; runtime installers cannot depend on them. A successful fixture is not live provider access, authentic reviewer execution, browser fidelity or an accepted application. Report these results separately. Upgrades preserve existing config, jobs, sessions, approvals and history; conflicting or legacy files need an explicit migration. Only necessary reusable files are copied; reports and jobs are created lazily under ignored factory/.local.

@@ -32,26 +32,26 @@ test('all relative Markdown links resolve with exact case for Linux clones', asy
     }
   }
 });
-test('every edition requires explicit live checks and current readiness separated from history', async () => {
+test('every edition requires explicit live checks and accurate separate readiness', async () => {
   for (const file of ['codex-claude/GENERATION.md', 'claude-only/GENERATION.md',
     'low-cost/GENERATION.md']) {
     const text = await readFile(path.join(root, file), 'utf8');
-    assert.match(text, /--live/);
+    assert.match(text, /Live checks require explicit/);
     assert.match(text, /SAME/);
-    assert.match(text, /historical invocations/);
+    assert.match(text, /history/);
     assert.match(text, /environment/);
     assert.match(text, /bounded|Bound|Bounded/i);
   }
 });
 
 
-test('all editions carry the same self-contained product/design/control contract', async () => {
+test('all editions reuse the same minimal-file and product/control contract', async () => {
   const contracts = [];
   for (const edition of ['claude-only', 'codex-claude', 'low-cost']) {
     const prompt = await readFile(path.join(root, edition, 'GENERATION.md'), 'utf8');
-    const start = prompt.indexOf('## Product mode, design references and dashboard control (workflow version 2)');
-    const end = prompt.indexOf('### Explicit generated entry points');
-    assert.ok(start > 0 && end > start, 'Missing product extension: ' + edition);
+    const start = prompt.indexOf('## Minimal application files');
+    const end = prompt.indexOf('## Validation and handoff');
+    assert.ok(start > 0 && end > start, 'Missing shared contract: ' + edition);
     contracts.push(prompt.slice(start, end));
     const guide = await readFile(path.join(root, edition, 'docs/PRODUCT.md'), 'utf8');
     for (const heading of ['## Beginner setup', '## Choose the mode explicitly', '## Requirements and roadmap', '## Follow a supplied design', '## Automatic sequential execution', '## One dashboard for visibility and control', '## Pause, changes and recovery']) assert.ok(guide.includes(heading), edition + ': ' + heading);
@@ -60,7 +60,7 @@ test('all editions carry the same self-contained product/design/control contract
   assert.equal(contracts[1], contracts[2]);
 });
 
-test('generation contracts preserve ownership, modes, final acceptance and control boundaries', async () => {
+test('setup prompts preserve ownership, modes, final acceptance and control boundaries', async () => {
   for (const edition of ['claude-only', 'codex-claude', 'low-cost']) {
     const prompt = await readFile(path.join(root, edition, 'GENERATION.md'), 'utf8');
     for (const invariant of [
@@ -68,8 +68,21 @@ test('generation contracts preserve ownership, modes, final acceptance and contr
       'not a target-branch merge', 'five fresh independent final-product reviews',
       'Child verdicts alone cannot approve the aggregate', 'Owner disconnected',
       'CSRF', 'Origin', 'existing verified owner', 'same immutable',
-      'go ahead', 'merge code', 'Control available', 'reference changes',
+      'go ahead', 'merge code', 'Owner disconnected', 'reference changes',
       'whole-product', 'Pause requested', 'Cancellation requested'
     ]) assert.ok(prompt.toLowerCase().includes(invariant.toLowerCase()), edition + ' missing invariant: ' + invariant);
+  }
+});
+
+test('Claude-only prompt forbids accidental Codex setup and all prompts reuse the shipped dashboard', async () => {
+  const claude = await readFile(path.join(root, 'claude-only/GENERATION.md'), 'utf8');
+  assert.match(claude, /Do not add \.agents\//);
+  assert.doesNotMatch(claude, /LOCAL CODEX SUPPORT|Also support my local Codex/);
+  for (const edition of ['claude-only', 'codex-claude', 'low-cost']) {
+    const prompt = await readFile(path.join(root, edition, 'GENERATION.md'), 'utf8');
+    assert.ok(prompt.includes('--edition ' + edition));
+    assert.match(prompt, /Do not regenerate the dashboard/);
+    assert.match(prompt, /factory\/\.local/);
+    assert.match(prompt, /Do not generate empty boards/);
   }
 });

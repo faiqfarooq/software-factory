@@ -1,51 +1,15 @@
-# Low-cost Provider Software Factory
+# API-provider Software Factory
 
-Generate a Python-based factory using the configured DeepSeek, Qwen and Kimi providers. The design has ten roles, including a Qwen documentation writer, followed by five independent reviews and human approval.
+Use the shared versioned dashboard and local setup package with a DeepSeek-owned tool-calling runner with Qwen and Kimi workers. Setup preserves your app and installs only this edition's required integration.
 
-## Build a product or change a feature
+~~~powershell
+node factory/setup.mjs --project 'D:\my-app' --edition low-cost
+~~~
 
-Choose **Build a complete app** for requirements-to-roadmap-to-sequential-features, or **Add or change a feature** for one scoped job. The updated generation contract includes optional design references, whole-product acceptance, guided setup and owner-backed dashboard controls. Product mode approves the parent plan once, integrates reviewed children into a product branch, then requires a separate approval of the final target merge. Feature mode retains its own two approvals per job.
+Run this from the trusted prompt repository, not the application folder. Review setup once; the installer records the local checklist and opens the dashboard. Alternatively give [GENERATION.md](GENERATION.md) to the indicated assistant with access to this checkout so it completes setup and connects the owner in the same pass.
 
-Read the [beginner product, design and dashboard guide](docs/PRODUCT.md). Controls require a verified authenticated bridge to the existing owner; otherwise the generated dashboard must say Read-only or Owner disconnected with reconnect/chat instructions. This repository does not ship a running dashboard service or prebuilt runtime installer.
+Inside the application, restart the dashboard with node factory/runtime/cli.mjs start. Use its checklist and controls for requests, plan approval, progress, tests, both guides, usage and final merge approval. The same ten-role workflow and five independent reviews apply. Host permission dialogs and account login remain native. Local installation makes no paid calls; live checks require explicit consent.
 
-The feature walkthrough below remains valid for feature mode. Product mode follows the linked guide; it automatically advances eligible approved children without another next command.
+The package does not bundle a complete API coding runner. The setup prompt must reuse or implement that necessary project adapter and connect its actual DeepSeek owner; setup reports Action needed until verified. A Claude/Codex generator cannot substitute its own model as owner.
 
-[Choose another edition](../README.md) · [Detailed guide](docs/GUIDE.md)
-
-## Requirements
-
-- A coding assistant to generate the setup in your application project.
-- Python, Git and any dependencies identified by the generated guide.
-- Your own API credentials and model access for DeepSeek, Alibaba Cloud Model Studio/Qwen and Moonshot/Kimi.
-- A reviewed application Git base before feature worktrees, with scoped local tool and network permissions.
-
-Store credentials using the generated secure configuration instructions. Never paste real keys into prompts or commit them.
-
-## Start in three steps
-
-1. Open your application project in your coding assistant.
-2. Copy the complete [GENERATION.md](GENERATION.md), paste it into that session, and let it generate the factory and provider adapters.
-3. Follow the generated factory/README.md for provider configuration, local and authorized live checks, dashboard startup and first-feature commands.
-
-The assistant generates the files; the configured DeepSeek orchestrator runs the resulting workflow. The generated runner must verify provider identities and implement real file/test/Git tools, rather than only return text.
-
-## What this edition requests
-
-Specification and documentation plan → your go ahead → implementation → developer documentation and end-user manual → checkpoint → five independent reviews → approver → your merge code → merge and show latest code.
-
-There are two factory approval gates. Review/edit the specification, branch, permissions and proposed costs, then type **go ahead** in the runner's supported human-interactive session. After the completed work, documentation and passing reviews are shown, type **merge code** there. The factory binds it to the displayed commit internally; no typed SHA is needed. Routine in-scope work needs no further factory approval. Host/tool permissions remain separate. See the [two-approval workflow](docs/GUIDE.md#two-approvals-per-feature).
-
-The Qwen3.8 Max documentation writer maintains complete developer documentation so another developer can understand, run and maintain the app, plus a plain-language end-user manual with step-by-step usage instructions. Both are planned before implementation, linked from the app README and reviewed on the final combined commit. Missing or stale required content in either blocks merge approval. The dashboard shows separate guide statuses and links.
-
-## Costs and capabilities
-
-Verify current provider model IDs, account access, prices and tool-calling support during setup. The edition name does not promise a particular saving or equivalent quality. Compare total cost per accepted feature, including retries and reviews, using actual recorded evidence.
-
-The [detailed guide](docs/GUIDE.md) preserves a dated illustrative price comparison between earlier nine-role editions. It excludes the documentation writer now required in both ten-role designs and is not a current quote or measured saving.
-
-## Help
-
-- [Models, workflow, provider configuration and historical comparison](docs/GUIDE.md)
-- [Shared environment/dashboard troubleshooting](../codex-claude/maintenance/docs/TROUBLESHOOTING.md)
-
-The Claude connection checker is for Claude runtimes. Use the generated provider-specific checks for this edition. This prompt is self-contained; cloning this folder alone does not install or run a factory.
+[Product workflow](docs/PRODUCT.md) ? [Edition guide](docs/GUIDE.md) ? [Shared setup/recovery](../factory/README.md) ? [Choose an edition](../README.md)

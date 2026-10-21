@@ -1,74 +1,55 @@
 # Software Factory
 
-Generate an AI development workflow inside your application. Choose **Build a complete app** to turn requirements into an ordered roadmap and implement its features sequentially, or **Add or change a feature** for one scoped change. Optional design references guide implementation; the generated dashboard shows plans, requirements, features, designs, reviews, documentation and usage.
+Install one reusable development dashboard inside your application. Choose an edition, finish local setup once, then use the dashboard to submit requirements, approve plans, follow builds/reviews and approve the final merge.
 
-This repository contains **self-contained generation prompts, guides and offline reference tools**. Cloning it does not install or start a running factory. The workflow version 2 contract below must be generated and validated in your application; a prompt update is not an already tested runtime or an upgrade to an existing factory.
+## Start
 
-## Choose your edition
-
-| Edition | Runtime and accounts | Beginner guide |
-| --- | --- | --- |
-| **Claude only** | Claude Code and your Claude account | [Product, feature, design and dashboard setup](claude-only/docs/PRODUCT.md) |
-| **Codex + Claude** | Both tools and accounts; Codex owns coordination | [Product, feature, design and dashboard setup](codex-claude/docs/PRODUCT.md) |
-| **Low-cost providers** | Generated Python runner and DeepSeek, Qwen and Kimi API credentials | [Product, feature, design and dashboard setup](low-cost/docs/PRODUCT.md) |
-
-All editions retain ten roles: orchestrator, spec writer, builder, documentation writer, five independent reviewers and approver. The existing spec writer prepares product plans; the existing owner schedules work. Provider/model access, design connectors and supported control bridges must be verified in the actual environment. The low-cost name does not guarantee a saving.
-
-## Start in five steps
-
-1. **Choose an edition** and open your own application folder in its indicated coding assistant. An empty folder or an existing app can be selected.
-2. **Copy its complete GENERATION.md** into that session: [Claude only](claude-only/GENERATION.md), [Codex + Claude](codex-claude/GENERATION.md), or [Low-cost providers](low-cost/GENERATION.md).
-3. **Follow generated factory/SETUP.md and factory/README.md.** Check local tools/accounts, explicitly authorized live access and the single dashboard link. Setup does not start a feature, merge or deploy.
-4. **Choose a mode**, supply requirements and optional designs, review extraction/questions and approve the displayed plan.
-5. **Follow progress in the dashboard**, inspect the final app, both guides and passing evidence, then approve the exact target merge.
-
-There is no runtime installer or trusted prebuilt starter bundled here. Generated export/verify/install operations must use real versioned manifests, preserve existing files and exclude private state; setup must accurately report whether such a starter exists.
-
-## Two modes, two approvals
-
-| Mode | First approval: go ahead / Approve plan and start | Work between approvals | Final approval: merge code / Approve merge |
-| --- | --- | --- | --- |
-| Feature | One feature spec, design/docs/checks, scope and budget | Implement, document, test, five reviews and approver | Exact reviewed feature into the recorded target branch |
-| Product | Complete versioned product plan and child contracts | Automatically select dependency-ready features; build, document, test, review and integrate into a product branch; then test and freshly review the complete app | Exact reviewed complete product into the recorded target branch |
-
-Mode is explicit and persisted. Ambiguous ordinary chat needs clarification; document length is not a selector. Existing jobs stay in feature mode unless a new product request is planned and approved. Routine approved work proceeds automatically; changed scope/design contracts, permissions or budgets return to a revised first gate. Host/provider permissions remain separate. A merge does not itself authorize push or deployment.
-
-Product children are Integrated, not finally Accepted, until final product acceptance, authorized target merge and required post-merge checks succeed. Child reviews never replace final whole-product checks or five fresh final reviews. Unresolved failures pause affected work rather than silently skipping requirements.
-
-Both modes maintain complete developer documentation and an end-user manual, with separately linked entry pages, coverage and current completion evidence. Neither guide may be missing or stale at final merge approval.
-
-## Designs and dashboard controls
-
-The generation contract requires verified access to selected Figma frames through supported official tools, or another verified connector/export. Designs are optional; supplied references are versioned and mapped to screens/features. Actual rendered comparisons, responsive states and local assets are checked against agreed references. An inaccessible URL, missing required export or absent required browser evidence remains visible; there is no universal URL-copy promise.
-
-The dashboard includes requirements coverage, feature/dependency lists, designs/comparisons, activity, previews, reviews/tests, both guides, usage/budgets and readiness. Verified controls can submit requests, request changes/rework, approve plans, pause/resume/cancel and approve final merges. A separate authenticated loopback service forwards typed commands to the same registered owner; the static publisher remains read-only. Buttons are disabled with reconnect/chat instructions when owner ingress or human provenance cannot be verified. Dashboard requests do not override host/tool permissions.
-
-## Repository layout
-
-~~~text
-claude-only/     Claude Code generation prompt and guides
-codex-claude/    Codex + Claude prompt, guides and shared offline tools
-low-cost/        API-provider generation prompt and guides
-~~~
-
-Each edition's prompt is self-contained. Optional maintainer tools are not dependencies of a generated app. Updates to this repository do not patch existing factories; apply a versioned upgrade through their existing owner, preserving jobs, sessions, approvals and usage.
-
-## Offline examples and checks
-
-See [shared tools](codex-claude/maintenance/README.md) and [synthetic reference plans](codex-claude/maintenance/examples/README.md). The offline checker validates plan metadata and dependency/coverage invariants; it does not generate an app or approve work.
+Clone a trusted version of this repository and run from its root with Node.js 22+:
 
 ~~~powershell
-node codex-claude/maintenance/scripts/check-plan.mjs codex-claude/maintenance/examples/product-plan.json
-node --test codex-claude/maintenance/scripts/check-claude.test.mjs codex-claude/maintenance/scripts/docs.test.mjs codex-claude/maintenance/scripts/product-workflow.test.mjs
+node factory/setup.mjs --project 'D:\my-app'
 ~~~
 
-These tests use no live providers. Passing them does not prove model/design access, dashboard authentication, a working owner bridge, browser fidelity or a complete generated product. Generated-runtime tests and a fresh-user end-to-end walkthrough are required separately and must be reported accurately.
+Choose the edition, review the local changes and approve setup. The command installs the tested shared package, checks prerequisites and opens one private dashboard link. Keep its terminal running. No npm install, Python dashboard server, paid probe or app build happens during setup.
 
-## More help
+| Edition | Owner and requirements | Setup prompt |
+| --- | --- | --- |
+| Claude only | Claude Code; no Codex files or checks | [Claude setup](claude-only/GENERATION.md) |
+| Codex + Claude | Codex owner and Claude workers | [Hybrid setup](codex-claude/GENERATION.md) |
+| API providers | DeepSeek tool-calling owner, Qwen and Kimi access | [API setup](low-cost/GENERATION.md) |
 
-- [Claude-only requirements and existing feature guide](claude-only/README.md)
-- [Codex + Claude requirements](codex-claude/README.md), [Windows setup](codex-claude/docs/SETUP.md), [troubleshooting](codex-claude/docs/TROUBLESHOOTING.md) and [efficient use](codex-claude/docs/EFFICIENCY.md)
-- [Low-cost provider requirements and historical pricing example](low-cost/README.md)
-- [Shared maintainer tools and checks](codex-claude/maintenance/README.md)
+You can also open your app in the chosen assistant and provide its setup prompt with access to this checkout. It should complete the already-authorized local setup and connect the owner in the same pass. Plain terminal installation cannot wake an idle assistant: invoke the installed factory skill if the owner is not yet listening. The API edition still requires a real provider coding runner; the shared package does not bundle one or prove provider access.
 
-Keep credentials out of prompts, Git, dashboard data and URLs. MIT licensed. See [LICENSE](LICENSE).
+## Daily use
+
+Open the dashboard and follow its setup checklist. Missing login, tools, model access or native permissions show a specific next action. Live checks require explicit consent and can consume usage. Local pairing is distinct from verified model identity and an active owner listener.
+
+Choose **Build a complete app** or **Add or change a feature**, supply requirements and optional designs, then review the scope, checks, permissions and budget. **Approve plan and start** authorizes routine work within that plan. After implementation, both app guides, tests, five independent reviews and the approver pass, **Approve merge** authorizes the exact reviewed target merge. Setup approval is separate from these two workflow gates. Push/deployment require their own explicit scope.
+
+The existing owner carries out requests; the browser never runs arbitrary shell commands. A disconnected owner disables dependent controls. Pending, Running and Completed have separate receipts. Restart/reconnect does not replay approvals or paid work. Full app mode automatically advances approved dependency-ready children, then requires fresh whole-product acceptance before its final merge offer.
+
+## Minimal app layout
+
+~~~text
+factory/
+  README.md
+  config.json
+  runtime/        versioned shared helpers and owner protocol
+  dashboard/      the same UI in every edition
+  .local/         ignored private state, jobs, logs, receipts and usage
+~~~
+
+Only required native discovery skills live outside factory/. App source and app guides retain their existing locations. Setup creates no sample jobs, empty board/usage files, copied generation prompts or extra factory guides. Versioned upgrades preserve configuration and history; conflicts/unmanaged legacy factories stop for an explicit migration.
+
+## Development
+
+[Package setup and recovery](factory/README.md) ? [Owner protocol](factory/runtime/WORKFLOW.md)
+
+~~~powershell
+node factory/setup.mjs --verify
+node --test factory/tests/*.test.mjs codex-claude/maintenance/scripts/*.test.mjs
+~~~
+
+After editing shipped runtime/dashboard assets, refresh the manifest with node factory/setup.mjs --build-manifest, then run the tests. SHA-256 proves integrity against the checked-out manifest; use a trusted checkout/revision for publisher provenance. Tests use no live providers and do not prove a native background bridge, visual browser results or a complete generated app.
+
+The three edition folders retain setup prompts and workflow guides. [Shared offline reference tools](codex-claude/maintenance/README.md) validate plan/scheduling metadata; they are not runtime dependencies. MIT licensed; see [LICENSE](LICENSE).

@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "version": "1.0.0",
+  "files": {
+    "README.md": "8ce625710c08d378a2ee46791c815acdedb8959d80d08181a70323a2e36915f7",
+    "runtime/profiles.mjs": "02a2d67377d4397ade94a18afac9bd3dd438f60e63e46ea3458896db26f00cd5",
+    "runtime/storage.mjs": "6b9a43f049c824e6d6340450b1a96eb2c8496eef7176668d773fd4a528c214c3",
+    "runtime/checks.mjs": "2299184554c95595c2f7ca11ac690492f366e10891dc136bbc7fad173dc76ddd",
+    "runtime/workflow.mjs": "a59ab1754a89a710a7ff269139b2e1533d20a97702b1cc751114ae1791f97400",
+    "runtime/server.mjs": "89e28ea0a661d99ea318a9e388cb60a5b384adc52c0ee277561f656c270c1dc0",
+    "runtime/cli.mjs": "59f3b0cd25924682fa4edf1086933275d7a54f1ba5df305782b5676e67f0d8a5",
+    "runtime/WORKFLOW.md": "729e5f07cfc6fd09ab91a97b837d47d1c25ce18e5927e43107658695e3731c5d",
+    "runtime/LICENSE": "d03409d4442a7b1b0841b1366aadda0e4067bb2245d7f95db0bb5e68fd4429f7",
+    "dashboard/index.html": "bf44d36b664859a99dcf2cc7eba277dfbb7b89743ccc90b7cd3c0b6d19a31333",
+    "dashboard/style.css": "1ef475b7dba976494047b85bf0edd925ad7bfd570f60ef14d7950c49fd0f37ee",
+    "dashboard/app.js": "c73066e8dae6c9af85b48c595e2598ed6a6a5228fb7a3bf038d0760100d6acf8"
+  }
+}
