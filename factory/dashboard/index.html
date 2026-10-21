@@ -18,6 +18,7 @@
       <button data-page="setup">Setup & connections</button>
       <button data-page="integrations">Integrations</button>
       <button data-page="plan">Workflow & features</button>
+      <button data-page="mobile">Web to mobile</button>
       <button data-page="workspace">Workspace & changes</button>
       <button data-page="preview">App & design</button>
       <button data-page="agents">Agents</button>
@@ -53,6 +54,15 @@
         <label><input type="radio" name="mode" value="product" checked> Build a complete app</label>
         <label><input type="radio" name="mode" value="feature"> Add or change a feature</label>
       </div></fieldset>
+      <label for="factory-purpose">Factory purpose</label><select id="factory-purpose"><option value="software">Software development</option><option value="web-to-mobile">Web app to mobile app</option></select>
+      <fieldset id="mobile-fields" hidden><legend>Existing frontend and mobile targets</legend>
+        <label for="source-repo">Frontend repository</label><input id="source-repo" maxlength="2000" placeholder="D:\web-frontend or https://github.com/team/frontend.git">
+        <p class="muted">Use a separate mobile output repository as this workspace. The frontend is read-only reference material. Remote cloning needs owner access; submitting this form does not fetch or run source code.</p>
+        <label><input id="platform-android" type="checkbox" checked> Android</label><label><input id="platform-ios" type="checkbox" checked> iOS</label>
+        <label for="mobile-strategy">Mobile approach</label><select id="mobile-strategy"><option value="assess">Recommend after analysing the repo</option><option value="expo-native">Expo / React Native UI</option><option value="capacitor">Capacitor / reuse web UI</option></select>
+        <label for="api-base-url">Existing backend API address <span class="muted">optional until analysis</span></label><input id="api-base-url" type="url" maxlength="2000" placeholder="https://api.example.com/">
+        <p class="muted">Use public addresses only; keep keys in Integrations. Existing backend APIs are reused. Signing, cloud builds and store publishing require separate approval.</p>
+      </fieldset>
       <label for="work-title">Product or feature name</label><input id="work-title" maxlength="120" placeholder="Customer portal" required>
       <label for="target-branch">Target branch</label><input id="target-branch" maxlength="200" placeholder="main" required>
       <label for="requirements">Requirements</label><textarea id="requirements" rows="7" maxlength="50000" placeholder="Who is it for? What should it do? What must work before it is finished?" required></textarea>

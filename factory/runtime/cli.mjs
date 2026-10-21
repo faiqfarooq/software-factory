@@ -6,6 +6,7 @@ import { serve } from './server.mjs';
 import { json, readConfig, safePath, readState, locked, saveState, event } from './storage.mjs';
 import { inspect } from './checks.mjs';
 import { roleContext, integrationView } from './integrations.mjs';
+import { inspectFrontend } from './mobile.mjs';
 
 export function options(args) {
   const positionals = [], flags = {};
@@ -38,8 +39,11 @@ export async function openBrowser(url) {
 export async function main(args = process.argv.slice(2)) {
   const { positionals: words, flags } = options(args);
   const root = path.resolve(typeof flags.project === 'string' ? flags.project : process.cwd());
-  const allowed = words[0] === 'start' ? ['project', 'port', 'no-open'] : words[0] === 'owner' ? ['project', 'session', 'runtime', 'wait', 'file'] : words[0] === 'role-context' ? ['project', 'role'] : ['project'];
+  const allowed = words[0] === 'inspect-frontend' ? ['project', 'source'] : words[0] === 'start' ? ['project', 'port', 'no-open'] : words[0] === 'owner' ? ['project', 'session', 'runtime', 'wait', 'file'] : words[0] === 'role-context' ? ['project', 'role'] : ['project'];
   if (Object.keys(flags).some(k => !allowed.includes(k))) throw new Error('Unknown option for this operation.');
+  if (words[0] === 'inspect-frontend') {
+    const result = await inspectFrontend(flags.source, root); console.log(JSON.stringify(result, null, 2)); return result;
+  }
   if (words[0] === 'start') {
     if (flags.port !== undefined && (!/^\d+$/.test(String(flags.port)) || Number(flags.port) > 65535)) throw new Error('Invalid dashboard port.');
     const server = await serve(root, { port: flags.port === undefined ? 0 : Number(flags.port) });

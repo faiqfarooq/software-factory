@@ -1,7 +1,7 @@
 /* Shared dashboard. All project text is rendered with textContent, never HTML. */
 'use strict';
 const $ = id => document.getElementById(id);
-const titles = { overview: 'Product board', setup: 'Setup & connections', integrations: 'Integrations', plan: 'Workflow & features', workspace: 'Workspace & changes', preview: 'App & design', agents: 'Agents', reviews: 'Tests & reviews', docs: 'Documentation', usage: 'Usage', activity: 'Activity' };
+const titles = { overview: 'Product board', setup: 'Setup & connections', integrations: 'Integrations', plan: 'Workflow & features', mobile: 'Web to mobile', workspace: 'Workspace & changes', preview: 'App & design', agents: 'Agents', reviews: 'Tests & reviews', docs: 'Documentation', usage: 'Usage', activity: 'Activity' };
 let token = /^[a-f0-9]{64}$/.test(location.hash.slice(1)) ? location.hash.slice(1) : sessionStorage.getItem('factory-key') || '';
 if (location.hash) history.replaceState(null, '', location.pathname);
 if (token) sessionStorage.setItem('factory-key', token);
@@ -193,6 +193,7 @@ function planContent(current) {
       s.operations.join(', ') + ' · ' + s.max_calls + ' invocations' + (s.targets ? ' · Targets: ' + s.targets.join(', ') + ' · Model: ' + s.model + ' · $' + s.max_usd + ' per scan (best effort), ' + s.max_turns + ' turns per agent' : '')])));
   }
   if (current.commit) e.append(node('h3', 'Reviewed commit', 'section-gap'), node('code', current.commit));
+  if (p.mobile) e.append(node('h3', 'Mobile scope', 'section-gap'), list(['Source: ' + p.mobile.source_commit, 'Approach: ' + label(p.mobile.strategy), 'Existing API: ' + p.mobile.api_base_url, ...p.mobile.screens.map(s => s.web + ' → ' + s.mobile + ' · ' + s.acceptance), ...p.mobile.device_checks.map(d => d.platform + ': ' + d.check)]), node('p', 'Web to mobile shows the full API inventory and device evidence.', 'muted'));
   return e;
 }
 function activity(limit = 100) {
@@ -202,6 +203,7 @@ function activity(limit = 100) {
   return ul;
 }
 function render() {
+  if (!$('request-dialog').open) { $('factory-purpose').value = state.purpose || 'software'; mobileFields(); }
   $('planning-docs-option').hidden = !state.integrations?.some(i => i.id === 'context7' && i.enabled);
   if ($('planning-docs-option').hidden) $('planning-docs').checked = false;
   $('project').textContent = state.project; $('edition').textContent = ({ 'claude-only': 'Claude only', 'codex-claude': 'Codex + Claude', 'low-cost': 'API providers' })[state.edition]; $('version').textContent = 'v' + state.version;
@@ -220,7 +222,26 @@ function render() {
     for (const j of [...state.jobs].reverse()) { const option = node('option', label(j.status) + ' · ' + j.requirements.slice(0, 40)); option.value = j.id; select.append(option); }
     select.value = current.id; select.onchange = () => { selectedJob = select.value; render(); }; main.append(select);
   }
-  if (page === 'overview') {
+  if (page === 'mobile') {
+    if (current?.purpose !== 'web-to-mobile') {
+      const e = card('Convert an existing web app', node('p', 'Create a mobile request, supply the frontend repo and reuse its backend. Approve analysis, requirements, screen design and the feature roadmap before coding.'));
+      e.append(button('New mobile request', () => { $('factory-purpose').value = 'web-to-mobile'; mobileFields(); $('request-dialog').showModal(); }, true, canRequest)); main.append(e);
+    } else {
+      const input = current.mobile, analysis = current.mobile_analysis, plan = current.plan?.mobile;
+      main.append(card('Source and targets', list([input.source_repo, 'Platforms: ' + input.platforms.join(', '), 'API address: ' + (input.api_base_url || 'Discover during analysis'), 'Requested approach: ' + label(input.strategy)])));
+      main.append(card('Frontend analysis', analysis ? list(['Source commit: ' + analysis.source_commit, 'Framework: ' + analysis.framework, 'Recommended approach: ' + label(analysis.recommendation), 'Authentication: ' + analysis.auth, ...analysis.risks.map(r => 'Risk: ' + r)]) : node('p', 'Awaiting read-only source analysis. No app has been converted yet.', 'muted')));
+      if (analysis) main.append(card('Discovered web screens', list(analysis.screens)), card('Existing API modules', list(analysis.api_modules)));
+      if (plan) {
+        main.append(card('Approved scope / current proposal', list(['Approach: ' + label(plan.strategy), 'Existing API: ' + plan.api_base_url, 'Existing backend reused', 'Auth: ' + plan.auth, 'Storage: ' + plan.storage, 'Offline: ' + plan.offline])));
+        main.append(card('Web to mobile screen mapping', list(plan.screens.map(s => s.web + ' → ' + s.mobile + ' · ' + s.acceptance))));
+        main.append(card('Existing API contracts', list(plan.api_contracts.map(a => a.method + ' ' + a.path + ' · ' + a.check))));
+        const checks = [...plan.api_contracts.map(a => ({ name: a.check, kind: 'API parity' })), ...plan.device_checks.map(d => ({ name: d.check, kind: d.platform + ' device' }))];
+        main.append(card('Mobile verification', list(checks.map(c => c.kind + ': ' + c.name + ' · ' + (current.checks.find(t => t.label === c.name && t.commit === current.commit)?.status || 'not checked')))));
+      }
+      if (current.mobile_runs?.length) main.append(card('Reported device runs', list(current.mobile_runs.map(r => r.platform + ' · ' + r.device + ' (' + r.runtime + ') · ' + r.check + ' · ' + r.status + ' · ' + r.commit.slice(0, 12)))));
+      main.append(node('p', 'Device results are owner-reported evidence. A browser preview does not prove Android or iOS works. Missing SDKs, API access or backend capabilities must be shown as blockers. App signing and publishing are separate work.', 'muted'), card('Current stage', workflowContent(current)), actions(current));
+    }
+  } else if (page === 'overview') {
     const metrics = node('div', undefined, 'grid');
     const values = [['Setup checks', state.checks.filter(c => c.status === 'passed').length + ' / ' + state.checks.length, 'Passed local and recorded checks'], ['Current stage', current ? (current.timeline?.find(s => s.id === current.stage)?.label || label(current.status)) : 'Ready to plan', current ? label(current.status) : 'Start with your requirements'], ['Reviews', (current?.reviews.filter(r => r.verdict === 'PASS' && r.commit === current.commit).length || 0) + ' / 5', 'Independent reviews of the final commit']];
     for (const [name, value, note] of values) { const c = card(); c.append(node('p', name, 'metric-label'), node('div', value, 'metric'), node('div', note, 'metric-note')); metrics.append(c); } main.append(metrics);
@@ -371,9 +392,17 @@ document.querySelector('.brand').addEventListener('click', e => { e.preventDefau
 window.addEventListener('pagehide', () => credentialDrafts.clear());
 for (const e of document.querySelectorAll('[data-close]')) e.addEventListener('click', () => $(e.dataset.close).close());
 $('pair-form').addEventListener('submit', async e => { e.preventDefault(); token = $('pair-key').value.trim(); try { state = await api('state'); sessionStorage.setItem('factory-key', token); $('pair-dialog').close(); signature = ''; render(); } catch (error) { $('pair-error').textContent = error.message; } });
+function mobileFields() {
+  const enabled = $('factory-purpose').value === 'web-to-mobile';
+  $('mobile-fields').hidden = !enabled; $('source-repo').required = enabled;
+  for (const e of $('mobile-fields').querySelectorAll('input, select')) e.disabled = !enabled;
+}
+$('factory-purpose').addEventListener('change', mobileFields);
 $('request-form').addEventListener('submit', async e => {
   e.preventDefault(); const submit = e.submitter; submit.disabled = true;
-  const ok = await submitCommand({ action: 'request', revision: state.revision, input: { mode: new FormData(e.target).get('mode'), title: $('work-title').value, target_branch: $('target-branch').value, requirements: $('requirements').value, design: $('design').value, allow_documentation: $('planning-docs').checked } });
+  const purpose = $('factory-purpose').value;
+  const mobile = purpose === 'web-to-mobile' ? { source_repo: $('source-repo').value.trim(), platforms: ['android', 'ios'].filter(p => $('platform-' + p).checked), strategy: $('mobile-strategy').value, api_base_url: $('api-base-url').value.trim() } : undefined;
+  const ok = await submitCommand({ action: 'request', revision: state.revision, input: { purpose, ...(mobile ? { mobile } : {}), mode: new FormData(e.target).get('mode'), title: $('work-title').value, target_branch: $('target-branch').value, requirements: $('requirements').value, design: $('design').value, allow_documentation: $('planning-docs').checked } });
   submit.disabled = false; if (ok) { $('request-dialog').close(); e.target.reset(); }
 });
 $('action-form').addEventListener('submit', async e => {

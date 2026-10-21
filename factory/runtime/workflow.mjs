@@ -133,7 +133,7 @@ export function mergeReady(job) {
     job.approver?.verdict === 'APPROVE' && job.approver.commit === job.commit);
 }
 export function publish(state, input, now = Date.now()) {
-  fields(input, ['command_id', 'job_id', 'status', 'plan', 'features', 'checks', 'reviews', 'documentation', 'usage', 'commit', 'baseline_commit', 'target_base_commit', 'target_commit', 'target_branch', 'approver', 'message', 'preview', 'preview_commit', 'deliverable']);
+  fields(input, ['command_id', 'job_id', 'status', 'plan', 'features', 'checks', 'reviews', 'documentation', 'usage', 'commit', 'baseline_commit', 'target_base_commit', 'target_commit', 'target_branch', 'approver', 'message', 'preview', 'preview_commit', 'deliverable', 'mobile_analysis', 'mobile_runs']);
   const command = state.commands.find(c => c.id === input.command_id && c.status === 'running');
   if (!command || command.owner_id !== state.owner?.id || command.owner_generation !== state.owner?.generation) fail('No matching running owner command.');
   const job = state.jobs.find(j => j.id === input.job_id);
@@ -222,7 +222,7 @@ export function publicState(state, config) {
     preview: typeof j.preview === 'string' && /^http:\/\/(127\.0\.0\.1|localhost):\d+\//.test(j.preview) ? j.preview : null,
     ...lifecycleView(j)
   }));
-  return { revision: state.revision, project: config.project_name, edition: config.edition, version: config.version,
+  return { revision: state.revision, project: config.project_name, edition: config.edition, purpose: config.purpose || 'software', version: config.version,
     integrations: integrationView(state, config), performance: performance(state),
     models: [...new Set(Object.values(config.models).filter(Boolean))],
     owner: { connected: connected(state), runtime: state.owner?.runtime || null, listening: Boolean(state.owner?.listening) },

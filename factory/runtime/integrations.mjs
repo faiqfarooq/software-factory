@@ -57,6 +57,7 @@ export function roleContext(config, role) {
   if (!Object.hasOwn(config.roles, role)) throw new Error('Unknown factory role.');
   const skill = role === 'spec-writer' ? 'planning' : ['builder', 'documentation-writer'].includes(role) ? 'building' : role === 'orchestrator' ? null : 'reviewing';
   return { role, runtime: config.roles[role], model: config.models[role],
+    purpose: config.purpose || 'software', workflow: 'factory/runtime/WORKFLOW.md',
     skill: skill ? 'factory/runtime/skills/' + skill + '/SKILL.md' : null,
     tools: Object.entries(CATALOG).filter(([id, item]) => id !== 'skills' && integrationSettings(config.integrations)[id].enabled && item.roles.includes(role)).map(([id, item]) => ({ id, operations: item.operations })) };
 }

@@ -9,6 +9,7 @@ import { inspect } from './runtime/checks.mjs';
 import { options, openBrowser } from './runtime/cli.mjs';
 import { serve } from './runtime/server.mjs';
 import { integrationDefaults, integrationSettings, prerequisites } from './runtime/integrations.mjs';
+import { purpose as factoryPurpose } from './runtime/mobile.mjs';
 
 export const SOURCE = path.dirname(fileURLToPath(import.meta.url));
 const normalized = value => value.replaceAll('\r\n', '\n');
@@ -16,7 +17,7 @@ export const BUNDLE_FILES = [
   'README.md', 'runtime/profiles.mjs', 'runtime/storage.mjs', 'runtime/checks.mjs',
   'runtime/workflow.mjs', 'runtime/server.mjs', 'runtime/cli.mjs', 'runtime/WORKFLOW.md',
   'runtime/LICENSE', 'dashboard/index.html', 'dashboard/style.css', 'dashboard/app.js',
-  'runtime/integrations.mjs', 'runtime/lifecycle.mjs', 'runtime/workspace.mjs', 'runtime/documents.mjs', 'runtime/credentials.mjs', 'runtime/skills/planning/SKILL.md', 'runtime/skills/building/SKILL.md', 'runtime/skills/reviewing/SKILL.md'
+  'runtime/integrations.mjs', 'runtime/lifecycle.mjs', 'runtime/workspace.mjs', 'runtime/documents.mjs', 'runtime/credentials.mjs', 'runtime/mobile.mjs', 'runtime/skills/planning/SKILL.md', 'runtime/skills/building/SKILL.md', 'runtime/skills/reviewing/SKILL.md'
 ];
 export async function buildManifest(source = SOURCE) {
   const files = {};
@@ -41,7 +42,7 @@ function skill(edition, location) {
       'Read [the owner protocol](../../../factory/runtime/WORKFLOW.md) from the application root, then connect this existing ' + (edition === 'claude-only' ? 'Claude' : 'Codex') + ' session and listen for typed dashboard commands. Use the real host session identity and the edition/model routing in factory/config.json. Never claim background control without an active listener.\n\n' +
       'Only the owner dispatches specialists. Preserve ten roles, five independent reviews and the same feature builder for fixes. Follow every staged human approval, create a fresh product/feature branch through the workspace bridge, and keep implementation visible in the application folder. Never automatically start the next feature or merge without its exact consent. Report actual workers/progress/preview/evidence through factory/runtime/cli.mjs. Use role-context to load only the assigned shared skill and enabled scoped integrations. Do not rewrite normalized state/dashboard. Missing native capabilities stay blocked.\n');
 }
-export async function planInstall(root, edition, source = SOURCE, { integrations } = {}) {
+export async function planInstall(root, edition, source = SOURCE, { integrations, purpose } = {}) {
   const selected = profile(edition), manifest = await verifyBundle(source);
   root = await realpath(path.resolve(root));
   const rootBinding = digest(process.platform === 'win32' ? root.toLowerCase() : root);
@@ -83,6 +84,7 @@ export async function planInstall(root, edition, source = SOURCE, { integrations
   };
   config.integrations = integrationSettings(existingConfig?.integrations);
   config.documentation_format = 'docx';
+  config.purpose = factoryPurpose(purpose ?? existingConfig?.purpose);
   if (integrations !== undefined) config.integrations = integrationSettings(integrations);
   if (!config.roles || Object.keys(config.roles).length !== Object.keys(selected.roles).length ||
       Object.entries(selected.roles).some(([role, runtime]) => config.roles[role] !== runtime)) throw new Error('Existing role routing differs from the edition; resolve it explicitly before upgrade.');
@@ -127,10 +129,10 @@ export async function install(plan) {
 }
 export async function main(args = process.argv.slice(2)) {
   const { flags, positionals } = options(args);
-  const allowed = ['project', 'edition', 'integrations', 'yes', 'no-serve', 'no-open', 'verify', 'build-manifest', 'help'];
+  const allowed = ['project', 'edition', 'purpose', 'integrations', 'yes', 'no-serve', 'no-open', 'verify', 'build-manifest', 'help'];
   if (positionals.length || Object.keys(flags).some(k => !allowed.includes(k))) throw new Error('Unknown option. Use --help.');
   for (const name of ['yes', 'no-serve', 'no-open', 'verify', 'build-manifest', 'help']) if (flags[name] !== undefined && flags[name] !== true) throw new Error('--' + name + ' does not take a value.');
-  if (flags.help) { console.log('node factory/setup.mjs --project <app> [--edition claude-only|codex-claude|low-cost] [--integrations context7,graphify,twentyfirst,strix] [--yes] [--no-serve]\nOptional tools remain off unless selected. Setup makes no provider requests or tool installs.\n--verify verifies package files; --build-manifest refreshes the release manifest after maintainer edits.'); return; }
+  if (flags.help) { console.log('node factory/setup.mjs --project <app> [--edition claude-only|codex-claude|low-cost] [--purpose software|web-to-mobile] [--integrations context7,graphify,twentyfirst,strix] [--yes] [--no-serve]\nOptional tools remain off unless selected. Setup makes no provider requests or tool installs.\n--verify verifies package files; --build-manifest refreshes the release manifest after maintainer edits.'); return; }
   if (flags['build-manifest']) { await buildManifest(); console.log('Package manifest updated. Run the offline tests before distribution.'); return; }
   if (flags.verify) { await verifyBundle(); console.log('Package checksums verified: ' + VERSION); return; }
   await verifyBundle();
@@ -156,7 +158,8 @@ export async function main(args = process.argv.slice(2)) {
         integrations[id].enabled = true;
       }
     }
-    const plan = await planInstall(root, edition, SOURCE, { integrations });
+    const plan = await planInstall(root, edition, SOURCE, { integrations, purpose: flags.purpose });
+    console.log('Factory purpose: ' + plan.config.purpose);
     console.log('\n' + profile(edition).label + ' → ' + plan.root);
     console.log(plan.changes.length ? plan.changes.map(c => '  ' + (c.before_hash ? 'Update ' : 'Create ') + c.path).join('\n') : 'Already installed. Existing files match.');
     console.log('Optional tools: ' + (Object.entries(plan.config.integrations).filter(([id, value]) => id !== 'skills' && value.enabled).map(([id]) => id).join(', ') || 'none') + '. Enable more in the dashboard when needed.');

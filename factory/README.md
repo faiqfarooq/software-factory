@@ -2,6 +2,10 @@
 
 Node.js 22+ and Git are the shared prerequisites. No npm install, Python dashboard server, build step, or framework is required.
 
+The same dashboard supports **Software development** and **Web app to mobile app** requests, with any provider edition. For a dedicated mobile workspace, create a separate application folder and install with `node factory/setup.mjs --project "D:\mobile-app" --edition claude-only --purpose web-to-mobile`. Setup installs the factory only; the owner proposes the app baseline and dependencies through the staged workflow. Existing installations can choose the mobile purpose in New request without reinstalling.
+
+Supply the frontend's local Git root or credential-free HTTPS Git URL, Android/iOS targets and optional public API address. The factory analyses a committed frontend snapshot, proposes Expo native UI or Capacitor web UI reuse, maps screens and existing API contracts, and builds approved features sequentially in the mobile repo. The backend is reused without changes. Missing API/auth support blocks implementation until resolved. Remote cloning, dependencies, device tooling, signing and store publishing require their actual authorized scope. iOS native builds need appropriate Apple tooling or separately approved cloud builds; a browser preview is not a device test. This package coordinates real coding agents; it does not convert an app merely by saving a request.
+
 Offline installer/bridge tests have been run on Windows with Node.js 22. Other platforms and live native/provider workflows require separate verification.
 
 From a trusted checkout of this repository:

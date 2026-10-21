@@ -11,6 +11,7 @@ import { currentUnit, stage, recordWorker } from './lifecycle.mjs';
 import { workspaceView, workspaceDiff, workspaceOperation, assertWorkspace } from './workspace.mjs';
 import { committedWord, WORD_MIME } from './documents.mjs';
 import { loadCredentials, saveCredentials, updateCredentials, credentialEnvironment, credentialView } from './credentials.mjs';
+import { assertMobileSource } from './mobile.mjs';
 
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -179,6 +180,7 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
           const job = state.jobs.find(j => j.id === input.job_id);
           if (input.action === 'approve-merge') await assertMergeBinding(root, job);
           if (job?.lifecycle === 2 && input.action === 'approve-stage' && ['specification', 'design', 'implementation', 'qa', 'acceptance'].includes(stage(job))) await assertWorkspace(root, job, { frozen: ['implementation', 'qa', 'acceptance'].includes(stage(job)) });
+          if (input.action === 'request' && input.input?.purpose === 'web-to-mobile') await assertMobileSource(root, input.input.mobile);
           return enqueue(state, input);
         });
         return send(200, { id: command.id, status: command.status });
