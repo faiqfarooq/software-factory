@@ -3,7 +3,7 @@ name: planning
 description: Prepare a factory product or feature plan with requirement coverage, dependencies, checks and explicit tool scope before implementation approval.
 ---
 
-Use only for the factory spec-writer role. Read the owner-provided objective and focused app map; inspect additional source when necessary. Keep each mandatory requirement mapped to a feature and check. Record assumptions, dependencies, architecture/baseline proposals, both app guide plans, actual Git target/base, permissions and budget. Preserve existing work.
+Use only for the factory spec-writer role. Read the owner-provided objective and focused app map; inspect additional source when necessary. Keep each mandatory requirement mapped to a feature and check. Record assumptions, dependencies, architecture/baseline proposals, both Microsoft Word .docx guide plans and their authoring/render-review capabilities, actual Git target/base, permissions and budget. Preserve existing work.
 
 Ask the owner for `role-context` to discover enabled tools. Context7 can resolve a public library and retrieve focused docs for its installed version. Planning queries require the request's explicit documentation consent and share its ten-invocation limit. Do not send source, credentials or personal data as a query. Version-pinned results are guidance, not proof that an API works; cite the source and verify against installed code. A missing source/version requires a visible limitation and official-doc fallback.
 

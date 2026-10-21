@@ -25,6 +25,28 @@ async function api(route, data) {
   if (response.status === 401) { if (!$('pair-dialog').open) $('pair-dialog').showModal(); throw new Error('Use your private dashboard link to reconnect.'); }
   const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Request failed.'); return result;
 }
+async function downloadGuide(jobId, kind, feature) {
+  try {
+    const query = new URLSearchParams({ job: jobId, kind, ...(feature ? { feature } : {}) });
+    const response = await fetch('/api/documents?' + query, { headers: { Authorization: 'Bearer ' + token } });
+    if (!response.ok) { const error = await response.json(); throw new Error(error.error || 'Word download failed.'); }
+    const url = URL.createObjectURL(await response.blob()), link = node('a');
+    link.href = url; link.download = kind + '-guide.docx'; document.body.append(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (error) { toast(error.message, true); }
+}
+function wordCard(current, kind, name, guide, feature) {
+  const c = card(name + ' · Microsoft Word');
+  c.append(badge(guide?.status || 'not-checked'), node('p', guide?.entry || 'The documentation writer will create a .docx guide in the app documentation folder.', 'details section-gap'));
+  if (guide) {
+    c.append(node('code', guide.commit.slice(0, 10)));
+    const ready = guide.format === 'docx' && guide.status === 'complete' && guide.verification?.status === 'passed';
+    c.append(node('p', ready ? guide.verification.pages + ' pages · rendered-page review reported for this file' : 'Word creation and rendered-page review are pending.', 'muted section-gap'));
+    c.append(button('Download Word file', () => downloadGuide(current.id, kind, feature), true, ready));
+    if (guide.text) c.append(node('p', guide.text, 'details section-gap'));
+  }
+  return c;
+}
 const job = () => state?.jobs.find(j => j.id === selectedJob) || state?.jobs.at(-1);
 function card(title, content) {
   const e = node('section', undefined, 'card'); if (title) { const head = node('div', undefined, 'card-heading'); head.append(node('h2', title)); e.append(head); }
@@ -66,7 +88,7 @@ function actions(current) {
     if (current.needs_migration) add('Adopt staged workflow', 'migrate-workflow', true);
     else {
       if (current.offer) add(({ 'approve-stage': 'Approve & continue', 'approve-merge': 'Approve merge', 'start-feature': 'Start next feature', 'start-acceptance': 'Start product acceptance' })[current.offer.kind], current.offer.kind, true);
-      if (['awaiting-stage', 'ready-feature', 'ready-acceptance', 'blocked', 'paused'].includes(current.status)) add('Request changes', 'revise');
+      if (['awaiting-stage', 'ready-feature', 'ready-acceptance', 'blocked', 'paused'].includes(current.status) && !(current.phase === 'final' && current.requires_specification_revision)) add('Request changes', 'revise');
       if (current.mode === 'product' && current.phase !== 'product' && ['awaiting-stage', 'blocked', 'paused'].includes(current.status)) add('Revise product roadmap', 'revise-product');
       if (['planning', 'running', 'reviewing'].includes(current.status)) add('Pause', 'pause');
       if (current.status === 'paused') add('Resume current stage', 'resume');
@@ -252,7 +274,12 @@ function render() {
       main.append(card('Independent reviews', current.reviews.length ? table(['Role', 'Verdict', 'Findings', 'Commit'], current.reviews.map(r => [r.role, badge(r.verdict), r.summary, r.commit.slice(0, 10)])) : node('p', 'Security, UX, UI, code and QA reviews are pending.', 'muted'))); }
     for (const result of current?.integration_checks || []) main.append(card('Post-merge verification · ' + result.unit + ' / ' + result.commit.slice(0, 12), checksList(result.checks)));
   } else if (page === 'docs') {
-    const box = node('div', undefined, 'grid'); for (const [kind, name] of [['developer', 'Developer guide'], ['user', 'End-user manual']]) { const d = current?.documentation.find(d => d.kind === kind); const c = card(name); c.append(badge(d?.status || 'not-checked'), node('p', d?.entry || 'The owner updates the actual app guides after implementation.', 'details section-gap')); if (d) { c.append(node('code', d.commit.slice(0, 10))); if (d.text) c.append(node('pre', d.text)); } box.append(c); } main.append(box, node('p', 'Guide paths refer to your application. Only owner-approved text is published here.', 'muted'));
+    const box = node('div', undefined, 'grid'); for (const [kind, name] of [['developer', 'Developer guide'], ['user', 'End-user manual']]) box.append(wordCard(current, kind, name, current?.documentation.find(d => d.kind === kind)));
+    main.append(box, node('p', 'Documentation deliverables are Word .docx files. Downloads use the exact committed version whose file hash matches its reported page review. Rendered images and private review logs are kept outside the download endpoint.', 'muted'));
+    for (const feature of current?.features || []) if (feature.documentation?.length) {
+      main.append(node('h2', feature.title, 'section-gap'));
+      const files = node('div', undefined, 'grid'); for (const d of feature.documentation) files.append(wordCard(current, d.kind, d.kind === 'developer' ? 'Developer guide' : 'End-user manual', d, feature.id)); main.append(files);
+    }
   } else if (page === 'usage') {
     const usage = current?.usage, grid = node('div', undefined, 'grid'); for (const [name, value] of [['Measured tokens', usage?.tokens == null ? 'Unavailable' : usage.tokens.toLocaleString()], ['API-equivalent cost', usage?.usd == null ? 'Unavailable' : '$' + usage.usd.toFixed(6)], ['Reporting', usage?.completeness || 'Unavailable']]) { const c = card(); c.append(node('p', name, 'metric-label'), node('div', value, 'metric')); grid.append(c); } main.append(grid, card('Budget & accounting', node('p', current?.plan ? 'Approved budget: ' + String(current.plan.budget) + '. Subscription usage is not an actual API charge. Unknown counters are never reported as zero.' : 'Budgets are agreed in the plan. Measured provider counters appear when the runtime exposes them.', 'details')));
   } else {
@@ -268,7 +295,7 @@ function openAction(action, current) {
   $('note-field').hidden = !['revise', 'revise-product', 'rework'].includes(action); $('action-note').value = ''; $('action-note').required = !$('note-field').hidden;
   $('revision-stage').replaceChildren();
   for (const s of (action === 'revise-product' ? ['feasibility', 'requirements', 'specification', 'design'].map(id => ({ id, label: label(id) })) : current?.timeline?.filter(s => s.status !== 'locked') || [])) { const o = node('option', s.label); o.value = s.id; $('revision-stage').append(o); }
-  $('revision-stage').value = action === 'revise-product' ? 'specification' : current?.stage || '';
+  $('revision-stage').value = action === 'revise-product' || (current?.requires_specification_revision && current.timeline?.some(s => s.id === 'specification' && s.status !== 'locked')) ? 'specification' : current?.stage || '';
   $('revision-stage').hidden = current?.lifecycle !== 2;
   if (action === 'approve-stage') $('action-details').append(workflowContent(current), node('p', 'Approve this exact deliverable and authorize the next stage only.', 'muted'));
   else if (action === 'start-feature') { const f = current.features.find(f => f.status !== 'accepted'); $('action-details').append(node('p', 'Start ' + f.title + ' on ' + f.workspace.branch + '. Begin with its requirements; implementation needs later approval.'), list(f.acceptance)); }

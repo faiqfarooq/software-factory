@@ -1,6 +1,7 @@
 import { digest, stamp, uid, event } from './storage.mjs';
 import { REVIEWERS } from './profiles.mjs';
 import { integrationScopes } from './integrations.mjs';
+import { wordEvidence } from './documents.mjs';
 
 export const STAGES = Object.freeze({
   feasibility: 'Feasibility', requirements: 'Requirements', specification: 'Specification & plan',
@@ -30,7 +31,7 @@ export function newLifecycle(command) {
   const branch = input.mode + '/' + slug(title) + '-' + id.slice(0, 8);
   return { id, lifecycle: 2, mode: input.mode, title, requirements: input.requirements, design: input.design || '',
     status: 'planning', phase: input.mode === 'product' ? 'product' : 'feature', active_feature: input.mode === 'product' ? null : 'standalone',
-    cursor: 0, stages: [], decisions: [], workers: [], features: [], plan: null, offer: null,
+    cursor: 0, stages: [], decisions: [], workers: [], features: [], plan: null, offer: null, documentation_format: 'docx',
     workspace: { branch, target: input.target_branch || null, base_commit: null, prepared: false },
     planning_docs_consent: input.allow_documentation === true, reviews: [], checks: [], documentation: [], usage: null, created_at: stamp() };
 }
@@ -87,7 +88,9 @@ export function validateLifecycleCommand(state, input, job) {
       if (input.action === 'revise-product' && job.mode !== 'product') fail('Only products have a parent roadmap.');
       if (!text(input.input.note, 10000) || (input.input.stage !== undefined && (!stages.includes(input.input.stage) || (input.action !== 'revise-product' && stages.indexOf(input.input.stage) > context(job).cursor)))) fail('Describe the changes and a current or earlier stage.');
       if (!['awaiting-stage', 'blocked', 'paused', 'ready-feature', 'ready-acceptance'].includes(job.status)) fail('Wait for a checkpoint before revision.');
-      if (job.configuration_changed && job.phase === 'final' && input.action !== 'revise-product') fail('Tool settings changed. Revise the product specification before acceptance.');
+      if (job.configuration_changed && job.phase === 'final' && input.action !== 'revise-product') fail('Documentation or tool requirements changed. Revise the product specification before acceptance.');
+      const target = input.input.stage || (input.action === 'revise-product' ? 'specification' : stage(job));
+      if (job.configuration_changed && stages.includes('specification') && stages.indexOf(target) > stages.indexOf('specification')) fail('Documentation or tool requirements changed. Revise specification or an earlier stage.');
     } else if (input.input !== undefined) fail('Unexpected action input.');
     if (input.action === 'resume' && job.status !== 'paused') fail('Only paused work can resume.');
     if (input.action === 'pause' && !['planning', 'running', 'reviewing'].includes(job.status)) fail('Work is already at a checkpoint.');
@@ -169,7 +172,7 @@ export function evidenceReady(u) {
   const reviews = REVIEWERS.map(role => u.reviews?.find(r => r.role === role));
   return Boolean(sha(u.commit) && u.checks?.length && u.checks.every(c => c.status === 'passed' && c.commit === u.commit) &&
     reviews.every(r => r?.verdict === 'PASS' && r.commit === u.commit && text(r.reviewer_id, 200)) && new Set(reviews.map(r => r?.reviewer_id)).size === 5 &&
-    ['developer', 'user'].every(kind => u.documentation?.some(d => d.kind === kind && d.status === 'complete' && d.commit === u.commit && text(d.entry, 400))) &&
+    ['developer', 'user'].every(kind => u.documentation?.some(d => d.kind === kind && wordEvidence(d, u.commit))) &&
     u.approver?.verdict === 'APPROVE' && u.approver.commit === u.commit);
 }
 export function publishLifecycle(state, input, command, job) {
@@ -196,7 +199,8 @@ export function publishLifecycle(state, input, command, job) {
     u.commit = input.commit;
   }
   for (const k of ['checks', 'reviews', 'documentation']) if (input[k] !== undefined) {
-    if (!['qa', 'integration', 'acceptance', 'final-merge'].includes(s) || !Array.isArray(input[k]) || input[k].length > 500) fail('Quality evidence belongs to QA and acceptance.');
+    if (!(k === 'documentation' && s === 'implementation') && !['qa', 'integration', 'acceptance', 'final-merge'].includes(s)) fail('Quality evidence belongs to QA and acceptance; Word guides may also be published during implementation.');
+    if (!Array.isArray(input[k]) || input[k].length > 500) fail('Invalid evidence list.');
     for (const item of input[k]) {
       if (k === 'checks') {
         only(item, ['label', 'status', 'detail', 'commit', 'kind']);
@@ -205,8 +209,10 @@ export function publishLifecycle(state, input, command, job) {
         only(item, ['role', 'verdict', 'commit', 'reviewer_id', 'summary']);
         if (!REVIEWERS.includes(item.role) || !['PASS', 'FAIL', 'BLOCKED'].includes(item.verdict) || !sha(item.commit) || !text(item.reviewer_id, 200) || !text(item.summary, 5000)) fail('Review evidence needs its role, verdict, commit, reviewer and summary.');
       } else {
-        only(item, ['kind', 'status', 'commit', 'entry', 'text']);
-        if (!['developer', 'user'].includes(item.kind) || !['complete', 'needs-action'].includes(item.status) || !sha(item.commit) || !text(item.entry, 400) || (item.text !== undefined && !text(item.text))) fail('Guide evidence needs kind, status, commit and actual entry.');
+        only(item, ['kind', 'status', 'commit', 'entry', 'text', 'format', 'verification']);
+        if (!['developer', 'user'].includes(item.kind) || !['complete', 'needs-action'].includes(item.status) || !sha(item.commit) || !text(item.entry, 400) || item.format !== 'docx' || !/\.docx$/i.test(item.entry) || (item.text !== undefined && !text(item.text))) fail('Documentation must be Microsoft Word .docx with kind, status, commit and actual entry.');
+        if (item.verification !== undefined) only(item.verification, ['method', 'status', 'sha256', 'pages']);
+        if (item.status === 'complete' && !wordEvidence(item, item.commit)) fail('Complete Word guides require rendered-page review bound to their file SHA-256.');
       }
     }
     u[k] = structuredClone(input[k]);
@@ -239,6 +245,7 @@ export function publishLifecycle(state, input, command, job) {
     if (s === 'specification' && !u.plan) fail('Publish the complete feature/product specification.');
     if (['design', 'implementation', 'qa', 'integration', 'acceptance', 'final-merge'].includes(s) && (!u.approved_plan_hash || u.approved_plan_hash !== digest(JSON.stringify(u.plan)))) fail('Approve the current specification before design or implementation.');
     if (s === 'implementation' && !sha(u.commit)) fail('Commit the feature before offering implementation review.');
+    if (s === 'implementation' && !['developer', 'user'].every(kind => u.documentation?.some(d => d.kind === kind && wordEvidence(d, u.commit)))) fail('Complete and review both Word guides before offering implementation approval.');
     if (['implementation', 'qa', 'integration', 'acceptance', 'final-merge'].includes(s) && u.preview && u.preview_commit !== u.commit) fail('Refresh the local preview for the exact reviewed commit or explicitly revise its preview limitation.');
     if (['qa', 'integration', 'acceptance', 'final-merge'].includes(s) && !evidenceReady(u)) fail('Five passing independent reviews, checks, both guides and technical approval must match this commit.');
     if (['qa', 'acceptance'].includes(s)) {
@@ -293,7 +300,7 @@ export function lifecycleView(job) {
   if (job.lifecycle !== 2) return { needs_migration: Boolean(job.needs_migration) };
   const clean = r => ({ stage: r.stage, summary: r.summary, content: r.content, limitations: r.limitations || [], coverage: r.coverage || [], approved: r.approved, time: r.time, commit: r.commit });
   const u = context(job);
-  return { lifecycle: 2, title: job.title, phase: job.phase, active_feature: job.active_feature, stage: stage(job),
+  return { lifecycle: 2, title: job.title, phase: job.phase, active_feature: job.active_feature, stage: stage(job), documentation_format: 'docx', requires_specification_revision: Boolean(job.configuration_changed),
     timeline: sequence(job).map(id => ({ id, label: STAGES[id], status: u.stages.find(r => r.stage === id)?.approved ? 'approved' : stage(job) === id ? job.status : 'locked' })),
     deliverables: u.stages.map(clean), decisions: job.decisions.map(({ command_id, ...d }) => d),
     workspace: u.workspace, product_workspace: job.workspace, needs_migration: false,

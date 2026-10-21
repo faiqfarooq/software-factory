@@ -29,7 +29,7 @@ Show readable architecture, data models, API examples and screens in App & desig
 
 After approved product design, choose Start next feature. It creates the feature branch from the current accepted product head. Keep the normal application folder checked out on this branch, so changes are visible in your editor. Existing unrelated changes are preserved; resolve them before branch creation. Separate worktrees are optional, never the default.
 
-One stable builder implements the feature. Complete both app guides before presenting the implementation commit. Inspect its local preview/files/diff, then authorize formal QA. Five independent reviewers and the technical approver inspect the same frozen source/docs commit. Each acceptance criterion maps to a real passing check; fixes return to the same builder and refresh affected approvals.
+One stable builder implements the feature. Complete the developer guide and end-user manual as Microsoft Word .docx files before presenting the implementation commit. Update the same two files across features. Render and inspect all pages and record the exact file hash; unavailable tooling remains blocked. Download the committed Word files from Documentation. Inspect its local preview/files/diff, then authorize formal QA. Five independent reviewers and the technical approver inspect the same frozen source/docs commit. Each acceptance criterion maps to a real passing check; fixes return to the same builder and refresh affected approvals.
 
 Approve the exact feature merge separately. After actual post-merge checks it is accepted into the product branch. Then the factory WAITS for Start next feature; integration consent never authorizes another feature automatically. Failed integration blocks the queue and preserves Git for recovery. Branches remain available for inspection.
 
@@ -45,7 +45,7 @@ After all features are accepted, explicitly start product acceptance: complete j
 | App & design | Local app/prototype URL and served commit, readable system/UI design and limitations |
 | Agents | Ten configured roles versus actual owner-reported worker runs, tasks, status, models and known usage |
 | Tests & reviews | Current commit-bound acceptance and five independent review results |
-| Documentation | Actual developer/user guide entries and approved text |
+| Documentation | Developer and end-user Word downloads, actual committed paths, page-review evidence and brief summaries |
 | Setup & connections | Local prerequisites, owner listening, model/continuation evidence and next actions |
 | Integrations | Optional role-specific tools, scopes, availability/verification and actual receipts |
 | Usage / Activity | Measured counters/completeness, budgets, command receipts and decisions |

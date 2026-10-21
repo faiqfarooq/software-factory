@@ -59,3 +59,5 @@ node --test factory/tests/*.test.mjs codex-claude/maintenance/scripts/*.test.mjs
 After editing shipped runtime/dashboard assets, refresh the manifest with node factory/setup.mjs --build-manifest, then run the tests. SHA-256 proves integrity against the checked-out manifest; use a trusted checkout/revision for publisher provenance. Tests use no live providers and do not prove a native background bridge, visual browser results or a complete generated app.
 
 The three edition folders retain setup prompts and workflow guides. [Shared offline reference tools](codex-claude/maintenance/README.md) validate plan/scheduling metadata; they are not runtime dependencies. MIT licensed; see [LICENSE](LICENSE).
+
+Documentation deliverables are Microsoft Word .docx files: one developer guide and one end-user manual, updated across features. The documentation writer renders and inspects every page before marking them complete. Documentation downloads the exact registered committed files whose hashes match their reported page review. Runtime instruction files remain Markdown; no duplicate Word guide pair is created per feature.

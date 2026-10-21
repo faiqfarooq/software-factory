@@ -1,24 +1,25 @@
 {
   "schema_version": 1,
-  "version": "2.0.0",
+  "version": "2.1.0",
   "files": {
-    "README.md": "a8b2e8b114bfe3f9ee460cb78c742b8976dc3e511a14b8f05dbc982123b2a09a",
-    "runtime/profiles.mjs": "6486c81d9244c8fea05f1aff7cabfa4ed2f22bc2b589e01ef19110624323ae38",
+    "README.md": "698eb1bd75b506947c809d3e8900d40ce55dcb79a62d1685eb2a02afc94fd2ca",
+    "runtime/profiles.mjs": "b8c592534f8de02acdcc7f932a84f5c55db653d0d543ebed837334c47264827d",
     "runtime/storage.mjs": "52a71de0504516ee732bc7bb26275c9619555eb426a65db72005ff37bedcc0c5",
     "runtime/checks.mjs": "59b2f640bc87d256471af52437c87ea444b89b67f27e45de85655a3d322f5518",
     "runtime/workflow.mjs": "06b419aaffd7d165b15e4a72687db8e4955fb7369ca1ac089c1fe74286c5f618",
-    "runtime/server.mjs": "ec37b69e864179992bf702dd7db0ed827d12e68d7fadb3a92743eac2dad31c91",
+    "runtime/server.mjs": "72b00a276adcc225d5c980d174005ca9d462429d168f65d7b95d6de876c1b350",
     "runtime/cli.mjs": "023643cab2665dcef86bcf091468c047ef02d55b4e16d8dab434afb70da2936a",
-    "runtime/WORKFLOW.md": "8e26cf232056c28aec6ab07eb09bf99ac23cc7d596f7e075a767e415f11910f6",
+    "runtime/WORKFLOW.md": "1b0e6c1be24a8b5bc414a6249f977ed668cac564906d73cdee710b803d1d4356",
     "runtime/LICENSE": "d03409d4442a7b1b0841b1366aadda0e4067bb2245d7f95db0bb5e68fd4429f7",
     "dashboard/index.html": "b38723a0e1634b0ca7b8250a5ce1968d633342f6fc808cc6fa72aae7d9d9acd8",
     "dashboard/style.css": "6534e6d8e03e86bb64073f128274b0a7dddd74dfbd4db59deeac073fada368c3",
-    "dashboard/app.js": "f6c251c2cc0d9d3ad66350c6b3f92484f8b8d9f413f4e39e49985caf230c8a6c",
+    "dashboard/app.js": "15e8d76bb5bf0b003dd107693c5f55cfca86765bbb0ab782fe9b3a567d901f6f",
     "runtime/integrations.mjs": "9d218ac963d820b85237affaf3e3bb3a240c0a9130d5ada8238494e23fbc986f",
-    "runtime/lifecycle.mjs": "4ce0aa60e6d1b809dee41b002fc2959f746e5ea5125d670cefd02725f812115a",
+    "runtime/lifecycle.mjs": "d539e7721fd6fc1b9141a098453fde9a3315aa31c8bb4f2101f6ce044a2cf259",
     "runtime/workspace.mjs": "1c7df14f9f661ae859c8025ab38b11e5d91182fb1e1494a3db44f7143b3f576c",
-    "runtime/skills/planning/SKILL.md": "4655c4074c45da35bfbeb0479b132cff1d744909c770d051c0e7c9a171f37de8",
-    "runtime/skills/building/SKILL.md": "f224a0645684a5ade6a9423d4555577843b2e7a7b1a9defa2d84a573feb01b08",
-    "runtime/skills/reviewing/SKILL.md": "30eb17dedba2eea6454d9c9068c3903be9bc729c9b3b97545e1e88be8ece0030"
+    "runtime/documents.mjs": "ab0e134d818ea8618081f915f251eb1e7acdf89bd0728d750e06b9e9b06a4ea7",
+    "runtime/skills/planning/SKILL.md": "7244ac899a81d09a6b9726ae96e55427864345c2f719a71dc850a86834bc8bf4",
+    "runtime/skills/building/SKILL.md": "5b3c0a4aaa8380ba9aa56e6d30cc9f2ad257f1c94ca56720b04578a4dd20bac4",
+    "runtime/skills/reviewing/SKILL.md": "945d982ade55ef2a8606abb9255cc99261693dc325c10632ad9d109ea5f43416"
   }
 }

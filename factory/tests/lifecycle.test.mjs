@@ -11,6 +11,7 @@ import { enqueue, claim, publish, finish, publicState } from '../runtime/workflo
 import { stage, currentUnit, recordWorker, evidenceReady } from '../runtime/lifecycle.mjs';
 import { workspaceOperation, assertWorkspace, workspaceView } from '../runtime/workspace.mjs';
 import { models, profile } from '../runtime/profiles.mjs';
+import { wordFixture, reviewFixture } from './word-fixture.mjs';
 
 const SHA = 'a'.repeat(40);
 const cfg = { roles: profile('claude-only').roles, models: models('claude-only') };
@@ -25,12 +26,15 @@ function started(mode = 'feature') {
   return { s, c, job: s.jobs[0] };
 }
 const deliverable = { summary: 'Synthetic stage fixture', content: 'Explicit synthetic scope and outcomes. No live agent or model was used.' };
-function deliver(s, c, job, extra = {}) { return publish(s, { command_id: c.id, job_id: job.id, status: 'awaiting-stage', deliverable, ...extra }); }
+function deliver(s, c, job, extra = {}) {
+  if (stage(job) === 'implementation' && extra.commit && !extra.documentation) extra = { ...extra, documentation: evidence(extra.commit).documentation };
+  return publish(s, { command_id: c.id, job_id: job.id, status: 'awaiting-stage', deliverable, ...extra });
+}
 function complete(s, c) { finish(s, { id: c.id, status: 'completed' }); }
 function plan(w, extra = {}) { return { summary: 'Fixture plan', scope: ['Customer can sign in'], acceptance: ['Customer can sign in'], permissions: ['Local fixture source/docs and tests only'], budget: 'Zero live providers', target_branch: w.target, base_commit: w.base_commit, documentation: ['developer', 'user'], ...extra }; }
 function evidence(commit) { return { commit, checks: [{ label: 'Sign-in acceptance', status: 'passed', detail: 'Synthetic test fixture', commit }],
   reviews: ['security', 'ux', 'ui', 'code', 'qa'].map(role => ({ role, verdict: 'PASS', commit, reviewer_id: 'fixture-' + role, summary: 'Synthetic verdict, not actual review.' })),
-  documentation: ['developer', 'user'].map(kind => ({ kind, status: 'complete', commit, entry: 'docs/' + kind + '.md' })), approver: { verdict: 'APPROVE', commit } }; }
+  documentation: ['developer', 'user'].map(kind => ({ kind, status: 'complete', commit, entry: 'docs/' + kind + '.docx', format: 'docx', verification: reviewFixture(wordFixture(kind)) })), approver: { verdict: 'APPROVE', commit } }; }
 function reviewers(s, c, job, e) {
   for (const role of ['security', 'ux', 'ui', 'code', 'qa', 'approver']) recordWorker(s, cfg, { owner_id: 'owner', command_id: c.id, job_id: job.id, id: role + '-' + c.id,
     role, model: cfg.models[role], session: e.reviews.find(r => r.role === role)?.reviewer_id || 'fixture-approver', task: 'Synthetic review fixture', status: 'completed', commit: e.commit });
@@ -107,6 +111,15 @@ test('QA binds every criterion and all independent reviews/guides to the frozen 
   deliver(s, qa, job, { ...evidence(commit), deliverable: { ...deliverable, coverage: [{ requirement: 'Customer can sign in', check: 'Sign-in acceptance' }] } });
   assert.equal(evidenceReady(job), true);
 });
+test('implementation cannot complete with Markdown guides or missing Word page review', () => {
+  const { s, job, c } = throughDesign(), commit = 'b'.repeat(40);
+  const payload = { command_id: c.id, job_id: job.id, status: 'awaiting-stage', commit, deliverable };
+  assert.throws(() => publish(s, payload), /both Word guides/);
+  const documentation = evidence(commit).documentation;
+  assert.throws(() => publish(s, { ...payload, documentation: documentation.map(d => ({ ...d, entry: d.entry.replace('.docx', '.md') })) }), /Microsoft Word/);
+  assert.throws(() => publish(s, { ...payload, documentation: documentation.map(({ verification, ...d }) => d) }), /rendered-page review/);
+  publish(s, { ...payload, documentation }); assert.equal(job.status, 'awaiting-stage');
+});
 
 async function fixture(t) {
   const root = await mkdtemp(path.join(tmpdir(), 'factory-stages-')); let server;
@@ -133,6 +146,7 @@ async function fixture(t) {
   const workspace = (operation, extra = {}) => ok('workspace', { owner_id: 'owner', job_id: current.job_id, command_id: current.id, operation, ...extra }, true);
   const publishStage = async (extra = {}) => {
     const j = await get();
+    if (j.stage === 'implementation' && extra.commit && !extra.documentation) extra = { ...extra, documentation: evidence(extra.commit).documentation };
     if (extra.reviews) {
       if (j.phase === 'final') extra = { ...extra, reviews: extra.reviews.map(r => ({ ...r, reviewer_id: 'final-' + r.reviewer_id })) };
       for (const role of ['security', 'ux', 'ui', 'code', 'qa', 'approver']) await ok('worker', { owner_id: 'owner', command_id: current.id, job_id: j.id, id: role + '-' + current.id,
@@ -157,7 +171,7 @@ async function buildAndIntegrate(f, name, failIntegration = false) {
   const j = await f.get(); assert.equal(j.stage, 'implementation');
   await mkdir(path.join(f.root, 'docs'), { recursive: true });
   await writeFile(path.join(f.root, name + '.txt'), 'Customer can sign in\n');
-  for (const kind of ['developer', 'user']) await writeFile(path.join(f.root, 'docs', kind + '.md'), '# Synthetic ' + kind + ' guide\n');
+  for (const kind of ['developer', 'user']) await writeFile(path.join(f.root, 'docs', kind + '.docx'), wordFixture(kind));
   const commit = await f.commit('Synthetic feature ' + name, [name + '.txt', 'docs']);
   assert.equal((await readFile(path.join(f.root, name + '.txt'), 'utf8')).trim(), 'Customer can sign in');
   const diff = await f.ok('workspace/diff?job=' + j.id); assert.match(diff.diff, /Customer can sign in/);
@@ -232,7 +246,9 @@ test('failed post-merge checks preserve Git, block completion and require revise
 });
 test('a changed branch/target blocks both offering and consuming a frozen stage approval', async t => {
   const f = await fixture(t); await planningStages(f, 'feature');
-  await writeFile(path.join(f.root, 'login.txt'), 'Customer can sign in'); const commit = await f.commit('Fixture implementation', ['login.txt']);
+  await writeFile(path.join(f.root, 'login.txt'), 'Customer can sign in'); await mkdir(path.join(f.root, 'docs'));
+  for (const kind of ['developer', 'user']) await writeFile(path.join(f.root, 'docs', kind + '.docx'), wordFixture(kind));
+  const commit = await f.commit('Fixture implementation', ['login.txt', 'docs']);
   await f.publishStage({ commit }); const j = await f.get();
   await git(f.root, ['switch', 'main']);
   const r = await f.call('commands', { id: 'stale-native-branch', action: 'approve-stage', revision: (await f.ok('state')).revision, job_id: j.id, offer_id: j.offer.id });

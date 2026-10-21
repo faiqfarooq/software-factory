@@ -9,6 +9,7 @@ import { enqueue, claim, publish, finish, publicState, fields, connected } from 
 import { CATALOG, integrationSettings, prerequisites, reserveRun, executeIntegration } from './integrations.mjs';
 import { currentUnit, stage, recordWorker } from './lifecycle.mjs';
 import { workspaceView, workspaceDiff, workspaceOperation, assertWorkspace } from './workspace.mjs';
+import { committedWord, WORD_MIME } from './documents.mjs';
 
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -87,6 +88,18 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
         const featureId = new URL(req.url, origin).searchParams.get('feature');
         if (featureId && (job.mode !== 'product' || !job.features.some(f => f.id === featureId))) throw new Error('Unknown feature.');
         return send(200, await workspaceDiff(root, featureId ? { ...job, phase: 'feature', active_feature: featureId } : job));
+      }
+      if (req.method === 'GET' && route === '/api/documents') {
+        const query = new URL(req.url, origin).searchParams, state = await readState(root);
+        const job = state.jobs.find(j => j.id === query.get('job')), kind = query.get('kind'), feature = query.get('feature');
+        if (!job || job.lifecycle !== 2 || !['developer', 'user'].includes(kind)) throw new Error('Select a registered Word guide.');
+        const selected = feature ? job.features.find(f => f.id === feature) : currentUnit(job);
+        const guide = selected?.documentation?.find(d => d.kind === kind);
+        if (!guide) throw new Error('No Word guide is recorded for this selection.');
+        const data = await committedWord(root, guide, selected.commit);
+        res.writeHead(200, { 'Content-Type': WORD_MIME, 'Content-Disposition': 'attachment; filename="' + kind + '-guide.docx"',
+          'Content-Length': data.length, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' });
+        return res.end(data);
       }
       if (req.method !== 'POST') return send(404, { error: 'Not found.' });
       if (!ownerRoute && (req.headers.origin !== origin || !equal(req.headers['x-factory-csrf'], browserKey))) return send(403, { error: 'Browser origin and CSRF token are required.' });
@@ -280,10 +293,7 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
           if (job.lifecycle === 2) {
             if (job.status === 'awaiting-stage' && ['specification', 'design', 'implementation', 'qa', 'integration', 'acceptance', 'final-merge'].includes(stage(job))) {
               await assertWorkspace(root, job, { frozen: ['implementation', 'qa', 'integration', 'acceptance', 'final-merge'].includes(stage(job)) });
-              if (['qa', 'integration', 'acceptance', 'final-merge'].includes(stage(job))) for (const guide of currentUnit(job).documentation) {
-                await safePath(root, guide.entry);
-                if (guide.entry.startsWith('factory/.local/') || await git(root, ['cat-file', '-t', currentUnit(job).commit + ':' + guide.entry]) !== 'blob') throw new Error('Guide entry must be a committed application file.');
-              }
+              if (['implementation', 'qa', 'integration', 'acceptance', 'final-merge'].includes(stage(job))) for (const guide of currentUnit(job).documentation) await committedWord(root, guide, currentUnit(job).commit);
             }
             return { status: job.status };
           }
@@ -364,6 +374,11 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
         for (const worker of job.workers || []) if (worker.status === 'running') worker.status = 'uncertain';
         if (job.lifecycle !== 2 && !['merged', 'cancelled'].includes(job.status)) {
           job.needs_migration = true; job.offer = null; job.status = 'blocked'; job.message = 'Adopt the staged workflow to continue. Previous work and approval history are preserved.';
+        }
+        if (job.lifecycle === 2 && job.documentation_format !== 'docx' && !['merged', 'cancelled'].includes(job.status)) {
+          job.documentation_format = 'docx'; job.configuration_changed = true; job.offer = null; job.status = 'blocked';
+          currentUnit(job).approved_plan_hash = null;
+          job.message = 'Documentation now requires Word .docx guides and rendered-page review. Previous work was preserved. Revise specification or an earlier stage before continuing.';
         }
       }
       if (state.owner) { state.owner.connected = false; state.owner.listening = false; }

@@ -72,7 +72,7 @@ Implementation publication includes actual full commit after source and both gui
 QA and final acceptance require checks, five reviews, documentation and approver bound to the SAME current commit:
 - Check: label, status passed/needs-action/not-checked, detail, commit.
 - Review: role security/ux/ui/code/qa, verdict PASS, commit, authentic distinct reviewer_id, concise summary.
-- Guide: kind developer/user, status complete, commit, actual app-relative entry, optional approved text.
+- Guide: kind developer/user, format docx, status complete, commit, actual app-relative .docx entry, optional brief approved summary in text, and verification {method: "rendered-pages", status: "passed", sha256: "64 lowercase hex characters", pages: positive integer}. The hash identifies the exact Word bytes inspected, not a screenshot or text export.
 - Approver: verdict APPROVE and commit. This is a technical recommendation, never human merge permission.
 - deliverable.coverage maps EACH plan acceptance string to an actual passed check: `[{"requirement":"Customer can sign in","check":"Sign-in acceptance"}]`.
 
@@ -81,6 +81,16 @@ Report failures/limitations honestly; do not turn fixtures or scanner exits into
 Usage has tokens/usd (actual nonnegative counters or null) and completeness complete/partial/unavailable. Do not invent costs, savings or zeroes. Numeric approved budgets block advancement when reported usage exceeds them; the bridge cannot guarantee provider-enforced caps or infer unavailable consumption. Stop new dispatch if enforcing budgets cannot be verified.
 
 Finish payload: `{"id":"COMMAND_ID","status":"completed|failed|blocked","message":"Actual outcome"}`. Complete only after an actual human gate or terminal result; queued is Pending, acknowledgment is Running. Outstanding uncertain tools/workers block successful completion.
+
+## Microsoft Word documentation
+
+The developer guide and end-user manual MUST be genuine Microsoft Word .docx files. Reuse two existing application Word guides when possible, or create only the missing necessary files (for example docs/developer-guide.docx and docs/user-manual.docx). Update them on each feature branch; do not create another pair per feature or deliver Markdown/PDF in place of Word. Runtime discovery/instruction files remain Markdown.
+
+The documentation writer uses actual available Word/document tooling. Where the documents skill is available, follow its authoring and render/inspect workflow. Use clear titles, proper Word heading styles, readable tables and professional spacing. Render the final .docx to page images and visually inspect EVERY page. Keep render images/logs under ignored factory/.local; correct layout issues and repeat review. If tooling/rendering is unavailable, report blocked instead of inventing successful review metadata.
+
+Publish both guides during implementation before offering its approval. Commit them with source. Record format, entry, commit and file-bound verification as above. QA reviewers check completeness and the actual Word deliverables. A byte change invalidates the previous file hash and needs fresh rendered-page review. An unchanged file may retain its real prior layout review, while its content/coverage must still be checked for the current feature.
+
+The bridge checks bounded package structure, exact committed bytes and hash/metadata bindings; it does not render Word, validate the entire OOXML schema or independently authenticate visual review. Guides are limited to 20 MiB compressed and 100 MiB declared expanded package data. Never treat its structural check as proof of visual quality. The Documentation dashboard downloads only registered committed Word guides after authenticating the browser, including prior feature versions. It never accepts an arbitrary download file path. Upgraded active jobs return to a specification revision for the new format; previous work and stage history remain preserved.
 
 ## Agent execution reporting
 

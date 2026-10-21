@@ -3,7 +3,7 @@ name: reviewing
 description: Review the frozen factory result independently for the assigned security, UX, UI, code, QA or approver role using authentic commit-bound evidence.
 ---
 
-Read the frozen plan and exact combined source/docs commit. Keep the five reviewer identities independent and do not read another reviewer's conclusions before the initial verdict. Verify actual acceptance and both guides; distinguish executed checks from source-only inspection. The approver evaluates all five real verdicts and blockers.
+Read the frozen plan and exact combined source/docs commit. Keep the five reviewer identities independent and do not read another reviewer's conclusions before the initial verdict. Verify actual acceptance and both Microsoft Word .docx guides, their committed file hashes and authentic rendered-page review; distinguish executed checks from source-only inspection. The approver evaluates all five real verdicts and blockers.
 
 Run formal review only during authorized QA/product acceptance. Map every acceptance criterion to an actual passing check and verify the displayed preview matches the reviewed commit. Product acceptance needs fresh cross-feature tests and reviews; child verdicts do not approve the aggregate. Report actual worker identity/results privately through the owner bridge. A technical recommendation never grants human integration consent or starts the next feature.
 

@@ -31,3 +31,5 @@ Re-run the same setup command to check or upgrade. A checksum manifest permits u
 Owner integration, evidence formats and recovery are documented in runtime/WORKFLOW.md. Offline tests validate installation and bridge behavior; they do not prove live providers, native background delivery, review quality, or a completed app.
 
 Integration references: [Codex skills](https://learn.chatgpt.com/docs/build-skills), [Claude skills](https://code.claude.com/docs/en/skills), [Claude subagents](https://code.claude.com/docs/en/sub-agents). Observed 2026-10-21; verify installed host capabilities at setup.
+
+Documentation deliverables are Microsoft Word .docx files: one developer guide and one end-user manual, updated across features. The documentation writer renders and inspects every page before marking them complete. Documentation downloads the exact registered committed files whose hashes match their reported page review. Runtime instruction files remain Markdown; no duplicate Word guide pair is created per feature.
