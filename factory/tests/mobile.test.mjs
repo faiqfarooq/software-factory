@@ -106,6 +106,7 @@ test('dashboard mobile view and request controls render with synthetic DOM, incl
   const j = s.jobs[0]; j.mobile_analysis = analysis(); j.plan = { summary: 'Synthetic', scope: ['Fixture'], acceptance: ['User can sign in'], permissions: ['Fixture'], budget: 0, base_commit: SHA, target_branch: 'main', mobile: mobilePlan() }; j.mobile_runs = [{ platform: 'android', device: 'Synthetic device', runtime: 'emulator', check: 'Android sign-in', status: 'not-checked', commit: MOBILE_SHA }];
   context.fixture = { ...publicState(s, { models: {}, integrations: {}, project_name: 'Fixture', edition: 'claude-only', purpose: 'web-to-mobile', version: 'test' }), workspace: {} };
   vm.runInContext("state=fixture; page='mobile'; render();", context); assert.ok(get('main').children.length > 5); assert.equal(get('factory-purpose').value, 'web-to-mobile'); assert.equal(get('source-repo').required, true);
+  assert.equal(get('purpose').textContent, 'Web-to-mobile factory'); assert.equal(get('edition').textContent, 'Agent: Claude only');
   vm.runInContext("state.jobs=[];render();", context); assert.ok(get('main').children.length > 1);
   get('factory-purpose').value = 'software'; vm.runInContext('mobileFields()', context); assert.equal(get('source-repo').required, false);
 });

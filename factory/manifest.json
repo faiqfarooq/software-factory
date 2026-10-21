@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "version": "2.3.0",
+  "version": "2.3.1",
   "files": {
     "README.md": "8b90a33ead3156a65e23ff05303d9983a80e2c015bf0bd26faea8464a4700a2a",
-    "runtime/profiles.mjs": "f4ddee552975a37dd98e04af4c6cd79a8b7ff32dd78dd3db3d0af89752cce8f5",
+    "runtime/profiles.mjs": "f382a7b0dbcbf51b34a29ef2f15c95e10660745455d90e4af6322b524c92d5f6",
     "runtime/storage.mjs": "52a71de0504516ee732bc7bb26275c9619555eb426a65db72005ff37bedcc0c5",
     "runtime/checks.mjs": "59b2f640bc87d256471af52437c87ea444b89b67f27e45de85655a3d322f5518",
     "runtime/workflow.mjs": "aa6918f0aa0aeb41de16f2b6fbcd7cce4ae06d4fc0db4faf8f9968651e706267",
@@ -11,9 +11,9 @@
     "runtime/cli.mjs": "fb6ce32dff0416dfa79099069a1f0a993ccc7efaef9709a4f613862fbad8a9ca",
     "runtime/WORKFLOW.md": "523f171b42ae1850970d2c42c7f82818231e854b41786c1bfe16d3554db42e99",
     "runtime/LICENSE": "d03409d4442a7b1b0841b1366aadda0e4067bb2245d7f95db0bb5e68fd4429f7",
-    "dashboard/index.html": "ea0a15fb64e5085845631f66cd4eaa95ee72a5409d41e6ce1b46a6bc1d8f3cfe",
+    "dashboard/index.html": "483ed8956400f40ed8dc2bdced9665ee5244fc380bab3edc93f72ecd76b7484a",
     "dashboard/style.css": "8a83c6553f865675a8849b94f5b6295deb46321410ab719522461cb2be0902d8",
-    "dashboard/app.js": "49f37b386d18dab41a8df6d509101fb2933dad4758156841433f18620322026b",
+    "dashboard/app.js": "61a4ea69cc241bae3590b111b6915753de401410d427eb837652075a184890ea",
     "runtime/integrations.mjs": "3711935e02d4f50906d3061b6ed94a76b7b7aa8c5d28ef703e10a03ce5d8daa0",
     "runtime/lifecycle.mjs": "a8bdf2c530d74863922d571cdb8aff1d5367b1a0b03baba94725ba183711164b",
     "runtime/workspace.mjs": "1c7df14f9f661ae859c8025ab38b11e5d91182fb1e1494a3db44f7143b3f576c",

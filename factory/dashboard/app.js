@@ -206,7 +206,9 @@ function render() {
   if (!$('request-dialog').open) { $('factory-purpose').value = state.purpose || 'software'; mobileFields(); }
   $('planning-docs-option').hidden = !state.integrations?.some(i => i.id === 'context7' && i.enabled);
   if ($('planning-docs-option').hidden) $('planning-docs').checked = false;
-  $('project').textContent = state.project; $('edition').textContent = ({ 'claude-only': 'Claude only', 'codex-claude': 'Codex + Claude', 'low-cost': 'API providers' })[state.edition]; $('version').textContent = 'v' + state.version;
+  $('project').textContent = state.project;
+  $('purpose').textContent = state.purpose === 'web-to-mobile' ? 'Web-to-mobile factory' : 'Software factory';
+  $('edition').textContent = 'Agent: ' + ({ 'claude-only': 'Claude only', 'codex-claude': 'Codex + Claude', 'low-cost': 'API providers' })[state.edition]; $('version').textContent = 'v' + state.version;
   $('page-label').textContent = titles[page]; $('owner-label').textContent = state.owner.connected ? state.owner.listening ? 'Owner listening' : 'Owner paired' : 'Owner disconnected'; $('owner-dot').classList.toggle('online', state.owner.connected);
   for (const e of document.querySelectorAll('[data-page]')) { e.classList.toggle('selected', e.dataset.page === page); e.setAttribute('aria-current', e.dataset.page === page ? 'page' : 'false'); }
   const main = $('main'); main.replaceChildren();
@@ -383,7 +385,7 @@ async function submitCommand(input) {
 }
 async function refresh() {
   if (refreshing) return; refreshing = true;
-  try { const next = await api('state'); const nextSignature = JSON.stringify(next); state = next; if (signature !== nextSignature) { signature = nextSignature; render(); } $('connection-status').textContent = 'Connected to local dashboard'; }
+  try { const next = await api('state'); const nextSignature = JSON.stringify(next); if (!state && next.purpose === 'web-to-mobile') page = 'mobile'; state = next; if (signature !== nextSignature) { signature = nextSignature; render(); } $('connection-status').textContent = 'Connected to local dashboard'; }
   catch (e) { $('connection-status').textContent = 'Disconnected · ' + e.message; }
   finally { refreshing = false; }
 }
