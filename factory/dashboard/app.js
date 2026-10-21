@@ -6,11 +6,12 @@ let token = /^[a-f0-9]{64}$/.test(location.hash.slice(1)) ? location.hash.slice(
 if (location.hash) history.replaceState(null, '', location.pathname);
 if (token) sessionStorage.setItem('factory-key', token);
 let state, page = 'overview', selectedJob, signature = '', actionContext, actionJobSnapshot, refreshing = false;
+const credentialDrafts = new Map(), credentialRequests = new Set();
 const node = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
 const label = value => String(value || '').replaceAll('-', ' ');
 const badge = value => node('span', label(value), 'badge ' + value);
 const button = (text, action, primary = false, enabled = true) => {
-  const e = node('button', text, primary ? 'primary' : ''); e.disabled = !enabled; e.addEventListener('click', action); return e;
+  const e = node('button', text, primary ? 'primary' : ''); e.type = 'button'; e.disabled = !enabled; e.addEventListener('click', action); return e;
 };
 function toast(text, error = false) {
   const box = $('toast'); box.textContent = text; box.className = 'toast' + (error ? ' error' : ''); box.hidden = false;
@@ -46,6 +47,45 @@ function wordCard(current, kind, name, guide, feature) {
     if (guide.text) c.append(node('p', guide.text, 'details section-gap'));
   }
   return c;
+}
+function credentialForm(tool, locked) {
+  const info = tool.credentials, box = node('form', undefined, 'credential-form');
+  if (!info) { box.append(node('p', 'No API key is needed for this integration.', 'integration-note')); return box; }
+  const draft = credentialDrafts.get(tool.id) || {}, keyInput = node('input'), keyLabel = node('label', 'API key');
+  keyInput.id = 'api-key-' + tool.id; keyLabel.htmlFor = keyInput.id; keyInput.type = 'password'; keyInput.autocomplete = 'new-password';
+  keyInput.maxLength = 4096; keyInput.spellcheck = false; keyInput.setAttribute('autocapitalize', 'none');
+  keyInput.value = draft.api_key || ''; keyInput.placeholder = info.present ? 'Enter a replacement key' : 'Paste API key';
+  keyInput.disabled = locked || credentialRequests.has(tool.id);
+  keyInput.addEventListener('input', () => { credentialDrafts.set(tool.id, { ...credentialDrafts.get(tool.id), api_key: keyInput.value }); });
+  box.append(keyLabel, keyInput, node('p', info.present ? (info.source === 'dashboard' ? 'A saved key is configured. Leave blank to keep it.' : 'Using a server environment key. A saved key will override it.') : 'No API key configured.', 'integration-note'));
+  let modelInput;
+  if (tool.id === 'strix') {
+    modelInput = node('input'); modelInput.id = 'strix-model'; modelInput.value = draft.model ?? info.model; modelInput.maxLength = 180;
+    modelInput.placeholder = 'provider/approved-model'; modelInput.disabled = keyInput.disabled;
+    const modelLabel = node('label', 'Strix model'); modelLabel.htmlFor = modelInput.id;
+    modelInput.addEventListener('input', () => credentialDrafts.set(tool.id, { ...credentialDrafts.get(tool.id), model: modelInput.value }));
+    box.append(modelLabel, modelInput, node('p', 'Use the edition provider and exact model approved in your scan plan.', 'integration-note'));
+  }
+  const controls = node('div', undefined, 'actions'), save = node('button', credentialRequests.has(tool.id) ? 'Saving…' : 'Save credentials', 'primary');
+  save.type = 'submit'; save.disabled = keyInput.disabled; controls.append(save);
+  const change = async payload => {
+    if (credentialRequests.has(tool.id)) return;
+    credentialRequests.add(tool.id); save.disabled = true; keyInput.disabled = true; if (modelInput) modelInput.disabled = true;
+    try {
+      const latest = await api('state');
+      await api('integrations/credentials', { id: tool.id, revision: latest.revision, ...payload });
+      keyInput.value = ''; credentialDrafts.delete(tool.id);
+      toast(payload.action === 'remove' ? 'Saved credentials removed. Environment settings may still apply.' : 'Credentials saved locally. No provider call made.');
+    } catch (error) { toast(error.message, true); }
+    finally { credentialRequests.delete(tool.id); signature = ''; await refresh(); }
+  };
+  if (info.saved || info.saved_model) controls.append(button('Remove saved credentials', () => change({ action: 'remove' }), false, !keyInput.disabled));
+  box.addEventListener('submit', event => {
+    event.preventDefault(); const api_key = keyInput.value.trim(), model = modelInput?.value.trim();
+    change({ action: 'save', ...(api_key ? { api_key } : {}), ...(modelInput ? { model } : {}) });
+  });
+  box.append(controls, node('p', info.storage === 'windows-user-encrypted' ? 'Saved privately and encrypted for your Windows user. Keys are never returned to this page.' : 'Saved in a private local file with owner-only permissions (0600). Keys are never returned to this page.', 'integration-note'));
+  return box;
 }
 const job = () => state?.jobs.find(j => j.id === selectedJob) || state?.jobs.at(-1);
 function card(title, content) {
@@ -204,7 +244,7 @@ function render() {
     const controls = node('div', undefined, 'actions');
     controls.append(button('Check local availability', async () => { try { await api('integrations/check', {}); toast('Local availability checked. No provider calls.'); await refresh(); } catch (e) { toast(e.message, true); } })); main.append(controls);
     const grid = node('div', undefined, 'integration-grid');
-    const settingsLocked = state.commands.some(c => ['pending', 'running', 'uncertain'].includes(c.status)) || state.jobs.some(j => !['merged', 'cancelled', 'awaiting-plan', 'awaiting-stage', 'paused', 'blocked'].includes(j.status));
+    const settingsLocked = credentialRequests.size > 0 || state.commands.some(c => ['pending', 'running', 'uncertain'].includes(c.status)) || state.jobs.some(j => (j.workers || []).some(w => ['running', 'uncertain'].includes(w.status)) || !['merged', 'cancelled', 'awaiting-plan', 'awaiting-stage', 'ready-feature', 'ready-acceptance', 'paused', 'blocked'].includes(j.status));
     for (const tool of state.integrations || []) {
       const c = card(tool.name); c.append(badge(tool.status), node('p', tool.description, 'details section-gap'), node('p', tool.detail, 'muted'));
       c.append(node('p', 'Roles: ' + tool.roles.join(', '), 'integration-note'));
@@ -216,6 +256,7 @@ function render() {
         try { await api('integrations/settings', { id: tool.id, enabled: !tool.enabled, revision: state.revision }); toast(tool.name + (tool.enabled ? ' disabled.' : ' enabled. Review its next action and include use in your plan.')); await refresh(); } catch (e) { toast(e.message, true); }
       }, !tool.enabled, !settingsLocked));
       const link = node('a', 'Official setup guide ↗'); link.href = tool.url; link.target = '_blank'; link.rel = 'noopener noreferrer'; a.append(link); c.append(a);
+      if (tool.id !== 'skills') c.append(credentialForm(tool, settingsLocked));
       if (tool.latest.length) c.append(table(['Recent operation', 'Result', 'Duration'], tool.latest.map(r => [r.operation + (r.cache_hit ? ' · cached' : ''), badge(r.status), r.duration_ms === null ? '—' : (r.duration_ms / 1000).toFixed(1) + ' s'])));
       grid.append(c);
     }
@@ -325,8 +366,9 @@ async function refresh() {
   catch (e) { $('connection-status').textContent = 'Disconnected · ' + e.message; }
   finally { refreshing = false; }
 }
-for (const e of document.querySelectorAll('[data-page]')) e.addEventListener('click', () => { page = e.dataset.page; if (state) render(); });
-document.querySelector('.brand').addEventListener('click', e => { e.preventDefault(); page = 'overview'; if (state) render(); });
+for (const e of document.querySelectorAll('[data-page]')) e.addEventListener('click', () => { if (e.dataset.page !== 'integrations') credentialDrafts.clear(); page = e.dataset.page; if (state) render(); });
+document.querySelector('.brand').addEventListener('click', e => { e.preventDefault(); credentialDrafts.clear(); page = 'overview'; if (state) render(); });
+window.addEventListener('pagehide', () => credentialDrafts.clear());
 for (const e of document.querySelectorAll('[data-close]')) e.addEventListener('click', () => $(e.dataset.close).close());
 $('pair-form').addEventListener('submit', async e => { e.preventDefault(); token = $('pair-key').value.trim(); try { state = await api('state'); sessionStorage.setItem('factory-key', token); $('pair-dialog').close(); signature = ''; render(); } catch (error) { $('pair-error').textContent = error.message; } });
 $('request-form').addEventListener('submit', async e => {

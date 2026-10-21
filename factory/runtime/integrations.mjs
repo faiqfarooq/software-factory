@@ -71,7 +71,7 @@ export async function prerequisites(root, config, environment = process.env) {
     let status = 'available';
     if (item.executable && !binary) { status = 'needs-action'; detail = item.executable + ' is not on PATH.'; action = 'Install a reviewed version using the linked official guide, then recheck.'; }
     if (binary && /\.(cmd|bat|ps1)$/i.test(binary)) { status = 'needs-action'; detail = 'A native ' + item.executable + ' executable is required; shell wrappers are not launched automatically.'; }
-    if (item.env && !secret) { status = 'needs-action'; detail = item.env + ' is missing from the factory server environment.'; action = 'Set the credential in approved secret storage/environment and restart the server.'; }
+    if (item.env && !secret) { status = 'needs-action'; detail = 'The integration API key is not configured.'; action = 'Save its API key below, or set ' + item.env + ' in the server environment.'; }
     if (id === 'strix') {
       if (!await executable('docker', environment)) { status = 'needs-action'; detail = 'Docker is not on PATH.'; }
       const model = environment.STRIX_LLM || '';

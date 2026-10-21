@@ -16,7 +16,7 @@ export const BUNDLE_FILES = [
   'README.md', 'runtime/profiles.mjs', 'runtime/storage.mjs', 'runtime/checks.mjs',
   'runtime/workflow.mjs', 'runtime/server.mjs', 'runtime/cli.mjs', 'runtime/WORKFLOW.md',
   'runtime/LICENSE', 'dashboard/index.html', 'dashboard/style.css', 'dashboard/app.js',
-  'runtime/integrations.mjs', 'runtime/lifecycle.mjs', 'runtime/workspace.mjs', 'runtime/documents.mjs', 'runtime/skills/planning/SKILL.md', 'runtime/skills/building/SKILL.md', 'runtime/skills/reviewing/SKILL.md'
+  'runtime/integrations.mjs', 'runtime/lifecycle.mjs', 'runtime/workspace.mjs', 'runtime/documents.mjs', 'runtime/credentials.mjs', 'runtime/skills/planning/SKILL.md', 'runtime/skills/building/SKILL.md', 'runtime/skills/reviewing/SKILL.md'
 ];
 export async function buildManifest(source = SOURCE) {
   const files = {};

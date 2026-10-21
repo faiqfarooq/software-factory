@@ -10,6 +10,7 @@ import { CATALOG, integrationSettings, prerequisites, reserveRun, executeIntegra
 import { currentUnit, stage, recordWorker } from './lifecycle.mjs';
 import { workspaceView, workspaceDiff, workspaceOperation, assertWorkspace } from './workspace.mjs';
 import { committedWord, WORD_MIME } from './documents.mjs';
+import { loadCredentials, saveCredentials, updateCredentials, credentialEnvironment, credentialView } from './credentials.mjs';
 
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -30,6 +31,9 @@ export async function assertMergeBinding(root, job) {
 export async function serve(root, { port = 0, integrationDependencies = {} } = {}) {
   root = path.resolve(root);
   let config = await readConfig(root);
+  let credentials = await loadCredentials(root);
+  const baseEnvironment = integrationDependencies.environment || process.env;
+  const toolEnvironment = id => credentialEnvironment(credentials, baseEnvironment, id);
   const selected = profile(config.edition), toolTasks = new Map();
   const lockPath = await safePath(root, 'factory/.local/server.lock');
   await mkdir(path.dirname(lockPath), { recursive: true });
@@ -56,6 +60,17 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
     if (!state.owner || state.owner.id !== id) throw new Error('Wrong owner session. Reconnect the registered owner.');
     if (!connected(state)) throw new Error('Owner lease expired. Reconnect the same session and reconcile uncertain work.');
   };
+  const assertIntegrationChange = (state, revision) => {
+    if (revision !== state.revision) throw new Error('State changed. Refresh before changing integrations.');
+    if (state.commands.some(c => ['pending', 'running', 'uncertain'].includes(c.status)) || (state.integration_runs || []).some(r => ['running', 'uncertain'].includes(r.status)) ||
+        state.jobs.some(j => (j.workers || []).some(w => ['running', 'uncertain'].includes(w.status)) || !['merged', 'cancelled', 'awaiting-plan', 'awaiting-stage', 'ready-feature', 'ready-acceptance', 'paused', 'blocked'].includes(j.status))) throw new Error('Pause/finish and reconcile active work before changing integrations or credentials.');
+  };
+  const invalidateIntegrationPlans = (state, message) => {
+    for (const job of state.jobs.filter(j => !['merged', 'cancelled'].includes(j.status))) {
+      if (job.lifecycle === 2) { currentUnit(job).approved_plan_hash = null; job.configuration_changed = true; }
+      job.offer = null; job.approved_plan_hash = null; job.status = 'blocked'; job.message = message;
+    }
+  };
   const assets = { '/': ['index.html', 'text/html; charset=utf-8'], '/app.js': ['app.js', 'text/javascript; charset=utf-8'], '/style.css': ['style.css', 'text/css; charset=utf-8'] };
   const server = http.createServer(async (req, res) => {
     const send = (code, value, type = 'application/json; charset=utf-8') => {
@@ -78,6 +93,8 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
       if (!equal(auth, ownerRoute ? ownerKey : browserKey)) return send(401, { error: 'Pair this dashboard using the local link printed by setup.' });
       if (req.method === 'GET' && route === '/api/state') {
         const state = await readState(root), result = publicState(state, config);
+        const keys = credentialView(credentials, baseEnvironment);
+        result.integrations = result.integrations.map(tool => ({ ...tool, credentials: keys[tool.id] || null }));
         result.workspace = await workspaceView(root, state.jobs.find(j => !['merged', 'cancelled'].includes(j.status)) || state.jobs.at(-1));
         result.roles = Object.entries(config.roles).map(([role, provider]) => ({ role, provider, model: config.models[role] }));
         return send(200, result);
@@ -107,8 +124,8 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
       const input = await body(req);
       if (route === '/api/integrations/check') {
         fields(input, []);
-        const checks = await prerequisites(root, config);
-        await mutate(state => {
+        await mutate(async state => {
+          const checks = await prerequisites(root, config, toolEnvironment());
           state.integration_checks = Object.fromEntries(Object.entries(checks).map(([id, value]) => [id, { ...value, time: stamp() }]));
           event(state, 'Integration prerequisites checked locally. No provider requests or installs.');
         });
@@ -118,19 +135,30 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
         fields(input, ['id', 'enabled', 'revision']);
         if (!Object.hasOwn(CATALOG, input.id) || input.id === 'skills' || typeof input.enabled !== 'boolean') throw new Error('Choose an optional integration and its enabled flag.');
         await mutate(async state => {
-          if (input.revision !== state.revision) throw new Error('State changed. Refresh before changing integration settings.');
-          if (state.commands.some(c => ['pending', 'running', 'uncertain'].includes(c.status)) || (state.integration_runs || []).some(r => ['running', 'uncertain'].includes(r.status)) ||
-              state.jobs.some(j => !['merged', 'cancelled', 'awaiting-plan', 'awaiting-stage', 'paused', 'blocked'].includes(j.status))) throw new Error('Pause/finish and reconcile active work before changing tools. Affected plans must be revised after a change.');
+          assertIntegrationChange(state, input.revision);
           const settings = integrationSettings(config.integrations); settings[input.id].enabled = input.enabled;
           const updated = { ...config, integrations: settings };
+          invalidateIntegrationPlans(state, 'Integration settings changed. Request a revised plan before approval; existing work and history were preserved.');
+          await saveState(root, state);
           await atomic(await safePath(root, 'factory/config.json'), updated); config = updated;
           state.integration_profile = Object.entries(settings).filter(([, v]) => v.enabled).map(([id]) => id);
-          state.integration_checks = Object.fromEntries(Object.entries(await prerequisites(root, config)).map(([id, value]) => [id, { ...value, time: stamp() }]));
-          for (const job of state.jobs.filter(j => ['awaiting-plan', 'awaiting-stage', 'paused', 'blocked'].includes(j.status))) {
-            if (job.lifecycle === 2) { currentUnit(job).approved_plan_hash = null; job.configuration_changed = true; }
-            job.offer = null; job.approved_plan_hash = null; job.status = 'blocked'; job.message = 'Integration settings changed. Request a revised plan before approval; existing work and history were preserved.';
-          }
+          state.integration_checks = Object.fromEntries(Object.entries(await prerequisites(root, config, toolEnvironment())).map(([id, value]) => [id, { ...value, time: stamp() }]));
           event(state, CATALOG[input.id].name + (input.enabled ? ' enabled; connection still requires verification.' : ' disabled.'));
+        });
+        return send(200, { status: 'completed' });
+      }
+      if (route === '/api/integrations/credentials') {
+        await mutate(async state => {
+          assertIntegrationChange(state, input.revision);
+          const next = updateCredentials(credentials, input, config, baseEnvironment);
+          if (JSON.stringify(next) === JSON.stringify(credentials)) return;
+          const checks = await prerequisites(root, config, credentialEnvironment(next, baseEnvironment));
+          // Revoke offers durably before changing secret material. A write failure cannot preserve old consent.
+          invalidateIntegrationPlans(state, 'Integration credentials changed. Revise specification or an earlier stage before continuing. Existing work and history were preserved.');
+          await saveState(root, state);
+          await saveCredentials(root, next); credentials = next;
+          state.integration_checks = Object.fromEntries(Object.entries(checks).map(([id, value]) => [id, { ...value, time: stamp() }]));
+          event(state, CATALOG[input.id].name + (input.action === 'remove' ? ' saved credentials removed.' : ' credentials saved locally; no provider call made.'));
         });
         return send(200, { status: 'completed' });
       }
@@ -175,7 +203,7 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
             // Start on the next event-loop turn, after the receipt has been durably reserved.
             await delay(0);
             let result;
-            try { result = await executeIntegration(root, config, run, { ...integrationDependencies, signal: controller.signal }); }
+            try { result = await executeIntegration(root, config, run, { ...integrationDependencies, environment: toolEnvironment(run.tool), signal: controller.signal }); }
             catch (error) {
               result = { status: error.uncertain || controller.signal.aborted || ['TimeoutError', 'AbortError'].includes(error.name) ? 'uncertain' : 'failed',
                 data: { error: error.message.startsWith('Integration HTTP') || error.message.startsWith('21st.dev HTTP') ? error.message : 'Integration did not complete. Inspect its local prerequisites and approved inputs.' },
@@ -367,7 +395,7 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
   server.requestTimeout = 65000; server.headersTimeout = 10000;
   try {
     await mutate(async state => {
-      state.integration_checks = Object.fromEntries(Object.entries(await prerequisites(root, config)).map(([id, value]) => [id, { ...value, time: stamp() }]));
+      state.integration_checks = Object.fromEntries(Object.entries(await prerequisites(root, config, toolEnvironment())).map(([id, value]) => [id, { ...value, time: stamp() }]));
       state.integration_profile = Object.entries(integrationSettings(config.integrations)).filter(([, v]) => v.enabled).map(([id]) => id);
       for (const run of state.integration_runs || []) if (run.status === 'running') run.status = 'uncertain';
       for (const job of state.jobs) {
