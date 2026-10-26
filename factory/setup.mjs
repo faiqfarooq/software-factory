@@ -10,6 +10,8 @@ import { options, openBrowser } from './runtime/cli.mjs';
 import { serve } from './runtime/server.mjs';
 import { integrationDefaults, integrationSettings, prerequisites } from './runtime/integrations.mjs';
 import { purpose as factoryPurpose } from './runtime/mobile.mjs';
+import { repositorySettings } from './runtime/workspace.mjs';
+import { git } from './runtime/checks.mjs';
 
 export const SOURCE = path.dirname(fileURLToPath(import.meta.url));
 const normalized = value => value.replaceAll('\r\n', '\n');
@@ -37,12 +39,14 @@ export async function verifyBundle(source = SOURCE) {
 }
 function skill(edition, location) {
   const forwarder = edition === 'codex-claude' && location.startsWith('.claude/');
-  return '---\nname: factory\ndescription: Run this project\'s staged software factory with human approval at each stage and separate named feature branches.\n---\n\n' +
-    (forwarder ? 'Forward this request to the registered Codex factory owner. Never register Claude as an owner or create another orchestrator. If no supported forwarding bridge is available, direct the user to invoke `$factory` in the same project\'s Codex session.\n' :
+  return '---\nname: factory\ndescription: Run this project\'s staged software factory with one human approval per stage and the configured repository policy.\n---\n\n' +
+    (forwarder ? 'Forward this request to the registered Codex factory owner. Never register Claude as an owner or create another orchestrator. If no supported forwarding bridge is available, direct the user to invoke `$factory` in the same project\'s Codex session. Forward an exact approval once; an existing chat or dashboard approval never needs a second confirmation. Routine authorized work follows factory/runtime/WORKFLOW.md.\n' :
       'Read [the owner protocol](../../../factory/runtime/WORKFLOW.md) from the application root, then connect this existing ' + (edition === 'claude-only' ? 'Claude' : 'Codex') + ' session and listen for typed dashboard commands. Use the real host session identity and the edition/model routing in factory/config.json. Never claim background control without an active listener.\n\n' +
-      'Only the owner dispatches specialists. Preserve ten roles, five independent reviews and the same feature builder for fixes. Follow every staged human approval, create a fresh product/feature branch through the workspace bridge, and keep implementation visible in the application folder. Never automatically start the next feature or merge without its exact consent. Report actual workers/progress/preview/evidence through factory/runtime/cli.mjs. Use role-context to load only the assigned shared skill and enabled scoped integrations. Do not rewrite normalized state/dashboard. Missing native capabilities stay blocked.\n');
+      'Only the owner dispatches specialists. Preserve ten roles, five independent reviews and the same feature builder for fixes. Follow every staged human approval and the configured workspace policy through the workspace bridge. With current-branches, work only in selected allowed repositories on their pinned existing branches; never create feature branches. Keep implementation visible in normal application folders. Never automatically start the next feature or integrate without its exact consent. Report actual workers/progress/preview/evidence through factory/runtime/cli.mjs. Use role-context to load only the assigned shared skill and enabled scoped integrations. Do not rewrite normalized state/dashboard. Missing native capabilities stay blocked.\n\n' +
+      'Ask once at each completed stage checkpoint. Bind chat OR dashboard approval to the current offer through the typed bridge; check queued commands and decisions before submitting. Continue routine fixes, builds, tests, guide rendering, reviewer work and evidence-only reruns within the approved scope without asking again. Source changes during QA require the actual implementation revision checkpoint and refreshed evidence. Reconcile interrupted work without replaying paid calls or merges. New scope, budgets and access boundaries require their actual authorization. Follow the approval cadence in factory/runtime/WORKFLOW.md.\n\n' +
+      (edition === 'codex-claude' ? 'Host command permissions remain separate from stage approvals. Full Access is optional and requires an explicit user request; never change permissions during ordinary factory setup. Follow WORKFLOW.md for supported settings and respect active host/managed policies. Do not claim a configuration edit changed the running host, approve security dialogs as the user, or evade a denial.\n' : 'Respect native host command permissions; factory setup never changes the execution profile.\n'));
 }
-export async function planInstall(root, edition, source = SOURCE, { integrations, purpose } = {}) {
+export async function planInstall(root, edition, source = SOURCE, { integrations, purpose, workspace, migrateLauncher = false } = {}) {
   const selected = profile(edition), manifest = await verifyBundle(source);
   root = await realpath(path.resolve(root));
   const rootBinding = digest(process.platform === 'win32' ? root.toLowerCase() : root);
@@ -64,7 +68,14 @@ export async function planInstall(root, edition, source = SOURCE, { integrations
     const destination = await safePath(root, relative);
     const before = await exists(destination) ? await readFile(destination, 'utf8') : null;
     const hash = digest(normalized(content));
-    if (before !== null && normalized(before) !== normalized(content) && managedFile && previous[relative] !== digest(normalized(before))) throw new Error('File conflict; preserved without changes: ' + relative);
+    if (before !== null && normalized(before) !== normalized(content) && managedFile && previous[relative] !== digest(normalized(before))) {
+      if (!migrateLauncher || receipt || journal || edition !== 'codex-claude' || relative !== '.claude/skills/factory/SKILL.md') throw new Error('File conflict; preserved without changes: ' + relative);
+      // Explicitly reviewed launcher-only migration. Unmanaged factory/history remains blocked above.
+      const archive = 'factory/.local/migration/claude-factory-' + digest(before) + '.md';
+      const archived = await safePath(root, archive);
+      if (await exists(archived) && await readFile(archived, 'utf8') !== before) throw new Error('Migration archive conflict; preserved without changes: ' + archive);
+      await add(archive, before, false);
+    }
     if (before === null || normalized(before) !== normalized(content)) changes.push({ path: relative, content, before_hash: before === null ? null : digest(before), hash });
     if (managedFile) managed[relative] = hash;
   };
@@ -77,7 +88,7 @@ export async function planInstall(root, edition, source = SOURCE, { integrations
   const configPath = await safePath(root, 'factory/config.json');
   const existingConfig = await json(configPath, null);
   if (existingConfig && (existingConfig.schema_version !== 1 || existingConfig.edition !== edition)) throw new Error('Existing configuration needs an explicit schema/edition migration.');
-  const report = await inspect(root, edition);
+  const report = await inspect(root, edition, workspace || existingConfig?.workspace);
   const config = existingConfig ? { ...existingConfig, version: VERSION } : {
     schema_version: 1, version: VERSION, edition, project_name: path.basename(root),
     target_branch: report.target_branch, models: models(edition), roles: selected.roles, budgets: { usd: null, tokens: null }
@@ -85,6 +96,15 @@ export async function planInstall(root, edition, source = SOURCE, { integrations
   config.integrations = integrationSettings(existingConfig?.integrations);
   config.documentation_format = 'docx';
   config.purpose = factoryPurpose(purpose ?? existingConfig?.purpose);
+  if (workspace !== undefined) {
+    config.workspace = await repositorySettings(root, workspace);
+    if (existingConfig && JSON.stringify(existingConfig.workspace) !== JSON.stringify(config.workspace)) {
+      const state = await readState(root);
+      if (state.jobs.some(j => !['merged', 'cancelled'].includes(j.status)) || state.commands.some(c => ['pending', 'running', 'uncertain'].includes(c.status)) ||
+          (state.integration_runs || []).some(r => ['running', 'uncertain'].includes(r.status))) throw new Error('Workspace policy/scope changes with active history require an explicitly reviewed migration. Existing work was preserved.');
+    }
+  }
+  else if (config.workspace !== undefined) await repositorySettings(root, config.workspace);
   if (integrations !== undefined) config.integrations = integrationSettings(integrations);
   if (!config.roles || Object.keys(config.roles).length !== Object.keys(selected.roles).length ||
       Object.entries(selected.roles).some(([role, runtime]) => config.roles[role] !== runtime)) throw new Error('Existing role routing differs from the edition; resolve it explicitly before upgrade.');
@@ -129,10 +149,10 @@ export async function install(plan) {
 }
 export async function main(args = process.argv.slice(2)) {
   const { flags, positionals } = options(args);
-  const allowed = ['project', 'edition', 'purpose', 'integrations', 'yes', 'no-serve', 'no-open', 'verify', 'build-manifest', 'help'];
+  const allowed = ['project', 'edition', 'purpose', 'integrations', 'workspace', 'repositories', 'migrate-launcher', 'yes', 'no-serve', 'no-open', 'verify', 'build-manifest', 'help'];
   if (positionals.length || Object.keys(flags).some(k => !allowed.includes(k))) throw new Error('Unknown option. Use --help.');
-  for (const name of ['yes', 'no-serve', 'no-open', 'verify', 'build-manifest', 'help']) if (flags[name] !== undefined && flags[name] !== true) throw new Error('--' + name + ' does not take a value.');
-  if (flags.help) { console.log('node factory/setup.mjs --project <app> [--edition claude-only|codex-claude|low-cost] [--purpose software|web-to-mobile] [--integrations context7,graphify,twentyfirst,strix] [--yes] [--no-serve]\nOptional tools remain off unless selected. Setup makes no provider requests or tool installs.\n--verify verifies package files; --build-manifest refreshes the release manifest after maintainer edits.'); return; }
+  for (const name of ['yes', 'no-serve', 'no-open', 'verify', 'build-manifest', 'help', 'migrate-launcher']) if (flags[name] !== undefined && flags[name] !== true) throw new Error('--' + name + ' does not take a value.');
+  if (flags.help) { console.log('node factory/setup.mjs --project <app> [--edition claude-only|codex-claude|low-cost] [--purpose software|web-to-mobile] [--integrations context7,graphify,twentyfirst,strix] [--workspace current-branches --repositories repo-a,repo-b] [--yes] [--no-serve]\nOptional tools remain off unless selected. Setup makes no provider requests or tool installs.\n--verify verifies package files; --build-manifest refreshes the release manifest after maintainer edits.'); return; }
   if (flags['build-manifest']) { await buildManifest(); console.log('Package manifest updated. Run the offline tests before distribution.'); return; }
   if (flags.verify) { await verifyBundle(); console.log('Package checksums verified: ' + VERSION); return; }
   await verifyBundle();
@@ -158,11 +178,22 @@ export async function main(args = process.argv.slice(2)) {
         integrations[id].enabled = true;
       }
     }
-    const plan = await planInstall(root, edition, SOURCE, { integrations, purpose: flags.purpose });
+    let workspace;
+    if (flags.workspace !== undefined || flags.repositories !== undefined) {
+      if (flags.workspace !== 'current-branches' || typeof flags.repositories !== 'string') throw new Error('Use --workspace current-branches --repositories repo-a,repo-b.');
+      const repositories = [];
+      for (const name of flags.repositories.split(',')) {
+        const folder = await safePath(path.resolve(root), name);
+        repositories.push({ path: name, branch: await git(folder, ['symbolic-ref', '--short', 'HEAD']) });
+      }
+      workspace = { policy: 'current-branches', repositories };
+    }
+    const plan = await planInstall(root, edition, SOURCE, { integrations, purpose: flags.purpose, workspace, migrateLauncher: flags['migrate-launcher'] === true });
     console.log('Factory purpose: ' + plan.config.purpose);
     console.log('\n' + profile(edition).label + ' → ' + plan.root);
     console.log(plan.changes.length ? plan.changes.map(c => '  ' + (c.before_hash ? 'Update ' : 'Create ') + c.path).join('\n') : 'Already installed. Existing files match.');
     console.log('Optional tools: ' + (Object.entries(plan.config.integrations).filter(([id, value]) => id !== 'skills' && value.enabled).map(([id]) => id).join(', ') || 'none') + '. Enable more in the dashboard when needed.');
+    if (plan.config.workspace) console.log('Workspace: current existing branches; no branch creation or Git merge.\n' + plan.config.workspace.repositories.map(r => '  ' + r.path + ' → ' + r.branch).join('\n'));
     console.log('Also record the setup receipt and local checklist under ignored factory/.local/.\nScope: local package setup and checks. No account changes, dependency installs, paid calls or app build.');
     if (!flags.yes && (await ask('Approve this setup? [y/N] ')).trim().toLowerCase() !== 'y') { console.log('Setup cancelled. No files changed.'); return; }
     const result = await install(plan);

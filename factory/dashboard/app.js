@@ -7,8 +7,9 @@ if (location.hash) history.replaceState(null, '', location.pathname);
 if (token) sessionStorage.setItem('factory-key', token);
 let state, page = 'overview', selectedJob, signature = '', actionContext, actionJobSnapshot, refreshing = false;
 const credentialDrafts = new Map(), credentialRequests = new Set();
+const commandRequests = new Map();
 const node = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
-const label = value => String(value || '').replaceAll('-', ' ');
+const label = value => value === 'merged' && state?.workspace_settings ? 'accepted' : String(value || '').replaceAll('-', ' ');
 const badge = value => node('span', label(value), 'badge ' + value);
 const button = (text, action, primary = false, enabled = true) => {
   const e = node('button', text, primary ? 'primary' : ''); e.type = 'button'; e.disabled = !enabled; e.addEventListener('click', action); return e;
@@ -122,12 +123,12 @@ function ownerBanner() {
 function actions(current) {
   const box = node('div', undefined, 'actions'), online = state.owner.connected;
   if (!current) return box;
-  const busy = state.commands.some(c => c.job_id === current.id && ['pending', 'running', 'uncertain'].includes(c.status));
+  const busy = [...commandRequests.values()].includes(current.id) || state.commands.some(c => c.job_id === current.id && ['pending', 'running', 'uncertain'].includes(c.status));
   const add = (text, action, primary = false) => box.append(button(text, () => openAction(action, current), primary, online && (!busy || ['pause', 'cancel'].includes(action))));
   if (current.lifecycle === 2 || current.needs_migration) {
     if (current.needs_migration) add('Adopt staged workflow', 'migrate-workflow', true);
     else {
-      if (current.offer) add(({ 'approve-stage': 'Approve & continue', 'approve-merge': 'Approve merge', 'start-feature': 'Start next feature', 'start-acceptance': 'Start product acceptance' })[current.offer.kind], current.offer.kind, true);
+      if (current.offer) add(({ 'approve-stage': 'Approve & continue', 'approve-merge': current.workspace?.policy === 'current-branches' ? 'Approve integration' : 'Approve merge', 'start-feature': 'Start next feature', 'start-acceptance': 'Start product acceptance' })[current.offer.kind], current.offer.kind, true);
       if (['awaiting-stage', 'ready-feature', 'ready-acceptance', 'blocked', 'paused'].includes(current.status) && !(current.phase === 'final' && current.requires_specification_revision)) add('Request changes', 'revise');
       if (current.mode === 'product' && current.phase !== 'product' && ['awaiting-stage', 'blocked', 'paused'].includes(current.status)) add('Revise product roadmap', 'revise-product');
       if (['planning', 'running', 'reviewing'].includes(current.status)) add('Pause', 'pause');
@@ -151,7 +152,8 @@ function previewLink(current) {
   const e = node('div');
   if (current?.preview) {
     const a = node('a', 'Open app locally'); a.href = current.preview; a.target = '_blank'; a.rel = 'noopener noreferrer'; e.append(a);
-    e.append(node('p', 'Served commit: ' + (current.preview_commit || 'unreported') + ' · ' + (current.workspace?.branch || ''), 'muted'));
+    e.append(node('p', current.preview_source ? 'Served repository: ' + current.preview_source.repository + ' · Git commit: ' + current.preview_source.commit :
+      'Served commit: ' + (current.preview_commit || 'unreported') + ' · ' + (current.workspace?.branch || ''), 'muted'));
     if (current.preview_commit !== current.commit && current.commit) e.append(node('p', 'This preview differs from the current reviewed commit. Ask the owner to refresh it.', 'error'));
     if (state.workspace?.dirty || (state.workspace?.commit && state.workspace.commit !== current.preview_commit)) e.append(node('p', 'The local workspace has changed since this preview was reported. Its served version needs verification.', 'muted'));
   } else e.append(node('p', 'No local preview has been reported. The owner must record its URL and served commit, or explain the limitation.', 'muted'));
@@ -165,7 +167,7 @@ function workflowContent(current) {
   e.append(node('p', current.title + ' · ' + label(current.phase) + (current.active_feature ? ' / ' + current.active_feature : ''), 'details'), stages);
   const d = current.deliverables.find(d => d.stage === current.stage);
   if (d) {
-    e.append(node('h3', d.summary), node('pre', d.content, 'deliverable'));
+    e.append(node('h3', d.summary), node('pre', deliverableText(d.content), 'deliverable'));
     if (d.limitations.length) e.append(node('h3', 'Limitations'), list(d.limitations));
     if (d.coverage.length) e.append(table(['Acceptance criterion', 'Passing check'], d.coverage.map(c => [c.requirement, c.check])));
   } else e.append(node('p', 'Preparing ' + label(current.stage) + '. The owner publishes the deliverable here before requesting your decision.', 'muted'));
@@ -181,13 +183,58 @@ function featureBoard(current) {
     f.id + ' · ' + f.title, f.depends_on?.join(', ') || 'None', badge(f.status), (f.workspace?.branch || '') + (f.integrated_commit ? '\n' + f.integrated_commit.slice(0, 12) : '')
   ]));
 }
+function mobileRoadmapProposal(current) {
+  const text = (v, max = 3000) => typeof v === 'string' && v.trim().length > 0 && v.length <= max;
+  const strings = v => Array.isArray(v) && v.length <= 100 && v.every(s => text(s));
+  for (const deliverable of [...(current?.deliverables || [])].reverse()) {
+    const match = deliverable.content?.match(/```factory-roadmap\r?\n([\s\S]*?)\r?\n```/);
+    if (!match || match[1].length > 50000) continue;
+    try {
+      const p = JSON.parse(match[1]);
+      if (p.kind !== 'mobile-product-proposal' || p.version !== 1 || p.status !== 'proposed' || !text(p.title) ||
+          !text(p.source_repo) || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(p.source_commit) || !text(p.output_repo) ||
+          !Array.isArray(p.platforms) || !p.platforms.length || new Set(p.platforms).size !== p.platforms.length || !p.platforms.every(v => ['android', 'ios'].includes(v)) ||
+          !['expo-native', 'capacitor'].includes(p.strategy) || !['scope', 'excluded', 'prerequisites', 'release_checks'].every(k => strings(p[k])) ||
+          !text(p.execution) || !Array.isArray(p.features) || !p.features.length || p.features.length > 100) continue;
+      const seen = new Set(), screens = new Set(); let valid = true;
+      for (const f of p.features) {
+        if (!/^[A-Za-z][A-Za-z0-9_-]{0,59}$/.test(f.id) || seen.has(f.id) || !text(f.title) ||
+            !text(f.portal, 120) || f.status !== 'proposed' ||
+            !Array.isArray(f.depends_on) || !f.depends_on.every(id => seen.has(id)) || new Set(f.depends_on).size !== f.depends_on.length ||
+            !strings(f.web_screens) || !f.web_screens.length || !strings(f.acceptance) || !f.acceptance.length) { valid = false; break; }
+        seen.add(f.id);
+        for (const screen of f.web_screens) { if (!screen.startsWith('/') || screens.has(screen)) valid = false; screens.add(screen); }
+      }
+      if (valid && p.screen_count === screens.size) return p;
+    } catch { /* An invalid attachment cannot become a displayed or executable plan. */ }
+  }
+  return null;
+}
+function deliverableText(content) {
+  return content.replace(/\n?```factory-roadmap\r?\n[\s\S]*?\r?\n```/g, '').trim();
+}
+function mobileRoadmapCard(p) {
+  const box = card(p.title);
+  box.append(badge('proposed'), node('p', 'Proposed release plan. No conversion feature has started; this is not implementation approval.', 'details section-gap'));
+  box.append(list(['Portals: ' + [...new Set(p.features.map(f => f.portal))].join(', '), 'Platforms: ' + p.platforms.join(', '), 'Approach: ' + label(p.strategy),
+    'Read-only web reference: ' + p.source_repo, 'Source commit: ' + p.source_commit, 'Mobile output: ' + p.output_repo,
+    'Mapped web routes: ' + p.screen_count]));
+  box.append(node('h3', 'Ordered feature delivery'), table(['Order / feature', 'Portal', 'Depends on', 'Acceptance / web screens', 'State'], p.features.map((f, i) => [
+    (i + 1) + '. ' + f.id + ' · ' + f.title, f.portal, f.depends_on.join(', ') || 'None',
+    f.acceptance.join('\n') + '\nWeb: ' + f.web_screens.join(', '), 'Proposed'
+  ])));
+  box.append(node('h3', 'Execution'), node('p', p.execution, 'details'), node('h3', 'Before implementation'), list(p.prerequisites),
+    node('h3', 'Release acceptance'), list(p.release_checks), node('h3', 'Included'), list(p.scope), node('h3', 'Outside this release'), list(p.excluded));
+  return box;
+}
 function planContent(current) {
   const e = node('div');
   if (!current?.plan) return empty('The plan comes first', 'Submit your requirements. The owner will prepare a scoped plan for your approval.');
   const p = current.plan;
   e.append(node('p', p.summary, 'details'), node('h3', 'Scope'), list(p.scope), node('h3', 'Acceptance checks'), list(p.acceptance),
     node('h3', 'Permissions'), list(p.permissions), node('h3', 'Budget'), node('p', p.budget === '' ? 'Not specified — resolve before approval.' : String(p.budget), 'details'),
-    node('h3', 'Merge target'), node('p', p.target_branch), node('code', p.base_commit));
+    node('h3', p.repositories ? 'Repository baseline snapshot' : 'Merge target'), node('p', p.target_branch), node('code', p.base_commit));
+  if (p.repositories) e.append(table(['Repository', 'Existing branch', 'Baseline commit'], p.repositories.map(r => [r.path, r.branch, r.base_commit])));
   if (p.integrations?.length) {
     e.append(node('h3', 'Approved tool scope', 'section-gap'), table(['Tool', 'Operations / limits'], p.integrations.map(s => [s.tool,
       s.operations.join(', ') + ' · ' + s.max_calls + ' invocations' + (s.targets ? ' · Targets: ' + s.targets.join(', ') + ' · Model: ' + s.model + ' · $' + s.max_usd + ' per scan (best effort), ' + s.max_turns + ' turns per agent' : '')])));
@@ -213,7 +260,19 @@ function render() {
   for (const e of document.querySelectorAll('[data-page]')) { e.classList.toggle('selected', e.dataset.page === page); e.setAttribute('aria-current', e.dataset.page === page ? 'page' : 'false'); }
   const main = $('main'); main.replaceChildren();
   const current = job(), heading = node('div', undefined, 'page-head'), headingText = node('div');
-  if (!$('request-dialog').open) $('target-branch').value = state.workspace?.target || state.workspace?.branch || 'main';
+  const existing = state.workspace_settings?.policy === 'current-branches';
+  if (!$('request-dialog').open) {
+    $('target-branch').value = existing ? 'current-branches' : state.workspace?.target || state.workspace?.branch || 'main';
+    $('target-branch').hidden = existing; $('target-label').hidden = existing;
+    $('repository-fields').hidden = !existing; $('repository-options').replaceChildren();
+    if (existing) for (const r of state.workspace_settings.repositories) {
+      const box = node('input'); box.type = 'checkbox'; box.name = 'repositories'; box.value = r.path;
+      const row = node('label'); row.append(box, node('span', r.path + ' / ' + r.branch)); $('repository-options').append(row);
+    }
+    $('request-scope-note').textContent = existing ?
+      'Start authorizes feasibility analysis in the selected repositories. Later stages require approval. Preserve existing edits and reconcile selected repositories before implementation. No new branches or Git merges. Analysis can consume provider usage.' :
+      'Start authorizes a fresh named branch and feasibility analysis. Each later stage needs approval. Existing changes must be reconciled before switching branches. Analysis can consume provider usage.';
+  }
   headingText.append(node('p', page === 'overview' ? 'YOUR DEVELOPMENT WORKSPACE' : 'FACTORY / ' + titles[page].toUpperCase(), 'eyebrow'), node('h1', page === 'overview' ? 'From idea to working software.' : titles[page]), node('p', page === 'overview' ? 'One place to plan, build, review, and approve your app.' : page === 'setup' ? 'Know what is ready, what needs attention, and what comes next.' : 'Actual progress and evidence from your project.', 'subtitle'));
   heading.append(headingText);
   const canRequest = state.owner.connected && !state.jobs.some(j => !['merged', 'cancelled'].includes(j.status)) && !state.commands.some(c => c.action === 'request' && ['pending', 'running', 'uncertain'].includes(c.status));
@@ -225,9 +284,20 @@ function render() {
     select.value = current.id; select.onchange = () => { selectedJob = select.value; render(); }; main.append(select);
   }
   if (page === 'mobile') {
+    const proposal = mobileRoadmapProposal(current);
+    if (proposal) {
+      if (current.features?.length) {
+        main.append(card('Feature delivery queue', featureBoard(current)), node('p', 'This queue comes from the current specification. Its status and current stage determine what can run.', 'muted'));
+        const reference = node('details'); reference.append(node('summary', 'Web route mapping and original proposal'), mobileRoadmapCard(proposal)); main.append(reference);
+      } else main.append(mobileRoadmapCard(proposal));
+    }
     if (current?.purpose !== 'web-to-mobile') {
-      const e = card('Convert an existing web app', node('p', 'Create a mobile request, supply the frontend repo and reuse its backend. Approve analysis, requirements, screen design and the feature roadmap before coding.'));
-      e.append(button('New mobile request', () => { $('factory-purpose').value = 'web-to-mobile'; mobileFields(); $('request-dialog').showModal(); }, true, canRequest)); main.append(e);
+      if (proposal) {
+        main.append(card('Current conversion planning stage', workflowContent(current)), actions(current));
+      } else {
+        const e = card('Convert an existing web app', node('p', 'Create a mobile request, supply the frontend repo and reuse its backend. Approve analysis, requirements, screen design and the feature roadmap before coding.'));
+        e.append(button('New mobile request', () => { $('factory-purpose').value = 'web-to-mobile'; mobileFields(); $('request-dialog').showModal(); }, true, canRequest)); main.append(e);
+      }
     } else {
       const input = current.mobile, analysis = current.mobile_analysis, plan = current.plan?.mobile;
       main.append(card('Source and targets', list([input.source_repo, 'Platforms: ' + input.platforms.join(', '), 'API address: ' + (input.api_base_url || 'Discover during analysis'), 'Requested approach: ' + label(input.strategy)])));
@@ -260,6 +330,9 @@ function render() {
     if (current?.mode === 'product') main.append(card('Sequential feature roadmap', featureBoard(current)));
     const setup = card('Readiness at a glance', checksList(state.checks.slice(0, 4), true)); setup.append(button('View full checklist →', () => { page = 'setup'; render(); })); main.append(setup);
   } else if (page === 'setup') {
+    const permissions = card('Command approvals');
+    permissions.append(node('p', 'Factory asks once at each stage checkpoint. Routine commands, fixes, tests and reviews continue within the approved stage.', 'details'), node('p', 'To remove separate Codex command prompts in this trusted workspace, select Full access in the permissions menu below the message box, or use /permissions in the CLI. Project defaults are approval_policy = "never" and sandbox_mode = "danger-full-access" in .codex/config.toml.', 'details section-gap'), node('p', 'Full access grants broad local filesystem and network access. Factory stage, integration and next-feature decisions still apply. This dashboard cannot change the active host profile; managed policy and other tools may have separate controls.', 'muted section-gap'));
+    const permissionDocs = node('a', 'OpenAI permissions documentation'); permissionDocs.href = 'https://learn.chatgpt.com/docs/sandboxing'; permissionDocs.target = '_blank'; permissionDocs.rel = 'noopener noreferrer'; permissions.append(permissionDocs); main.append(permissions);
     const setup = card('Setup checklist', checksList(state.checks));
     const a = node('div', undefined, 'actions'); a.append(button('Recheck local setup', async () => { try { await api('check', {}); toast('Local checks refreshed.'); await refresh(); } catch (e) { toast(e.message, true); } }), button('Check live access', () => openAction('check-live'), true, state.owner.connected)); setup.append(a, node('p', 'Local checks make no model calls. Live checks require your explicit consent and can consume provider usage.', 'muted section-gap')); main.append(setup);
   } else if (page === 'integrations') {
@@ -311,7 +384,11 @@ function render() {
     for (const d of current?.deliverables?.filter(d => d.stage !== current.stage) || []) { const details = node('details'); details.append(node('summary', label(d.stage) + (d.approved ? ' · approved' : '')), node('pre', d.content)); main.append(card(null, details)); }
   } else if (page === 'workspace') {
     const w = state.workspace;
-    main.append(card('Your local application folder', list([w.root, 'Checked-out branch: ' + (w.branch || 'Unavailable'), 'HEAD: ' + (w.commit || 'No committed baseline'), 'Feature/product branch: ' + (current?.workspace?.branch || 'Not assigned'), 'Merge target: ' + (current?.workspace?.target || 'Not assigned')])));
+    if (w.policy === 'current-branches') {
+      main.append(card('Repositories on existing branches', node('p', w.root + ' · No branch creation or Git merge. Commits form one reviewed snapshot.')));
+      main.append(table(['Repository', 'Branch', 'HEAD', 'Local changes'], w.repositories.map(r => [r.path, r.branch || 'Unavailable', r.commit || 'No committed baseline', r.dirty ? 'Needs reconciliation' : 'Clean'])));
+      if (current?.workspace?.reviewed) main.append(card('Reviewed snapshot', table(['Repository', 'Branch', 'Commit'], current.workspace.reviewed.map(r => [r.path, r.branch, r.commit]))));
+    } else main.append(card('Your local application folder', list([w.root, 'Checked-out branch: ' + (w.branch || 'Unavailable'), 'HEAD: ' + (w.commit || 'No committed baseline'), 'Feature/product branch: ' + (current?.workspace?.branch || 'Not assigned'), 'Merge target: ' + (current?.workspace?.target || 'Not assigned')])));
     if (w.detail) main.append(node('p', w.detail, 'muted'));
     if (current?.workspace?.prepared && w.branch !== current.workspace.branch && !['ready-feature', 'ready-acceptance', 'merged', 'merging'].includes(current.status)) main.append(node('p', 'The local checkout differs from the active feature branch. The owner must reconcile it before continuing.', 'error'));
     main.append(card('Uncommitted local changes', w.changes?.length ? table(['Status', 'Path'], w.changes.map(f => [f.status, f.path])) : node('p', 'No uncommitted changes reported.', 'muted')));
@@ -351,9 +428,14 @@ function render() {
   }
 }
 function openAction(action, current) {
-  const names = { 'approve-stage': 'Approve & continue', 'start-feature': 'Start next feature', 'start-acceptance': 'Start product acceptance', 'migrate-workflow': 'Adopt staged workflow', 'approve-plan': 'Approve plan and start', 'approve-merge': 'Approve the reviewed merge', revise: 'Request changes', 'revise-product': 'Revise product roadmap', rework: 'Request rework', pause: 'Pause work', resume: 'Resume work', cancel: 'Cancel this job', 'check-live': 'Check live model access' };
+  if (action === 'approve-stage') {
+    if (current?.offer?.kind !== action || !current.offer.id) { toast('No current stage offer. Refresh and review the work.', true); return; }
+    return submitCommand({ action, job_id: current.id, offer_id: current.offer.id, revision: state.revision });
+  }
+  const names = { 'start-feature': 'Start next feature', 'start-acceptance': 'Start product acceptance', 'migrate-workflow': 'Adopt staged workflow', 'approve-plan': 'Approve plan and start', 'approve-merge': 'Approve the reviewed merge', revise: 'Request changes', 'revise-product': 'Revise product roadmap', rework: 'Request rework', pause: 'Pause work', resume: 'Resume work', cancel: 'Cancel this job', 'check-live': 'Check live model access' };
+  if (current?.workspace?.policy === 'current-branches') names['approve-merge'] = 'Approve integration';
   if (['pause', 'resume', 'cancel'].includes(action)) { submitCommand({ action, job_id: current.id, revision: state.revision }); return; }
-  actionContext = { action, ...(current ? { job_id: current.id } : {}), revision: state.revision, ...(['approve-stage', 'approve-plan', 'approve-merge', 'start-feature', 'start-acceptance'].includes(action) ? { offer_id: current.offer?.id } : {}) };
+  actionContext = { action, ...(current ? { job_id: current.id } : {}), revision: state.revision, ...(['approve-plan', 'approve-merge', 'start-feature', 'start-acceptance'].includes(action) ? { offer_id: current.offer?.id } : {}) };
   actionJobSnapshot = current ? JSON.stringify(current) : null;
   $('action-title').textContent = names[action]; $('action-submit').textContent = names[action]; $('action-details').replaceChildren();
   $('note-field').hidden = !['revise', 'revise-product', 'rework'].includes(action); $('action-note').value = ''; $('action-note').required = !$('note-field').hidden;
@@ -361,27 +443,34 @@ function openAction(action, current) {
   for (const s of (action === 'revise-product' ? ['feasibility', 'requirements', 'specification', 'design'].map(id => ({ id, label: label(id) })) : current?.timeline?.filter(s => s.status !== 'locked') || [])) { const o = node('option', s.label); o.value = s.id; $('revision-stage').append(o); }
   $('revision-stage').value = action === 'revise-product' || (current?.requires_specification_revision && current.timeline?.some(s => s.id === 'specification' && s.status !== 'locked')) ? 'specification' : current?.stage || '';
   $('revision-stage').hidden = current?.lifecycle !== 2;
-  if (action === 'approve-stage') $('action-details').append(workflowContent(current), node('p', 'Approve this exact deliverable and authorize the next stage only.', 'muted'));
-  else if (action === 'start-feature') { const f = current.features.find(f => f.status !== 'accepted'); $('action-details').append(node('p', 'Start ' + f.title + ' on ' + f.workspace.branch + '. Begin with its requirements; implementation needs later approval.'), list(f.acceptance)); }
-  else if (action === 'start-acceptance') $('action-details').append(node('p', 'All features are integrated. Authorize complete product acceptance and fresh product reviews. Final target merge needs another approval.'));
+  if (action === 'start-feature') { const f = current.features.find(f => f.status !== 'accepted'); $('action-details').append(node('p', 'Start ' + f.title + ' on ' + f.workspace.branch + '. Begin with its requirements; implementation needs later approval.'), list(f.acceptance)); }
+  else if (action === 'start-acceptance') $('action-details').append(node('p', 'All features are integrated. Authorize complete product acceptance and fresh product reviews. Final ' + (current.workspace?.policy === 'current-branches' ? 'integration' : 'target merge') + ' needs another approval.'));
   else if (action === 'migrate-workflow') $('action-details').append(node('p', 'Preserve previous work/history and return to feasibility on a fresh branch. No previous approval will be treated as approval of a new stage. Reconcile existing processes and changes first.'));
   if (action === 'approve-plan') $('action-details').append(planContent(current), node('p', 'This approves implementation and routine checks within the displayed scope. Final target merge requires a separate approval.', 'muted section-gap'));
-  else if (action === 'approve-merge') $('action-details').append(node('p', 'Merge ' + (current.workspace?.branch || 'the reviewed result') + ' into ' + (current.workspace?.target || current.plan.target_branch) + ' after checking that its evidence and target are still current.'), node('code', current.commit), node('p', 'Run post-merge checks, then wait. This does not start the next feature, push or deploy.', 'muted section-gap'));
+  else if (action === 'approve-merge') {
+    if (current.workspace?.policy === 'current-branches') $('action-details').append(node('p', 'Accept this exact reviewed repository snapshot on the existing branches, then run integration checks. Source changes are already on these branches. This performs no Git merge, push or deployment.'), node('code', current.commit), table(['Repository', 'Branch', 'Commit'], current.workspace.reviewed.map(r => [r.path, r.branch, r.commit])));
+    else $('action-details').append(node('p', 'Merge ' + (current.workspace?.branch || 'the reviewed result') + ' into ' + (current.workspace?.target || current.plan.target_branch) + ' after checking that its evidence and target are still current.'), node('code', current.commit), node('p', 'Run post-merge checks, then wait. This does not start the next feature, push or deploy.', 'muted section-gap'));
+  }
   else if (action === 'check-live') $('action-details').append(node('p', 'Authorize one bounded probe per unique configured model/environment, sequentially, and a continuation check of the same builder session. These requests can consume provider usage. No automatic retries or account changes.'), list(state.models), node('p', 'The owner records actual identity, terminal results and available usage; unavailable capabilities remain blocked.', 'muted'));
   $('action-dialog').showModal();
 }
 async function submitCommand(input) {
+  const requestKey = JSON.stringify([input.job_id, input.action, input.offer_id]);
+  if (commandRequests.has(requestKey)) return false;
+  commandRequests.set(requestKey, input.job_id);
   try {
     // An owner heartbeat may change the state revision while a person reads an offer.
     // Refresh that revision only if the exact displayed offer is still current.
     if (input.offer_id) {
       const latest = await api('state'), current = latest.jobs.find(j => j.id === input.job_id);
+      if (latest.commands.some(c => c.job_id === input.job_id && ['pending', 'running', 'uncertain'].includes(c.status))) throw new Error('This job already has a queued or active command. See Activity.');
       if (!current?.offer || current.offer.id !== input.offer_id) throw new Error('The offer changed. Review the updated plan or commit.');
       input = { ...input, revision: latest.revision };
     }
-    await api('commands', { id: crypto.randomUUID(), ...input }); toast('Queued. Waiting for the owner to acknowledge.'); await refresh(); return true;
+    await api('commands', { id: crypto.randomUUID(), ...input }); toast('Queued. Waiting for the owner to acknowledge.'); return true;
   }
-  catch (e) { toast(e.message, true); await refresh(); return false; }
+  catch (e) { toast(e.message, true); return false; }
+  finally { commandRequests.delete(requestKey); signature = ''; await refresh(); }
 }
 async function refresh() {
   if (refreshing) return; refreshing = true;
@@ -404,7 +493,9 @@ $('request-form').addEventListener('submit', async e => {
   e.preventDefault(); const submit = e.submitter; submit.disabled = true;
   const purpose = $('factory-purpose').value;
   const mobile = purpose === 'web-to-mobile' ? { source_repo: $('source-repo').value.trim(), platforms: ['android', 'ios'].filter(p => $('platform-' + p).checked), strategy: $('mobile-strategy').value, api_base_url: $('api-base-url').value.trim() } : undefined;
-  const ok = await submitCommand({ action: 'request', revision: state.revision, input: { purpose, ...(mobile ? { mobile } : {}), mode: new FormData(e.target).get('mode'), title: $('work-title').value, target_branch: $('target-branch').value, requirements: $('requirements').value, design: $('design').value, allow_documentation: $('planning-docs').checked } });
+  const form = new FormData(e.target), repositories = state.workspace_settings ? form.getAll('repositories') : undefined;
+  if (repositories && !repositories.length) { toast('Select at least one repository for this request.', true); submit.disabled = false; return; }
+  const ok = await submitCommand({ action: 'request', revision: state.revision, input: { purpose, ...(mobile ? { mobile } : {}), ...(repositories ? { repositories } : {}), mode: form.get('mode'), title: $('work-title').value, target_branch: $('target-branch').value, requirements: $('requirements').value, design: $('design').value, allow_documentation: $('planning-docs').checked } });
   submit.disabled = false; if (ok) { $('request-dialog').close(); e.target.reset(); }
 });
 $('action-form').addEventListener('submit', async e => {

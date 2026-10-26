@@ -65,11 +65,14 @@
         <p class="muted">Use public addresses only; keep keys in Integrations. Existing backend APIs are reused. Signing, cloud builds and store publishing require separate approval.</p>
       </fieldset>
       <label for="work-title">Product or feature name</label><input id="work-title" maxlength="120" placeholder="Customer portal" required>
-      <label for="target-branch">Target branch</label><input id="target-branch" maxlength="200" placeholder="main" required>
+      <label for="target-branch" id="target-label">Target branch</label><input id="target-branch" maxlength="200" placeholder="main" required>
+      <fieldset id="repository-fields" hidden><legend>Repositories this request may change</legend><div id="repository-options"></div>
+        <p class="muted">Use the displayed existing branches. Select only the repositories needed for this request. No new branches or Git merges will be created. Changes are visible on these branches before acceptance.</p>
+      </fieldset>
       <label for="requirements">Requirements</label><textarea id="requirements" rows="7" maxlength="50000" placeholder="Who is it for? What should it do? What must work before it is finished?" required></textarea>
       <label for="design">Design reference <span class="muted">optional</span></label><input id="design" type="url" placeholder="https://…">
       <label id="planning-docs-option" hidden><input id="planning-docs" type="checkbox"> Allow up to 10 Context7 lookups while preparing this plan. Only public library questions are sent.</label>
-      <p class="muted">Start authorizes a fresh named branch and feasibility analysis. Each later stage needs your approval. Existing changes must be reconciled before switching branches. Analysis can consume provider usage.</p>
+      <p class="muted" id="request-scope-note">Start authorizes a fresh named branch and feasibility analysis. Each later stage needs your approval. Existing changes must be reconciled before switching branches. Analysis can consume provider usage.</p>
       <button type="submit" class="primary">Start feasibility</button>
     </form>
   </dialog>

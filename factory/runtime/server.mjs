@@ -8,7 +8,7 @@ import { inspect, git } from './checks.mjs';
 import { enqueue, claim, publish, finish, publicState, fields, connected } from './workflow.mjs';
 import { CATALOG, integrationSettings, prerequisites, reserveRun, executeIntegration } from './integrations.mjs';
 import { currentUnit, stage, recordWorker } from './lifecycle.mjs';
-import { workspaceView, workspaceDiff, workspaceOperation, assertWorkspace } from './workspace.mjs';
+import { workspaceView, workspaceDiff, workspaceOperation, assertWorkspace, bindWorkspace, workspaceWord, repositorySettings } from './workspace.mjs';
 import { committedWord, WORD_MIME } from './documents.mjs';
 import { loadCredentials, saveCredentials, updateCredentials, credentialEnvironment, credentialView } from './credentials.mjs';
 import { assertMobileSource } from './mobile.mjs';
@@ -32,6 +32,7 @@ export async function assertMergeBinding(root, job) {
 export async function serve(root, { port = 0, integrationDependencies = {} } = {}) {
   root = path.resolve(root);
   let config = await readConfig(root);
+  await repositorySettings(root, config.workspace);
   let credentials = await loadCredentials(root);
   const baseEnvironment = integrationDependencies.environment || process.env;
   const toolEnvironment = id => credentialEnvironment(credentials, baseEnvironment, id);
@@ -96,7 +97,7 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
         const state = await readState(root), result = publicState(state, config);
         const keys = credentialView(credentials, baseEnvironment);
         result.integrations = result.integrations.map(tool => ({ ...tool, credentials: keys[tool.id] || null }));
-        result.workspace = await workspaceView(root, state.jobs.find(j => !['merged', 'cancelled'].includes(j.status)) || state.jobs.at(-1));
+        result.workspace = await workspaceView(root, state.jobs.find(j => !['merged', 'cancelled'].includes(j.status)) || state.jobs.at(-1), config);
         result.roles = Object.entries(config.roles).map(([role, provider]) => ({ role, provider, model: config.models[role] }));
         return send(200, result);
       }
@@ -114,7 +115,7 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
         const selected = feature ? job.features.find(f => f.id === feature) : currentUnit(job);
         const guide = selected?.documentation?.find(d => d.kind === kind);
         if (!guide) throw new Error('No Word guide is recorded for this selection.');
-        const data = await committedWord(root, guide, selected.commit);
+        const data = await workspaceWord(root, guide, selected);
         res.writeHead(200, { 'Content-Type': WORD_MIME, 'Content-Disposition': 'attachment; filename="' + kind + '-guide.docx"',
           'Content-Length': data.length, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer' });
         return res.end(data);
@@ -165,7 +166,7 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
       }
       if (route === '/api/check') {
         fields(input, []);
-        const report = await inspect(root, config.edition);
+        const report = await inspect(root, config.edition, config.workspace);
         await mutate(state => {
           // Local checks never erase live/acceptance evidence already collected by the owner.
           for (const check of report.checks) if (!['live', 'continuation', 'browser', 'acceptance'].includes(check.id) || !state.checks.some(c => c.id === check.id)) {
@@ -181,7 +182,10 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
           if (input.action === 'approve-merge') await assertMergeBinding(root, job);
           if (job?.lifecycle === 2 && input.action === 'approve-stage' && ['specification', 'design', 'implementation', 'qa', 'acceptance'].includes(stage(job))) await assertWorkspace(root, job, { frozen: ['implementation', 'qa', 'acceptance'].includes(stage(job)) });
           if (input.action === 'request' && input.input?.purpose === 'web-to-mobile') await assertMobileSource(root, input.input.mobile);
-          return enqueue(state, input);
+          const binding = input.action === 'request' ? await bindWorkspace(root, config, input.input) : null;
+          const command = enqueue(state, input);
+          if (binding && !command.workspace_binding) command.workspace_binding = binding;
+          return command;
         });
         return send(200, { id: command.id, status: command.status });
       }
@@ -323,7 +327,7 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
           if (job.lifecycle === 2) {
             if (job.status === 'awaiting-stage' && ['specification', 'design', 'implementation', 'qa', 'integration', 'acceptance', 'final-merge'].includes(stage(job))) {
               await assertWorkspace(root, job, { frozen: ['implementation', 'qa', 'integration', 'acceptance', 'final-merge'].includes(stage(job)) });
-              if (['implementation', 'qa', 'integration', 'acceptance', 'final-merge'].includes(stage(job))) for (const guide of currentUnit(job).documentation) await committedWord(root, guide, currentUnit(job).commit);
+              if (['implementation', 'qa', 'integration', 'acceptance', 'final-merge'].includes(stage(job))) for (const guide of currentUnit(job).documentation) await workspaceWord(root, guide, currentUnit(job));
             }
             return { status: job.status };
           }

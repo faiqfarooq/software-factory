@@ -25,3 +25,9 @@ Pending commands expire on server restart; running commands become uncertain. Re
 Stop and reconcile the active owner/server, then run setup from the trusted checkout. Checksums permit updates to unchanged managed assets. Config, jobs and history survive. A modified asset, edition change or unmanaged old factory needs an explicit reviewed migration; never overwrite user files or import another project's sessions, grants or secrets.
 
 [Shared setup](../../factory/README.md) ? [Product workflow](PRODUCT.md)
+
+## Repeated approvals or a stale owner
+
+An exact stage approval from chat OR the dashboard is sufficient. Check Activity before retrying; the owner must reconcile an already queued/claimed decision. Routine authorized tests, fixes and evidence-only reruns do not need another chat confirmation. Changed source/scope still requires its real revision checkpoint.
+
+For an explicitly authorized idle-owner replacement, see [owner release](../../factory/runtime/WORKFLOW.md#explicit-release-of-a-disconnected-owner). It refuses live owners, unfinished jobs and outstanding activity; never impersonate a previous session. Follow the [full guide](../../factory/README.md) for startup, commands, optional host permissions and recovery.

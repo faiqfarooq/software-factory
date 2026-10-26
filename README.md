@@ -1,63 +1,89 @@
 # Software Factory
 
-Install one reusable development dashboard inside your application. Choose an edition, finish local setup once, then use the dashboard to submit requirements, approve plans, follow builds/reviews and approve the final merge.
+Plan, build, review and approve application changes from one local dashboard. Factory connects to your coding assistant, stops at each stage for your decision, and records progress, tests and documentation.
 
-## Start
+## 1. Choose your edition
 
-Clone a trusted version of this repository and run from its root with Node.js 22+:
-
-~~~powershell
-node factory/setup.mjs --project 'D:\my-app'
-~~~
-
-Choose the edition, review the local changes and approve setup. The command installs the tested shared package, checks prerequisites and opens one private dashboard link. Keep its terminal running. No npm install, Python dashboard server, paid probe or app build happens during setup.
-
-| Edition | Owner and requirements | Setup prompt |
+| Edition | What you need | Setup prompt |
 | --- | --- | --- |
-| Claude only | Claude Code; no Codex files or checks | [Claude setup](claude-only/GENERATION.md) |
-| Codex + Claude | Codex owner and Claude workers | [Hybrid setup](codex-claude/GENERATION.md) |
-| API providers | DeepSeek tool-calling owner, Qwen and Kimi access | [API setup](low-cost/GENERATION.md) |
+| claude-only | Claude Code | [Claude setup](claude-only/GENERATION.md) |
+| codex-claude | Codex owner and Claude workers | [Codex + Claude setup](codex-claude/GENERATION.md) |
+| low-cost | A DeepSeek coding runner with Qwen and Kimi access | [API-provider setup](low-cost/GENERATION.md) |
 
-You can also open your app in the chosen assistant and provide its setup prompt with access to this checkout. It should complete the already-authorized local setup and connect the owner in the same pass. Plain terminal installation cannot wake an idle assistant: invoke the installed factory skill if the owner is not yet listening. The API edition still requires a real provider coding runner; the shared package does not bundle one or prove provider access.
+Every edition uses the same dashboard. The API edition needs a real tool-calling runner; this package does not bundle one.
 
-## Daily use
+## 2. Install into your application
 
-Open the dashboard and follow its setup checklist. Missing login, tools, model access or native permissions show a specific next action. Live checks require explicit consent and can consume usage. Local pairing is distinct from verified model identity and an active owner listener.
-
-Choose **Build a complete app** or **Add or change a feature** and enter a name/target/requirements. Approve feasibility, requirements, specification and design separately. Every product/feature gets a fresh named branch in your application folder. Inspect the local app and diff before authorizing QA, then approve the exact feature merge and post-merge checks. Product features run one at a time and WAIT for **Start next feature**. After all features are accepted, explicitly start aggregate acceptance and separately approve the product-to-target merge. Push/deployment and branch deletion are separate.
-
-The existing owner carries out requests; the browser never runs arbitrary shell commands. A disconnected owner disables dependent controls. Pending, Running and Completed have separate receipts. Restart/reconnect marks interrupted activity uncertain and never replays approvals or paid work. Workspace shows local branch/files/diff; Agents distinguishes ten configured roles from actual owner-reported executions. Active legacy jobs require explicit staged migration; previous work and decisions remain archived.
-
-## Minimal app layout
-
-~~~text
-factory/
-  README.md
-  config.json
-  runtime/        versioned shared helpers and owner protocol
-  dashboard/      the same UI in every edition
-  .local/         ignored private state, jobs, logs, receipts and usage
-~~~
-
-Only required native discovery skills live outside factory/. App source and app guides retain their existing locations. Setup creates no sample jobs, empty board/usage files, copied generation prompts or extra factory guides. Versioned upgrades preserve configuration and history; conflicts/unmanaged legacy factories stop for an explicit migration.
-
-## Optional integrations
-
-The same dashboard includes an Integrations view. Bundled Agent Skills load per role; Context7, Graphify, 21st.dev and Strix are optional and default off. Select during setup with --integrations context7,graphify or enable later while idle. Use the masked API-key fields on Integrations or server environment credentials. Saved keys stay in ignored private storage, encrypted for the Windows user, and are never returned to the page. Availability is distinct from a real verified connection. Tool usage needs explicit request/plan scope; scanner targets/model/budget are displayed before approval. Raw results and caches remain private. See [the owner protocol](factory/runtime/WORKFLOW.md) for actual adapters, supported operations and recovery.
-
-Observed metrics show completed jobs, elapsed time including human waits, known usage subtotals, rework requests and actual tool/cache counts. Similar-work comparisons are needed before claiming a speed or cost improvement. External integrations do not replace the owner, five reviews or staged human approvals.
-
-## Development
-
-[Package setup and recovery](factory/README.md) ? [Owner protocol](factory/runtime/WORKFLOW.md)
+Install Node.js **22+** and Git, and have an existing application folder ready. Open a terminal **in this software-factory checkout**, then run:
 
 ~~~powershell
+node factory/setup.mjs --project "D:\my-app" --edition codex-claude
+~~~
+
+Replace D:\my-app with your application folder and choose your edition from the table. Review the proposed local files and approve setup. Setup prints a private dashboard link and opens it. **Keep that terminal running.**
+
+Setup preserves existing files and checks local prerequisites. It does not install app dependencies, log into providers, make paid model calls or start an app build.
+
+For several application repositories, install in their parent folder with exact relative paths:
+
+~~~powershell
+node factory/setup.mjs --project "D:\my-workspace" --edition codex-claude --workspace current-branches --repositories frontend,backend
+~~~
+
+This records their current named branches. Each request selects which repositories may change. Changes stay on those branches; integration accepts a reviewed commit set without a Git merge. The single-repository default creates separate product/feature branches.
+
+## 3. Connect your assistant
+
+Open **your application folder** in the selected assistant:
+
+- Codex + Claude: invoke **$factory** in Codex. Claude's **/factory** forwards to that owner.
+- Claude only: invoke **/factory** in Claude Code.
+- API providers: connect the configured DeepSeek runner using the [owner protocol](factory/runtime/WORKFLOW.md).
+
+Wait for **Owner listening** in the dashboard. An idle or closed assistant cannot receive requests automatically. Local pairing does not prove model access; follow **Setup & connections**. **Check live access** needs explicit consent and can consume usage.
+
+## 4. Start work and approve each stage
+
+1. Choose **New request**.
+2. Choose **Build a complete app** or **Add or change a feature**.
+3. Enter a name, requirements, target branch (or selected repositories) and optional design reference.
+4. Read the feasibility result, then click **Approve & continue** once to authorize the next stage.
+5. Continue through requirements, specification, design, implementation, QA and integration.
+6. Inspect the local app, files/diff, five independent reviews and both Word guides before integration approval.
+
+One approval in chat **or** the dashboard is enough for that exact stage offer. Routine authorized fixes and checks continue within the stage. Integration, starting another feature and final product acceptance each have their own decisions. Push, deployment and branch deletion need separate scope.
+
+Products deliver features one at a time. After each accepted feature, choose **Start next feature**. After all features, choose **Start product acceptance**, then review the separate final integration offer.
+
+## 5. Reopen the dashboard later
+
+Run these commands **inside your application**, not this checkout:
+
+~~~powershell
+cd D:\my-app
+node factory/runtime/cli.mjs start
+~~~
+
+Open the newly printed link, keep the terminal running, and reconnect the same assistant owner. To stop, first pause/finish and reconcile active work, then use **Ctrl+C** in the dashboard terminal. Restart marks unfinished activity uncertain; the owner reconciles it instead of replaying work.
+
+## Complete guide and commands
+
+The [step-by-step guide](factory/README.md) covers every dashboard view, all **20 runtime operations**, mobile conversion, optional integrations, upgrades and recovery. The [owner protocol](factory/runtime/WORKFLOW.md) contains detailed payloads and evidence rules.
+
+**Factory Next** is a name used by Halo's private launcher helpers for this same dashboard. It is not another edition or a shipped command. The terminal operation **owner next** receives the next queued instruction; it does not approve or start a new feature by itself.
+
+## Maintainer checks
+
+After changing shipped assets, refresh the manifest, verify it and run the offline tests from this checkout:
+
+~~~powershell
+node factory/setup.mjs --build-manifest
 node factory/setup.mjs --verify
 node --test factory/tests/*.test.mjs codex-claude/maintenance/scripts/*.test.mjs
 ~~~
 
-After editing shipped runtime/dashboard assets, refresh the manifest with node factory/setup.mjs --build-manifest, then run the tests. SHA-256 proves integrity against the checked-out manifest; use a trusted checkout/revision for publisher provenance. Tests use no live providers and do not prove a native background bridge, visual browser results or a complete generated app.
+Version **2.5.0** includes direct stage approval, duplicate-submission guards, generic mobile roadmap proposals and explicit idle-owner release. Tests use no live providers and do not establish live model access, browser fidelity or a completed app. Manifest hashes establish consistency with the trusted checkout.
 
-The three edition folders retain setup prompts and workflow guides. [Shared offline reference tools](codex-claude/maintenance/README.md) validate plan/scheduling metadata; they are not runtime dependencies. MIT licensed; see [LICENSE](LICENSE).
+Installed apps contain factory/README.md, config.json, runtime/, dashboard/, and ignored private .local/ data, plus the necessary native launcher. App source stays in its existing folders. Developer and end-user guides are reusable Microsoft Word .docx files with review of every rendered page. Credentials, jobs, receipts and raw reports stay private. Optional external integrations default off.
 
-Documentation deliverables are Microsoft Word .docx files: one developer guide and one end-user manual, updated across features. The documentation writer renders and inspects every page before marking them complete. Documentation downloads the exact registered committed files whose hashes match their reported page review. Runtime instruction files remain Markdown; no duplicate Word guide pair is created per feature.
+[Shared maintenance tools](codex-claude/maintenance/README.md) · [MIT license](LICENSE)

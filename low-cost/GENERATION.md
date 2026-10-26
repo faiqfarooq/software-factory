@@ -20,6 +20,13 @@ For an existing managed factory, re-run the installer after stopping and reconci
 
 Only factory/README.md, factory/config.json, factory/runtime/, factory/dashboard/ and the edition's necessary native launcher belong in the reusable setup. Private state, jobs, contracts, reports, worktrees, logs and usage go under ignored factory/.local/, created when needed. Do not generate empty boards, ledgers, sample jobs/backlogs, duplicate prompts or separate SETUP/PRODUCT/DESIGN/DASHBOARD/EFFICIENCY guides in the app. Keep real application guides in the app's existing documentation structure; create only missing necessary pages. Keep the original app README and add a short factory link if appropriate.
 
+
+## One approval per stage
+
+Accept an exact approval from chat OR the dashboard, then bind it once to the current offer through the owner bridge. Approve & continue submits directly without a second confirmation. Check queued commands and decisions before submitting. Routine authorized fixes, builds, guide rendering, configured reviewer work and evidence-only reruns continue within the approved stage; send progress rather than repeat approval questions. Source changes during QA still require the real implementation revision checkpoint and refreshed evidence. Integration and next-feature starts remain separate decisions. Host permissions stay native; Full Access is optional, requires an explicit user request and is never enabled by setup. Follow WORKFLOW.md for supported host-specific guidance.
+
+Respect workspace.policy=current-branches when configured: use selected allowed repositories on pinned existing branches, bind plan/evidence to their actual commit set, and perform acceptance without creating branches or a Git merge. Preserve unrelated edits and all prior history. Mobile roadmap attachments are proposals only and never grant implementation approval. Explicit idle-owner release is a local maintenance operation, allowed only after actual authorization and successful reconciliation; it does not transfer unfinished jobs.
+
 ## Workflow and evidence
 
 Offer Build a complete app (mode=product) or Add or change a feature (mode=feature), with a readable title and exact target branch. Every request uses the staged lifecycle in factory/runtime/WORKFLOW.md; do not use the former two-gate automatic flow.

@@ -33,7 +33,7 @@ export function newLifecycle(command) {
   return { id, lifecycle: 2, purpose: purpose(input.purpose), mobile: input.mobile ? mobileRequest(input.mobile) : null, mode: input.mode, title, requirements: input.requirements, design: input.design || '',
     status: 'planning', phase: input.mode === 'product' ? 'product' : 'feature', active_feature: input.mode === 'product' ? null : 'standalone',
     cursor: 0, stages: [], decisions: [], workers: [], features: [], plan: null, offer: null, documentation_format: 'docx',
-    workspace: { branch, target: input.target_branch || null, base_commit: null, prepared: false },
+    workspace: command.workspace_binding ? structuredClone(command.workspace_binding) : { branch, target: input.target_branch || null, base_commit: null, prepared: false },
     planning_docs_consent: input.allow_documentation === true, reviews: [], checks: [], documentation: [], usage: null, created_at: stamp() };
 }
 // A standalone feature uses the job itself; product features have their own branch, plan and approvals.
@@ -44,7 +44,7 @@ function approvalHash(job) {
   const u = context(job);
   return digest(JSON.stringify({ stages: u.stages, plan: u.plan, commit: u.commit, workspace: u.workspace,
     checks: u.checks, reviews: u.reviews, documentation: u.documentation, approver: u.approver,
-    preview: u.preview, preview_commit: u.preview_commit, mobile_runs: u.mobile_runs, mobile: job.mobile, mobile_analysis: job.mobile_analysis,
+    preview: u.preview, preview_commit: u.preview_commit, preview_source: u.preview_source, mobile_runs: u.mobile_runs, mobile: job.mobile, mobile_analysis: job.mobile_analysis,
     roadmap: job.phase === 'product' ? job.features.map(f => ({ id: f.id, status: f.status, workspace: f.workspace, acceptance: f.acceptance, depends_on: f.depends_on })) : undefined }));
 }
 function offer(job, kind = 'approve-stage') {
@@ -54,7 +54,7 @@ function offer(job, kind = 'approve-stage') {
 }
 export function validateLifecycleCommand(state, input, job) {
   if (input.action === 'request') {
-    only(input.input, ['mode', 'title', 'target_branch', 'requirements', 'design', 'allow_documentation', 'purpose', 'mobile']);
+    only(input.input, ['mode', 'title', 'target_branch', 'requirements', 'design', 'allow_documentation', 'purpose', 'mobile', 'repositories']);
     const p = input.input;
     if (purpose(p.purpose) === 'web-to-mobile') mobileRequest(p.mobile);
     else if (p.mobile !== undefined) fail('Mobile settings require a web-to-mobile request.');
@@ -145,20 +145,22 @@ export function claimLifecycle(state, command, job) {
     if (job.phase === 'product' && job.features.length) {
       // Product changes never silently rewrite integrated history or skip dependent reviews.
       job.revalidation_required = true;
-      job.features.forEach(f => { f.previous_acceptance = f.status; f.status = 'planned'; f.workspace = { ...f.workspace, prepared: false, branch: 'feature/' + slug(f.title) + '-' + uid().slice(0, 8), base_commit: null }; f.stages = []; f.cursor = 0; });
+      job.features.forEach(f => { f.previous_acceptance = f.status; f.status = 'planned'; f.workspace = { ...f.workspace, prepared: false, branch: job.workspace.policy === 'current-branches' ? job.workspace.branch : 'feature/' + slug(f.title) + '-' + uid().slice(0, 8), base_commit: null }; delete f.workspace.reviewed; f.stages = []; f.cursor = 0; });
     }
     job.offer = null; job.merge_receipt = null; job.preview = null; job.status = selected === 'implementation' ? 'running' : selected === 'qa' ? 'reviewing' : 'planning';
   } else if (command.action === 'resume') { job.status = job.resume_status || 'planning'; job.offer = null; }
   return job;
 }
 function validatePlan(plan, job) {
-  only(plan, ['summary', 'scope', 'acceptance', 'permissions', 'budget', 'target_branch', 'base_commit', 'documentation', 'features', 'integrations', 'mobile']);
+  only(plan, ['summary', 'scope', 'acceptance', 'permissions', 'budget', 'target_branch', 'base_commit', 'documentation', 'features', 'integrations', 'mobile', 'repositories']);
   if (!text(plan.summary) || !strings(plan.scope) || !strings(plan.acceptance) || !strings(plan.permissions) || !(typeof plan.budget === 'number' ? Number.isFinite(plan.budget) && plan.budget >= 0 : text(plan.budget, 3000)) ||
       !text(plan.target_branch, 200) || !sha(plan.base_commit) || !['developer', 'user'].every(k => plan.documentation?.includes(k))) fail('Plan needs scope, acceptance, permissions, budget, committed base, target and both guides.');
   integrationScopes(plan.integrations);
   validateMobilePlan(plan.mobile, job, plan.acceptance);
   const w = context(job).workspace;
   if (!w?.prepared || plan.target_branch !== w.target || plan.base_commit !== w.base_commit) fail('Plan must match the prepared branch and its actual target/base.');
+  if (w.policy === 'current-branches' && JSON.stringify(plan.repositories) !== JSON.stringify(w.repositories)) fail('Plan must show every selected repository, existing branch and exact baseline.');
+  if (w.policy !== 'current-branches' && plan.repositories !== undefined) fail('Repository plans require the existing-branch workspace policy.');
   if (job.phase === 'product') {
     if (!Array.isArray(plan.features) || !plan.features.length || plan.features.length > 100) fail('Product specification requires an ordered feature roadmap.');
     const seen = new Set();
@@ -181,7 +183,7 @@ export function evidenceReady(u) {
     u.approver?.verdict === 'APPROVE' && u.approver.commit === u.commit);
 }
 export function publishLifecycle(state, input, command, job) {
-  only(input, ['command_id', 'job_id', 'status', 'deliverable', 'plan', 'checks', 'reviews', 'documentation', 'usage', 'commit', 'approver', 'message', 'preview', 'preview_commit', 'mobile_analysis', 'mobile_runs']);
+  only(input, ['command_id', 'job_id', 'status', 'deliverable', 'plan', 'checks', 'reviews', 'documentation', 'usage', 'commit', 'approver', 'message', 'preview', 'preview_commit', 'preview_source', 'mobile_analysis', 'mobile_runs']);
   const u = context(job), s = stage(job);
   if (['paused', 'cancelled', 'blocked'].includes(input.status)) {
     if ((input.status === 'paused' && command.action !== 'pause') || (input.status === 'cancelled' && command.action !== 'cancel')) fail('Pause/cancel needs its matching command.');
@@ -199,7 +201,9 @@ export function publishLifecycle(state, input, command, job) {
   }
   if (input.plan !== undefined) { if (s !== 'specification') fail('Plans can change only in the specification stage.'); validatePlan(input.plan, job); u.plan = structuredClone(input.plan); u.approved_plan_hash = null;
     if (job.phase === 'product') job.features = input.plan.features.map((f, i) => ({ ...structuredClone(f), builder_session: job.features.find(old => old.id === f.id)?.builder_session,
-      status: 'planned', cursor: 0, stages: [], reviews: [], checks: [], documentation: [], workspace: { branch: 'feature/' + String(i + 1).padStart(3, '0') + '-' + slug(f.title) + '-' + uid().slice(0, 8), target: job.workspace.branch, prepared: false, base_commit: null } }));
+      status: 'planned', cursor: 0, stages: [], reviews: [], checks: [], documentation: [], workspace: job.workspace.policy === 'current-branches' ?
+        { policy: 'current-branches', branch: job.workspace.branch, target: job.workspace.target, prepared: false, base_commit: null, repositories: structuredClone(job.workspace.repositories) } :
+        { branch: 'feature/' + String(i + 1).padStart(3, '0') + '-' + slug(f.title) + '-' + uid().slice(0, 8), target: job.workspace.branch, prepared: false, base_commit: null } }));
   }
   if (input.commit !== undefined) {
     if (!sha(input.commit) || !['implementation', 'qa', 'integration', 'acceptance', 'final-merge'].includes(s)) fail('Commit evidence belongs to implementation and later stages.');
@@ -244,6 +248,11 @@ export function publishLifecycle(state, input, command, job) {
   else if (input.preview !== undefined) {
     if (!/^http:\/\/(127\.0\.0\.1|localhost):\d+\//.test(input.preview) || !sha(input.preview_commit)) fail('Preview needs a loopback URL and the actual served commit.');
     u.preview = input.preview; u.preview_commit = input.preview_commit;
+    if (u.workspace.policy === 'current-branches') {
+      only(input.preview_source, ['repository', 'commit']);
+      if (!u.workspace.reviewed?.some(r => r.path === input.preview_source.repository && r.commit === input.preview_source.commit)) fail('Report the actual served repository and Git commit from the reviewed snapshot.');
+      u.preview_source = structuredClone(input.preview_source);
+    }
   }
   if (input.message !== undefined) job.message = String(input.message).slice(0, 3000);
   if (input.status === 'awaiting-stage') {
@@ -316,14 +325,14 @@ export function lifecycleView(job) {
   const clean = r => ({ stage: r.stage, summary: r.summary, content: r.content, limitations: r.limitations || [], coverage: r.coverage || [], approved: r.approved, time: r.time, commit: r.commit });
   const u = context(job);
   return { lifecycle: 2, purpose: job.purpose || 'software', mobile: job.mobile || null, mobile_analysis: job.mobile_analysis || null, title: job.title, phase: job.phase, active_feature: job.active_feature, stage: stage(job), documentation_format: 'docx', requires_specification_revision: Boolean(job.configuration_changed),
-    timeline: sequence(job).map(id => ({ id, label: STAGES[id], status: u.stages.find(r => r.stage === id)?.approved ? 'approved' : stage(job) === id ? job.status : 'locked' })),
+    timeline: sequence(job).map(id => ({ id, label: id === 'final-merge' && u.workspace.policy === 'current-branches' ? 'Final integration' : STAGES[id], status: u.stages.find(r => r.stage === id)?.approved ? 'approved' : stage(job) === id ? job.status : 'locked' })),
     deliverables: u.stages.map(clean), decisions: job.decisions.map(({ command_id, ...d }) => d),
     workspace: u.workspace, product_workspace: job.workspace, needs_migration: false,
     features: job.features.map(f => ({ id: f.id, title: f.title, depends_on: f.depends_on, acceptance: f.acceptance, status: f.status, workspace: f.workspace, integrated_commit: f.integrated_commit, stages: (f.stages || []).map(clean), checks: f.checks || [], reviews: (f.reviews || []).map(({ reviewer_id, ...r }) => r), documentation: f.documentation || [], usage: f.usage || null })),
     workers: job.workers.map(({ session, ...w }) => w),
     plan: u.plan || job.plan, plan_approved: Boolean(u.plan && u.approved_plan_hash === digest(JSON.stringify(u.plan))),
     mobile_runs: u.mobile_runs || [], checks: u.checks || [], reviews: (u.reviews || []).map(({ reviewer_id, ...r }) => r), documentation: u.documentation || [], usage: u.usage || null,
-    commit: u.commit || null, preview: u.preview || null, preview_commit: u.preview_commit || null, accepted_preview: job.accepted_preview || null,
+    commit: u.commit || null, preview: u.preview || null, preview_commit: u.preview_commit || null, preview_source: u.preview_source || null, accepted_preview: job.accepted_preview || null,
     integration_checks: (job.integration_checks || []).map(c => ({ unit: c.unit, branch: c.branch, commit: c.commit, time: c.time, checks: c.checks })),
     merge_history: (job.merge_history || []).map(m => ({ branch: m.branch, target: m.target, commit: m.commit, time: m.time })) };
 }

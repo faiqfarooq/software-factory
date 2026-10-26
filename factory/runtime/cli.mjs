@@ -7,6 +7,8 @@ import { json, readConfig, safePath, readState, locked, saveState, event } from 
 import { inspect } from './checks.mjs';
 import { roleContext, integrationView } from './integrations.mjs';
 import { inspectFrontend } from './mobile.mjs';
+import { releaseOwner } from './workflow.mjs';
+import { profile } from './profiles.mjs';
 
 export function options(args) {
   const positionals = [], flags = {};
@@ -54,7 +56,7 @@ export async function main(args = process.argv.slice(2)) {
     return server;
   }
   if (words[0] === 'check') {
-    const config = await readConfig(root), report = await inspect(root, config.edition);
+    const config = await readConfig(root), report = await inspect(root, config.edition, config.workspace);
     await locked(root, async () => {
       const state = await readState(root);
       for (const check of report.checks) if (!['live', 'continuation', 'browser', 'acceptance'].includes(check.id) || !state.checks.some(c => c.id === check.id)) {
@@ -78,6 +80,17 @@ export async function main(args = process.argv.slice(2)) {
   if (words[0] === 'owner') {
     const action = words[1], id = flags.session;
     if (typeof id !== 'string') throw new Error('Use --session with the actual owning session id; keep it stable across reconnection.');
+    if (action === 'release') {
+      if (typeof flags.file !== 'string') throw new Error('Use --file with the reviewed private owner binding and release reason.');
+      const input = JSON.parse(await readFile(path.resolve(root, flags.file), 'utf8'));
+      const config = await readConfig(root);
+      const result = await locked(root, async () => {
+        const state = await readState(root);
+        const result = releaseOwner(state, { ...input, requester_id: id, runtime: flags.runtime }, profile(config.edition).owner);
+        await saveState(root, state); return result;
+      });
+      console.log(JSON.stringify(result, null, 2)); return result;
+    }
     let payload;
     if (action === 'connect') payload = { id, runtime: flags.runtime };
     else if (['next', 'heartbeat', 'disconnect'].includes(action)) payload = { owner_id: id, ...(action === 'next' ? { wait_ms: flags.wait === undefined ? 50000 : Number(flags.wait) } : {}) };
@@ -85,7 +98,7 @@ export async function main(args = process.argv.slice(2)) {
       if (typeof flags.file !== 'string') throw new Error('Use --file with a private JSON payload.');
       const input = JSON.parse(await readFile(path.resolve(root, flags.file), 'utf8'));
       payload = action === 'publish' ? { owner_id: id, update: input } : action === 'finish' ? { owner_id: id, result: input } : action === 'tool' ? { owner_id: id, request: input } : { owner_id: id, ...input };
-    } else throw new Error('Owner operations: connect, next, heartbeat, publish, worker, workspace, checks, tool, tool-result, tool-cancel, tool-reconcile, finish, disconnect.');
+    } else throw new Error('Owner operations: connect, next, heartbeat, publish, worker, workspace, checks, tool, tool-result, tool-cancel, tool-reconcile, finish, disconnect, release.');
     const result = await ownerCall(root, action, payload);
     console.log(JSON.stringify(result, null, 2)); return result;
   }

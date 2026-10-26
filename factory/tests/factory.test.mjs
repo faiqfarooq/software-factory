@@ -75,6 +75,11 @@ test('fresh Claude setup preserves the app and creates no Codex integration or p
   assert.match(await readFile(path.join(root, '.gitignore'), 'utf8'), /\/factory\/\.local\//);
   const config = await json(path.join(root, 'factory/config.json'));
   assert.equal(Object.keys(config.roles).length, 10); assert.ok(Object.values(config.roles).every(r => r === 'claude'));
+  const launcher = await readFile(path.join(root, '.claude/skills/factory/SKILL.md'), 'utf8');
+  assert.match(launcher, /chat OR dashboard approval/);
+  assert.match(launcher, /without asking again/);
+  assert.doesNotMatch(launcher, /danger-full-access|\.codex\/config/);
+  assert.equal(config.version, VERSION);
 });
 test('repeat setup preserves configuration, history and existing ignore entries without duplicate writes', async t => {
   const root = await app(t), configFile = path.join(root, 'factory/config.json');
@@ -96,6 +101,12 @@ test('hybrid and API profiles install only their intended launcher paths and rol
     assert.equal(await exists(path.join(root, '.agents/skills/factory/SKILL.md')), edition === 'codex-claude');
     assert.equal(await exists(path.join(root, '.claude/skills/factory/SKILL.md')), edition === 'codex-claude');
     assert.equal(await exists(path.join(root, '.codex')), false);
+    if (edition === 'codex-claude') {
+      const launcher = await readFile(path.join(root, '.agents/skills/factory/SKILL.md'), 'utf8');
+      const forwarder = await readFile(path.join(root, '.claude/skills/factory/SKILL.md'), 'utf8');
+      assert.match(launcher, /Full Access is optional and requires an explicit user request/);
+      assert.match(forwarder, /Forward an exact approval once/);
+    }
   }
 });
 test('modified managed files block upgrade before unrelated writes', async t => {

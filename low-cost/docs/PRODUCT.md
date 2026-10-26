@@ -13,7 +13,9 @@ Install the same shared package from a trusted checkout. Updates reach an instal
 
 ## Choose the mode explicitly
 
-Product mode plans a complete app before delivering features one at a time. Feature mode handles one scoped change. Every product and feature receives a separate named branch. Product features target the product branch; the product targets the chosen base branch. A standalone feature targets its chosen branch directly.
+Product mode plans a complete app before delivering features one at a time. Feature mode handles one scoped change. With the default single-repository policy, every product and feature receives a separate named branch. Product features target the product branch; the product targets the chosen base branch. A standalone feature targets its chosen branch directly.
+
+With workspace.policy=current-branches, each request selects allowed repositories on their pinned existing branches. Changes are visible before acceptance; integration accepts a reviewed set of commits without branch creation or a Git merge. See the [complete setup and command guide](../../factory/README.md).
 
 ## Requirements and roadmap
 
@@ -50,7 +52,7 @@ After all features are accepted, explicitly start product acceptance: complete j
 | Integrations | Optional role-specific tools, scopes, availability/verification and actual receipts |
 | Usage / Activity | Measured counters/completeness, budgets, command receipts and decisions |
 
-Approve & continue authorizes only the next displayed stage. Request changes, Pause and Cancel remain available at appropriate checkpoints. Routine in-scope commands do not need another dashboard confirmation. Native security/login approvals remain native. Owner disconnected disables dependent actions. Worker registration does not launch or independently verify an agent.
+Approve & continue submits directly and authorizes only the next displayed stage. One approval through chat OR the dashboard is sufficient for the exact offer. Routine fixes, tests, reviews and evidence-only reruns within an approved stage continue without repeated questions. Source fixes discovered during QA still use the actual implementation revision checkpoint. Request changes, Pause and Cancel remain available at appropriate checkpoints. Routine in-scope commands do not need another dashboard confirmation. Native security/login approvals remain native. Owner disconnected disables dependent actions. Worker registration does not launch or independently verify an agent.
 
 ## Pause, changes and recovery
 
@@ -65,3 +67,7 @@ Use node factory/runtime/cli.mjs start, check or status from the installed app. 
 ## Maintainer checks and limits
 
 Run node factory/setup.mjs --verify and the offline tests from the checkout. [Metadata helpers](../../codex-claude/maintenance/README.md) remain optional references, not runtime dependencies. Fixtures do not prove live provider access, actual independent reviewer execution, browser fidelity or an accepted app. The dashboard cannot sandbox native edits performed outside its bridge. Private jobs/stage records/results stay lazily under ignored factory/.local; update existing app docs instead of generating separate stage reports.
+
+## Commands and owner replacement
+
+The [step-by-step guide](../../factory/README.md#13-command-reference-all-20-runtime-operations) explains all 20 runtime operations, with working-directory examples for dashboard startup and owner polling. Factory Next is a Halo-local helper name for the same service, not another edition or a shipped command. The local owner release command allows an explicitly authorized replacement only when the owner is disconnected, all jobs are finished/cancelled and activity is reconciled. It preserves history and invalidates old host-access checks; it never transfers unfinished work. See the [release protocol](../../factory/runtime/WORKFLOW.md#explicit-release-of-a-disconnected-owner).

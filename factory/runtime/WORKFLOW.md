@@ -2,6 +2,24 @@
 
 The dashboard is a staged control service, not a native coding-agent runner. The existing edition owner receives typed commands and executes authorized work through real native/provider tools. Read this protocol when operating the installed factory.
 
+## Workspace policy: existing branches across repositories
+
+Read factory/config.json before preparing work. Its optional workspace.policy=current-branches overrides the fresh product/feature branch and Git merge instructions below. The default single-repository policy is unchanged.
+
+The workspace.repositories allowlist pins application-relative Git roots and existing branch names. One factory and one existing Codex owner may coordinate all listed repositories; do not install another owner/dashboard in each repository. Each dashboard request explicitly selects its writable repositories. Inspect other allowed repositories when necessary for analysis, but include every repository requiring edits in the request and approved plan. Do not write outside that scope. Scope expansion requires cancellation/new request or an explicitly reviewed configuration/scope migration; no silent additions. Host permissions still apply.
+
+Run owner workspace prepare to record the exact current branch/HEAD of each selected repository. This mode never creates/switches branches or worktrees, stages files, commits, merges, resets or stashes. Preserve unrelated edits. Selected repositories must have committed baselines and reconciled changes before preparation; unrelated repositories and the coordinating folder may remain dirty. An empty repository needs an explicitly authorized baseline. Work in the normal source folders on each pinned existing branch. Changes become visible on those branches before human acceptance; these are not isolated feature branches.
+
+The prepared workspace lists repositories as {path,branch,base_commit}. Copy this exact list into plan.repositories; target_branch is current-branches and base_commit is the returned baseline snapshot identifier. Both guides live in their existing application documentation structure within one selected repository, with workspace-relative entries such as frontend/docs/developer-guide.docx.
+
+After source/docs are committed, call owner workspace snapshot during implementation. It requires clean selected repositories and returns snapshot_id plus each actual Git commit in repositories. For this policy only, the evidence field commit is that SHA-256 snapshot identifier, NOT a Git commit. Bind all checks, five independent reviews, both guides, workers and approver to that same snapshot ID. The dashboard displays its actual constituent commits. Reviews cover the entire selected commit set. A branch change, dirty selected repository, rewritten history or changed reviewed commit blocks approval/integration. Never describe the identifier as a single Git commit.
+
+For previews, preview_commit identifies the reviewed snapshot and preview_source={repository,commit} records the actual served repository Git commit, which must be in that snapshot. The owner must verify the actual served version; registration does not establish browser verification. Unavailable previews remain blocked/not checked.
+
+All staged human approvals, independent reviews, immutable evidence, real Word rendered-page inspection and budget rules still apply. At the integration or final-integration checkpoint the dashboard offers Approve integration. Its existing typed approve-merge command and workspace merge operation perform acceptance only (git_merge=false), followed by verify-integration with actual checks of kind integration bound to the snapshot. There is no Git merge, push or deployment. Failed checks stop work. After each accepted feature WAIT for Start next feature; it prepares the same existing branches at the current accepted commit set. Product acceptance needs fresh aggregate reviewers and another human integration approval. Restart reconciliation verifies the same commits and never repeats paid work.
+
+External integrations stay off unless scoped. Web-to-mobile conversion retains its separate output-repository policy and cannot use this multi-repository editing mode.
+
 ## Connection and recovery
 
 Start `node factory/runtime/cli.mjs start` from the application root if needed. Pair the actual stable owner session, then poll:
@@ -17,6 +35,16 @@ Poll waits up to 50 seconds. Heartbeat at least every 60 seconds during long wor
 
 Restart expires pending commands and marks running commands, workers and tools uncertain. Reconnect the SAME owner, inspect the actual processes/Git/results, then reconcile. Never relaunch uncertain work or replay a merge/paid call. Use the original uncertain command to report terminal worker reconciliation or workspace verify-integration/reconcile-integration. Finish it blocked/failed after reconciliation if no terminal checkpoint was reached. A branch-creation intent is persisted privately before Git: reconcile-branch may recover only its exact recorded branch/target/command. Never reset an existing branch or break locks automatically.
 
+### Explicit release of a disconnected owner
+
+When the human explicitly authorizes replacing a stale owner, use the local maintenance command below. Inspect owner.id, owner.generation and revision in private factory/.local/state.json without printing unrelated private data. Write a private JSON payload containing only expected_owner_id, expected_generation, revision and note (the human-authorized reason). Use the new session's real identity and configured owner runtime; never connect or disconnect while impersonating the old session.
+
+```text
+node factory/runtime/cli.mjs owner release --session ACTUAL_NEW_SESSION_ID --runtime codex --file factory/.local/owner-release.json
+```
+
+This command takes the normal state write lock and verifies the exact reviewed binding/revision. It refuses a live or listening owner, pending/running/uncertain commands, running/uncertain workers or tools, and any unfinished job. Reconcile those through the original owner first. It archives the old binding/reason privately in owner_history, clears only the owner registration and invalidates host-specific live-access checks. Jobs, decisions, usage, receipts and existing history are preserved. It never kills processes or restarts the dashboard. Then connect the new real session normally and listen. A repeated release cannot clear a newly connected owner. No remote release endpoint is exposed; local filesystem permissions apply. This narrow idle-owner migration does not migrate unfinished work or change editions.
+
 ## Human approvals and sequential delivery
 
 Every new request creates lifecycle version 2. Legacy active jobs are blocked until the human chooses Adopt staged workflow. Migration archives previous work/evidence and returns to feasibility; no old consent becomes a new stage approval.
@@ -30,6 +58,24 @@ Only one feature runs at a time. Every product and feature has a fresh readable 
 After every feature is accepted, WAIT for Start product acceptance. Run complete cross-feature journeys and five fresh independent final-product reviews plus technical approver on the same immutable code/docs commit. Child verdicts alone cannot approve the aggregate. Product acceptance approval permits preparing the final merge offer. The human separately approves the product merge into its recorded target. Merge never authorizes push/deployment or branch deletion.
 
 A revised earlier stage archives prior deliverables/evidence and invalidates downstream approval. Scope/permissions/budget/reference changes return to the relevant earlier stage; never silently grow an approved plan. Keep the same feature builder for fixes. Two unsuccessful review rounds require a visible needs-human blocker. Preserve mandatory requirement coverage and dependency ordering.
+
+### Approval cadence within a stage
+
+One human decision approves an exact stage offer. Accept that decision from either the dashboard or chat, then bind it to the displayed offer through the typed command bridge. Do not require a dashboard click plus a chat confirmation, or ask again after an existing approval is queued, claimed or recorded. Inspect the offer, active commands and decisions before submitting so the same approval is not duplicated. The dashboard's ordinary **Approve & continue** button submits that stage decision directly; it does not open another confirmation for the same offer.
+
+An authorized stage includes its routine work within the approved scope, permissions, configured models and budget: implementation corrections before freezing, builds, tests, documentation and rendering, reviewer dispatch, collection of missing logs/screenshots, and evidence-only retests of unchanged frozen source. Complete these without additional conversational approval gates. A reviewer requesting a better source binding or another capture does not create a new stage. Preserve the same builder and frozen-review rules: source changes found during QA require the actual implementation revision checkpoint and refreshed evidence, rather than permission for each individual fix.
+
+Approval persists across elapsed time, heartbeats and reconnection. Reconcile the same owner, command, workers, processes and actual result after interruption through the supported bridge operations. Never infer that lost liveness revoked human authorization, replay a completed paid call or merge, or fabricate a new approval to repair control state. A changed offer, source snapshot, scope, budget or permission boundary requires the corresponding real lifecycle decision; explain that change instead of presenting it as a repeat of the previous request.
+
+Factory stage consent and the host execution profile are separate. Within approved scope, run routine commands with the host's existing permissions; do not request escalation preemptively or add a chat confirmation around a native prompt. Reuse maintained helpers and saved command approvals. A genuine sandbox/network denial still uses the host's native permission flow; do not evade it through another process or tool. New scope, accounts, production writes, signing, publishing or spending need their actual authorization.
+
+### Stage approvals with Full Access
+
+When the user explicitly requests Full Access for a trusted Factory workspace, the supported Codex project defaults are `.codex/config.toml` with `approval_policy = "never"` and `sandbox_mode = "danger-full-access"`. Preserve unrelated settings and configure this only with the user's explicit access request; installing Factory or approving an app stage does not opt other users into Full Access. This profile removes routine shell filesystem/network approval prompts, while Factory still enforces its existing stage, integration and next-feature decisions. Full host access does not expand the approved app scope.
+
+An active desktop/IDE/CLI permission selection or managed policy can override project defaults. The user selects **Full access** in the permissions control below the composer, or `/permissions` in the CLI, to activate it for the current conversation. A config write or dashboard label is not proof the active host changed. Never edit managed requirements, click security approval controls as the user, launch another owner to escape the current profile, or suppress a rejection. After Full Access is actually active, use ordinary command execution for authorized work instead of requesting escalation on each command. See [OpenAI sandbox and approvals](https://learn.chatgpt.com/docs/sandboxing) and [configuration precedence](https://learn.chatgpt.com/docs/config-file/config-basic).
+
+At the next completed checkpoint, publish the deliverable and request the next stage decision once. During execution, report progress instead of asking permission to keep doing authorized work. Exact integration consent, explicit next-feature starts and genuine scope changes remain separate decisions. This cadence does not advance, approve or modify an existing job by itself.
 
 ## Typed commands
 
@@ -107,6 +153,25 @@ QA and final acceptance require checks, five reviews, documentation and approver
 - deliverable.coverage maps EACH plan acceptance string to an actual passed check: `[{"requirement":"Customer can sign in","check":"Sign-in acceptance"}]`.
 
 Report failures/limitations honestly; do not turn fixtures or scanner exits into application evidence. No frozen-tree edits during reviews. Findings requiring changes return to the same builder via an explicit earlier-stage revision. The service validates metadata/Git bindings; authenticating native/provider receipts, actual test execution and review quality remains the owner's responsibility.
+
+An upcoming mobile roadmap may be published as a non-executing proposal inside the current deliverable's content, using a fenced `factory-roadmap` JSON attachment. The dashboard displays validated `kind:mobile-product-proposal`, `version:1`, `status:proposed` data on Web to mobile even while a software foundation is the active job. Include source/output repositories, pinned source commit, platforms, strategy, scope/exclusions, ordered features with IDs/dependencies/web screens/acceptance, prerequisites and release checks. Use application-specific nonempty portal labels; they are derived from the features, not fixed to any project. Every feature remains proposed. Source commits may be 40- or 64-character lowercase Git hashes. Platforms and web routes must be unique, and screen_count must equal the number of distinct mapped routes. Each dependency references an earlier feature. Example attachment body (replace the placeholder commit with the actual inspected source hash):
+
+```json
+{
+  "kind": "mobile-product-proposal", "version": 1, "status": "proposed",
+  "title": "Field service mobile app",
+  "source_repo": "D:/web-app", "source_commit": "FULL_INSPECTED_SOURCE_HASH",
+  "output_repo": "D:/mobile-app", "platforms": ["android"], "strategy": "expo-native",
+  "scope": ["Technician tasks"], "excluded": ["Store publishing"],
+  "prerequisites": ["Accept the foundation"], "release_checks": ["Device task journey"],
+  "execution": "One approved feature at a time", "screen_count": 1,
+  "features": [{"id": "tasks", "title": "Assigned tasks", "portal": "technician",
+    "status": "proposed", "depends_on": [], "web_screens": ["/tasks"],
+    "acceptance": ["A technician can view assigned tasks"]}]
+}
+```
+
+Place that JSON inside the deliverable string between opening and closing triple-backtick fences, with factory-roadmap as the opening fence's language. This attachment never changes the active job's purpose, approved plan, executable feature queue or human decisions. It must not be described as an approved specification or started work. Respect offered-deliverable immutability through an actual revision command when the human requests a changed proposal. Activate delivery only through a properly scoped conversion product and its normal stage/feature commands after current work is accepted.
 
 Usage has tokens/usd (actual nonnegative counters or null) and completeness complete/partial/unavailable. Do not invent costs, savings or zeroes. Numeric approved budgets block advancement when reported usage exceeds them; the bridge cannot guarantee provider-enforced caps or infer unavailable consumption. Stop new dispatch if enforcing budgets cannot be verified.
 

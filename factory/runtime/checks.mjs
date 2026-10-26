@@ -3,7 +3,7 @@ import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { profile } from './profiles.mjs';
-import { exists, stamp } from './storage.mjs';
+import { exists, stamp, safePath } from './storage.mjs';
 const exec = promisify(execFile);
 
 export async function executable(name, environment = process.env) {
@@ -20,7 +20,7 @@ export async function git(root, args) {
   const { stdout } = await exec('git', ['-C', root, ...args], { timeout: 10000, maxBuffer: 1024 * 1024, windowsHide: true });
   return stdout.trimEnd();
 }
-export async function inspect(root, edition) {
+export async function inspect(root, edition, workspace) {
   const selected = profile(edition), checks = [];
   const add = (id, label, status, detail, action = '') => checks.push({ id, label, status, detail, action, time: stamp() });
   add('node', 'Node.js', Number(process.versions.node.split('.')[0]) >= 22 ? 'passed' : 'needs-action', process.version, 'Install Node.js 22 or newer.');
@@ -30,7 +30,21 @@ export async function inspect(root, edition) {
       found ? 'Executable found. Account and model access are checked separately.' : 'Executable not found on PATH.', 'Install or expose ' + tool + ' on PATH.');
   }
   let target = null;
-  try {
+  if (workspace?.policy === 'current-branches') {
+    target = 'current-branches';
+    for (const [index, entry] of workspace.repositories.entries()) {
+      try {
+        const folder = await safePath(root, entry.path), actual = await git(folder, ['rev-parse', '--show-toplevel']);
+        if (path.resolve(actual).toLowerCase() !== path.resolve(folder).toLowerCase()) throw new Error('Not a Git root.');
+        const branch = await git(folder, ['symbolic-ref', '--short', 'HEAD']), head = await git(folder, ['rev-parse', '--verify', 'HEAD']).catch(() => null);
+        const dirty = await git(folder, ['status', '--porcelain', '--untracked-files=all']);
+        add('repository-' + index, entry.path, branch === entry.branch && head ? 'passed' : 'needs-action',
+          branch + ' / ' + (head || 'No committed baseline'), 'Reconcile the existing branch/baseline before including this repository in implementation.');
+        add('worktree-' + index, entry.path + ' changes', dirty ? 'needs-action' : 'passed',
+          dirty ? 'Existing edits preserved.' : 'Working tree is clean.', 'Reconcile intended edits before preparing this repository; never blanket-stage unrelated work.');
+      } catch { add('repository-' + index, entry.path, 'needs-action', 'Repository unavailable.', 'Restore access to the configured Git root.'); }
+    }
+  } else try {
     const actual = await git(root, ['rev-parse', '--show-toplevel']);
     if (path.resolve(actual).toLowerCase() !== path.resolve(root).toLowerCase()) throw new Error('Choose the application Git root.');
     target = await git(root, ['symbolic-ref', '--quiet', '--short', 'HEAD']).catch(() => null);

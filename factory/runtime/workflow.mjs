@@ -13,6 +13,33 @@ export function fields(input, allowed) {
 export function connected(state, now = Date.now()) {
   return Boolean(state.owner && state.owner.connected && Date.parse(state.owner.expires_at) > now);
 }
+// Local maintenance only: release a reviewed stale binding, never impersonate its session.
+export function releaseOwner(state, input, runtime, now = Date.now()) {
+  fields(input, ['requester_id', 'runtime', 'expected_owner_id', 'expected_generation', 'revision', 'note']);
+  const identity = value => typeof value === 'string' && /^[A-Za-z0-9_-]{1,100}$/.test(value);
+  if (!identity(input.requester_id) || input.runtime !== runtime || !identity(input.expected_owner_id) ||
+      !identity(input.expected_generation) || !Number.isSafeInteger(input.revision) || !text(input.note, 2000)) fail('Provide the actual requesting session/runtime, reviewed owner binding, revision and release reason.');
+  if (input.revision !== state.revision || !state.owner || state.owner.id !== input.expected_owner_id ||
+      state.owner.generation !== input.expected_generation) fail('Owner or state changed. Inspect the current binding before releasing it.');
+  if (connected(state, now) || state.owner.listening) fail('The owner is connected or listening. Disconnect it before release.');
+  if (state.commands.some(c => ['pending', 'running', 'uncertain'].includes(c.status)) ||
+      (state.integration_runs || []).some(r => ['running', 'uncertain'].includes(r.status)) ||
+      state.jobs.some(j => hasActiveWorkers(j) || (j.features || []).some(hasActiveWorkers))) fail('Reconcile outstanding commands, workers and tools before releasing the owner.');
+  if (state.jobs.some(j => !['merged', 'cancelled'].includes(j.status))) fail('Finish or cancel unfinished jobs with the original owner before release.');
+  const time = new Date(now).toISOString();
+  state.owner_history ||= [];
+  state.owner_history.push({ owner: structuredClone(state.owner), released_by: input.requester_id,
+    runtime: input.runtime, time, note: input.note.trim() });
+  // Access/continuation evidence belongs to its actual host session, not the next owner.
+  for (const check of state.checks.filter(c => ['live', 'continuation', 'api-runner'].includes(c.id))) {
+    state.check_history ||= []; state.check_history.push(structuredClone(check));
+    check.status = 'not-checked'; check.detail = 'Owner released. Verify access in the new owner environment.'; check.time = time;
+    delete check.evidence;
+  }
+  state.owner = null;
+  event(state, 'Disconnected owner registration released explicitly; history preserved. Connect the new actual session.');
+  return { status: 'released' };
+}
 export function enqueue(state, input, now = Date.now()) {
   fields(input, ['id', 'action', 'revision', 'job_id', 'offer_id', 'input']);
   if (typeof input.id !== 'string' || !/^[A-Za-z0-9_-]{1,80}$/.test(input.id)) fail('Command needs an id.');
@@ -133,7 +160,7 @@ export function mergeReady(job) {
     job.approver?.verdict === 'APPROVE' && job.approver.commit === job.commit);
 }
 export function publish(state, input, now = Date.now()) {
-  fields(input, ['command_id', 'job_id', 'status', 'plan', 'features', 'checks', 'reviews', 'documentation', 'usage', 'commit', 'baseline_commit', 'target_base_commit', 'target_commit', 'target_branch', 'approver', 'message', 'preview', 'preview_commit', 'deliverable', 'mobile_analysis', 'mobile_runs']);
+  fields(input, ['command_id', 'job_id', 'status', 'plan', 'features', 'checks', 'reviews', 'documentation', 'usage', 'commit', 'baseline_commit', 'target_base_commit', 'target_commit', 'target_branch', 'approver', 'message', 'preview', 'preview_commit', 'preview_source', 'deliverable', 'mobile_analysis', 'mobile_runs']);
   const command = state.commands.find(c => c.id === input.command_id && c.status === 'running');
   if (!command || command.owner_id !== state.owner?.id || command.owner_generation !== state.owner?.generation) fail('No matching running owner command.');
   const job = state.jobs.find(j => j.id === input.job_id);
@@ -223,7 +250,7 @@ export function publicState(state, config) {
     ...lifecycleView(j)
   }));
   return { revision: state.revision, project: config.project_name, edition: config.edition, purpose: config.purpose || 'software', version: config.version,
-    integrations: integrationView(state, config), performance: performance(state),
+    workspace_settings: config.workspace || null, integrations: integrationView(state, config), performance: performance(state),
     models: [...new Set(Object.values(config.models).filter(Boolean))],
     owner: { connected: connected(state), runtime: state.owner?.runtime || null, listening: Boolean(state.owner?.listening) },
     checks: [...state.checks.map(check), { label: 'Dashboard owner connection', status: connected(state) ? 'passed' : 'needs-action', detail: connected(state) ? 'The edition owner is paired. Live model identity is checked separately.' : 'No active owner lease.', action: 'Invoke the installed factory skill in the original owning session.' }], jobs,
