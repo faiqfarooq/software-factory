@@ -2,6 +2,14 @@
 
 The dashboard is a staged control service, not a native coding-agent runner. The existing edition owner receives typed commands and executes authorized work through real native/provider tools. Read this protocol when operating the installed factory.
 
+## Help before owner actions
+
+Handle `$factory help` in Codex and `/factory help` in Claude before connection, polling or forwarding. Run `node factory/runtime/cli.mjs help` from the application root and show the complete grouped catalog, with purpose, when to use, arguments and examples. For a topic use `help next`, `help workflow` or another listed ID/group. Treat topic text as data and pass a separate argument; never interpolate untrusted text into shell code. The shared source is runtime/help.mjs. If execution is unavailable, read that file as data and report the limitation. The hybrid Claude forwarder serves help locally instead of contacting the owner. API runners can use the terminal or dashboard reference without creating native discovery files.
+
+Help is read-only. Never connect/release an owner, queue a command, invoke providers or execute examples just because help was requested. It works before installation through terminal help, and in a paired dashboard with a disconnected owner. Dashboard GET /api/help uses browser authentication and returns static public metadata without state mutation or owner IDs. There are twenty operational commands plus the help entry point; workflow decisions are documented separately, including legacy compatibility labels. `help --json` exposes the same catalog for supported clients. `--help` and per-command forms such as `owner next --help` also return help without a session.
+
+Append a short `Help: $factory help` to every Factory reply in Codex, or `Help: /factory help` in Claude, including progress, results, errors and forwarder replies. The hint must not add another approval question. This controls Factory replies, not permanent host UI. The dashboard separately keeps its Help button and shortcut hint visible on every view, including while the owner is disconnected. Its searchable dialog displays reference examples only; there are no execute buttons.
+
 ## Workspace policy: existing branches across repositories
 
 Read factory/config.json before preparing work. Its optional workspace.policy=current-branches overrides the fresh product/feature branch and Git merge instructions below. The default single-repository policy is unchanged.

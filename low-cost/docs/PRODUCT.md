@@ -37,6 +37,10 @@ Approve the exact feature merge separately. After actual post-merge checks it is
 
 After all features are accepted, explicitly start product acceptance: complete journeys/regressions, design/guide checks, five fresh independent final-product reviews and technical approver. Child verdicts cannot approve the aggregate. Approve acceptance, inspect the final merge offer, then separately approve product-to-target merge and post-merge checks. Push, deployment and branch deletion remain separate.
 
+## Help and hints
+
+Use the header Help button or $factory help / /factory help for the complete action reference. Help is read-only and works with a disconnected owner. Its catalog explains purposes, requirements and examples; workflow decisions remain distinct from terminal commands. The dashboard hint stays visible and Factory replies include a short edition-specific help hint.
+
 ## One dashboard for visibility and control
 
 | View | Contents |

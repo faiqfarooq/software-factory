@@ -33,11 +33,19 @@
   <div class="workspace">
     <header>
       <span class="breadcrumb">WORKSPACE <span>/</span> <span id="page-label">Overview</span></span>
-      <div class="owner"><span class="dot" id="owner-dot"></span><span id="owner-label">Owner disconnected</span></div>
+      <div class="header-controls"><div class="owner"><span class="dot" id="owner-dot"></span><span id="owner-label">Owner disconnected</span></div><button type="button" data-help aria-haspopup="dialog">Help</button></div>
     </header>
     <main id="main" tabindex="-1"></main>
     <footer>One factory. From plan to reviewed code. <span id="connection-status" role="status"></span></footer>
   </div>
+  <aside class="help-hint" aria-label="Factory help hint"><button type="button" data-help aria-haspopup="dialog">Help &amp; actions</button><span>Need help? Open Help or type <code>$factory help</code> / <code>/factory help</code> in your assistant.</span></aside>
+  <dialog id="help-dialog" aria-labelledby="help-title">
+    <div class="dialog-heading"><div><p class="eyebrow">FACTORY REFERENCE</p><h2 id="help-title">Help &amp; all actions</h2></div><button type="button" class="quiet" data-close="help-dialog" aria-label="Close help">×</button></div>
+    <p>Use <code>$factory help</code> in Codex or <code>/factory help</code> in Claude. Terminal help: <code>node factory/runtime/cli.mjs help</code>.</p>
+    <p id="help-introduction">Help shows purposes, requirements and examples. Opening it never executes an action. It works with a disconnected owner.</p>
+    <label for="help-search">Search actions</label><input id="help-search" type="search" placeholder="Try next, dashboard, pause or release" autocomplete="off">
+    <p id="help-status" role="status" class="muted section-gap"></p><div id="help-results"></div>
+  </dialog>
   <div class="toast" id="toast" role="status" hidden></div>
   <dialog id="pair-dialog">
     <form id="pair-form">

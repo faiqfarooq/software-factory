@@ -1,4 +1,4 @@
-export const VERSION = '2.5.0';
+export const VERSION = '2.6.0';
 export const REVIEWERS = ['security', 'ux', 'ui', 'code', 'qa'];
 const claude = {
   orchestrator: 'claude', 'spec-writer': 'claude', builder: 'claude',

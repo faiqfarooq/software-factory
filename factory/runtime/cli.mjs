@@ -9,6 +9,7 @@ import { roleContext, integrationView } from './integrations.mjs';
 import { inspectFrontend } from './mobile.mjs';
 import { releaseOwner } from './workflow.mjs';
 import { profile } from './profiles.mjs';
+import { getHelp, formatHelp } from './help.mjs';
 
 export function options(args) {
   const positionals = [], flags = {};
@@ -40,6 +41,14 @@ export async function openBrowser(url) {
 }
 export async function main(args = process.argv.slice(2)) {
   const { positionals: words, flags } = options(args);
+  // Help must work before installation, pairing or any project/state access.
+  if (words[0] === 'help' || flags.help !== undefined) {
+    if (Object.keys(flags).some(k => !['help', 'json', 'project'].includes(k)) ||
+        (flags.help !== undefined && flags.help !== true) || (flags.json !== undefined && flags.json !== true)) throw new Error('Help accepts --help, --json and optional --project PATH.');
+    const topic = (words[0] === 'help' ? words.slice(1) : words).join(' ');
+    const result = getHelp(topic);
+    console.log(flags.json ? JSON.stringify(result, null, 2) : formatHelp(topic)); return result;
+  }
   const root = path.resolve(typeof flags.project === 'string' ? flags.project : process.cwd());
   const allowed = words[0] === 'inspect-frontend' ? ['project', 'source'] : words[0] === 'start' ? ['project', 'port', 'no-open'] : words[0] === 'owner' ? ['project', 'session', 'runtime', 'wait', 'file'] : words[0] === 'role-context' ? ['project', 'role'] : ['project'];
   if (Object.keys(flags).some(k => !allowed.includes(k))) throw new Error('Unknown option for this operation.');
@@ -102,7 +111,7 @@ export async function main(args = process.argv.slice(2)) {
     const result = await ownerCall(root, action, payload);
     console.log(JSON.stringify(result, null, 2)); return result;
   }
-  throw new Error('Usage: node factory/runtime/cli.mjs start|check|status|owner <operation> [--project <app>]');
+  throw new Error('Unknown operation. Run node factory/runtime/cli.mjs help for all actions and examples.');
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   main().catch(error => { console.error(error.message); process.exitCode = 1; });

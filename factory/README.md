@@ -2,6 +2,8 @@
 
 Use this guide to install Factory, open its dashboard and deliver work with your assistant. Daily use happens in the dashboard; the advanced command reference is for the owner/runner.
 
+**Need help at any step?** Click **Help** in the dashboard header, type **$factory help** in Codex or **/factory help** in Claude, or run **node factory/runtime/cli.mjs help** in a terminal. The dashboard keeps a shortcut hint visible; Factory replies end with the edition's short help hint. Help lists purposes, when to use each action, requirements and examples without executing them.
+
 ## 1. Prepare and choose an edition
 
 You need Node.js **22 or newer**, Git, an existing application folder and the tools/accounts for your chosen edition. The dashboard needs no npm install, framework build or Python server.
@@ -133,6 +135,7 @@ After every feature is accepted, choose **Start product acceptance**. The owner 
 | Documentation | Downloadable developer guide and end-user manual |
 | Usage | Known tokens/cost, budget and reporting completeness |
 | Activity | Queued commands, receipts and project events |
+| Help (header button) | Search every action, purpose, requirements and reference example; works with a disconnected owner |
 
 The two app guides are Microsoft Word .docx files, reused across features. The writer renders and visually inspects every page before marking them complete. Downloads use exact registered committed bytes matching the reviewed hash. Rendering images and logs remain private. Runtime instruction files remain Markdown.
 
@@ -204,6 +207,19 @@ node factory/runtime/cli.mjs owner release --session ACTUAL_NEW_SESSION_ID --run
 Use claude or deepseek for those editions. Release preserves history, clears registration and resets host-specific access checks. It never kills processes. Connect the new actual session normally and reverify access. Detailed rules are in [WORKFLOW.md](runtime/WORKFLOW.md#explicit-release-of-a-disconnected-owner).
 
 ## 13. Command reference: all 20 runtime operations
+
+The shared action catalog is available through **Help** in the dashboard, **$factory help** / **/factory help** in chat, and these terminal forms:
+
+~~~powershell
+node factory/runtime/cli.mjs help
+node factory/runtime/cli.mjs --help
+node factory/runtime/cli.mjs help next
+node factory/runtime/cli.mjs owner next --help
+node factory/runtime/cli.mjs help workflow
+node factory/runtime/cli.mjs help --json
+~~~
+
+Help needs no owner session or running dashboard. Terminal help also works before installation when invoked using this package checkout's CLI path. It is an additional read-only entry point alongside the twenty operational commands. Everyday operations, workflow decisions and advanced owner operations are grouped separately. Workflow decisions are dashboard/chat approvals, not extra terminal subcommands. Required arguments and examples come from runtime/help.mjs, also used by the dashboard. Replace uppercase example placeholders with actual values; help never executes them. A host must discover the installed skill before its chat shortcut can work. The API-provider edition uses the dashboard or terminal reference.
 
 Run these **from the installed application root**. These are terminal operations, not twenty separate skills. **$factory** and **/factory** invoke chat skills; a phrase such as **$factory next** asks that assistant to handle the factory, rather than defining a terminal subcommand. Halo's private **Factory Next** helpers launch/poll this same service and are not another edition or an included script.
 

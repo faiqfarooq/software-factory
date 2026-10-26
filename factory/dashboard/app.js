@@ -8,6 +8,7 @@ if (token) sessionStorage.setItem('factory-key', token);
 let state, page = 'overview', selectedJob, signature = '', actionContext, actionJobSnapshot, refreshing = false;
 const credentialDrafts = new Map(), credentialRequests = new Set();
 const commandRequests = new Map();
+let helpCatalog, helpRequest;
 const node = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
 const label = value => value === 'merged' && state?.workspace_settings ? 'accepted' : String(value || '').replaceAll('-', ' ');
 const badge = value => node('span', label(value), 'badge ' + value);
@@ -249,6 +250,40 @@ function activity(limit = 100) {
   if (!state.activity.length) ul.append(node('li', 'Activity will appear here as setup and work progress.'));
   return ul;
 }
+function renderHelp(query = '') {
+  const output = $('help-results'); output.replaceChildren();
+  if (!helpCatalog) return;
+  const search = query.trim().toLowerCase(); let count = 0;
+  for (const group of helpCatalog.groups) {
+    const actions = group.actions.filter(a => !search || [group.label, a.id, a.label, a.purpose, a.when, a.arguments, a.example].join(' ').toLowerCase().includes(search));
+    if (!actions.length) continue;
+    const section = node('section', undefined, 'help-group');
+    section.append(node('h3', group.label), node('p', group.surface, 'muted'));
+    for (const a of actions) {
+      const item = node('article', undefined, 'help-action');
+      item.append(node('h4', a.label ? a.id + ' · ' + a.label : a.id), node('p', a.purpose),
+        node('strong', 'When to use'), node('p', a.when), node('strong', 'Arguments / requirements'), node('p', a.arguments),
+        node('strong', 'Example (reference only)'), node('pre', a.example));
+      section.append(item); count++;
+    }
+    output.append(section);
+  }
+  $('help-status').textContent = count ? count + ' actions shown · ' + helpCatalog.operational_commands + ' operational commands plus help; workflow decisions listed separately.' : 'No matching actions. Try another word or clear the search.';
+}
+async function openHelp() {
+  if (!$('help-dialog').open) $('help-dialog').showModal();
+  if (helpCatalog) { renderHelp($('help-search').value); return; }
+  $('help-status').textContent = 'Loading action reference…';
+  try {
+    helpRequest ||= api('help');
+    helpCatalog = await helpRequest;
+    $('help-introduction').textContent = helpCatalog.introduction;
+    renderHelp($('help-search').value);
+  } catch (error) {
+    helpRequest = null;
+    $('help-status').textContent = 'Help could not load: ' + error.message + ' Reopen Help to retry, or run node factory/runtime/cli.mjs help locally.';
+  }
+}
 function render() {
   if (!$('request-dialog').open) { $('factory-purpose').value = state.purpose || 'software'; mobileFields(); }
   $('planning-docs-option').hidden = !state.integrations?.some(i => i.id === 'context7' && i.enabled);
@@ -479,6 +514,8 @@ async function refresh() {
   finally { refreshing = false; }
 }
 for (const e of document.querySelectorAll('[data-page]')) e.addEventListener('click', () => { if (e.dataset.page !== 'integrations') credentialDrafts.clear(); page = e.dataset.page; if (state) render(); });
+for (const e of document.querySelectorAll('[data-help]')) e.addEventListener('click', openHelp);
+$('help-search').addEventListener('input', () => renderHelp($('help-search').value));
 document.querySelector('.brand').addEventListener('click', e => { e.preventDefault(); credentialDrafts.clear(); page = 'overview'; if (state) render(); });
 window.addEventListener('pagehide', () => credentialDrafts.clear());
 for (const e of document.querySelectorAll('[data-close]')) e.addEventListener('click', () => $(e.dataset.close).close());

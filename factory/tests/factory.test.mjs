@@ -78,6 +78,9 @@ test('fresh Claude setup preserves the app and creates no Codex integration or p
   const launcher = await readFile(path.join(root, '.claude/skills/factory/SKILL.md'), 'utf8');
   assert.match(launcher, /chat OR dashboard approval/);
   assert.match(launcher, /without asking again/);
+  assert.match(launcher, /\/factory help/);
+  assert.match(launcher, /BEFORE owner connection, polling or forwarding/);
+  assert.match(launcher, /EVERY Factory chat reply/);
   assert.doesNotMatch(launcher, /danger-full-access|\.codex\/config/);
   assert.equal(config.version, VERSION);
 });
@@ -106,6 +109,9 @@ test('hybrid and API profiles install only their intended launcher paths and rol
       const forwarder = await readFile(path.join(root, '.claude/skills/factory/SKILL.md'), 'utf8');
       assert.match(launcher, /Full Access is optional and requires an explicit user request/);
       assert.match(forwarder, /Forward an exact approval once/);
+      assert.match(launcher, /\$factory help/);
+      assert.match(forwarder, /\/factory help/);
+      assert(forwarder.indexOf('## Help and persistent hint') < forwarder.indexOf('Forward this request'));
     }
   }
 });

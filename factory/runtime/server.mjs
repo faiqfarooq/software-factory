@@ -12,6 +12,7 @@ import { workspaceView, workspaceDiff, workspaceOperation, assertWorkspace, bind
 import { committedWord, WORD_MIME } from './documents.mjs';
 import { loadCredentials, saveCredentials, updateCredentials, credentialEnvironment, credentialView } from './credentials.mjs';
 import { assertMobileSource } from './mobile.mjs';
+import { getHelp } from './help.mjs';
 
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -93,6 +94,7 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
       const auth = (req.headers.authorization || '').replace(/^Bearer /, '');
       const ownerRoute = route.startsWith('/api/owner/');
       if (!equal(auth, ownerRoute ? ownerKey : browserKey)) return send(401, { error: 'Pair this dashboard using the local link printed by setup.' });
+      if (req.method === 'GET' && route === '/api/help') return send(200, getHelp());
       if (req.method === 'GET' && route === '/api/state') {
         const state = await readState(root), result = publicState(state, config);
         const keys = credentialView(credentials, baseEnvironment);
