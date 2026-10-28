@@ -29,8 +29,14 @@ test('local browser access is automatic while origin, CSRF and owner boundaries 
     });
     req.on('error', reject); req.end(body);
   });
-  const marker = { 'X-Factory-Client': 'dashboard', 'Sec-Fetch-Site': 'same-origin', 'Sec-Fetch-Dest': 'empty' };
+  const marker = { 'X-Factory-Client': 'dashboard', 'Sec-Fetch-Site': 'same-origin', 'Sec-Fetch-Dest': 'empty', 'Sec-Fetch-Mode': 'cors' };
   assert.equal((await request('session')).status, 403);
+  // A non-browser local client omits Sec-Fetch-* entirely; reaching the loopback port is not enough.
+  assert.equal((await request('session', { 'X-Factory-Client': 'dashboard' })).status, 403);
+  for (const omit of ['Sec-Fetch-Site', 'Sec-Fetch-Dest', 'Sec-Fetch-Mode']) {
+    const partial = { ...marker }; delete partial[omit];
+    assert.equal((await request('session', partial)).status, 403, 'missing ' + omit);
+  }
   const session = await request('session', marker);
   assert.equal(session.status, 200); assert.match(session.body.csrf, /^[a-f0-9]{64}$/);
   assert.equal(session.headers['cache-control'], 'no-store');
@@ -40,7 +46,7 @@ test('local browser access is automatic while origin, CSRF and owner boundaries 
   assert.deepEqual(Object.keys(session.body), ['csrf']);
   for (const headers of [
     { Host: 'evil.example' }, { Origin: 'https://evil.example' }, { Origin: 'null' },
-    { 'Sec-Fetch-Site': 'cross-site' }, { 'Sec-Fetch-Site': 'same-site' }, { 'Sec-Fetch-Site': 'none' }, { 'Sec-Fetch-Dest': 'document' }
+    { 'Sec-Fetch-Site': 'cross-site' }, { 'Sec-Fetch-Site': 'same-site' }, { 'Sec-Fetch-Site': 'none' }, { 'Sec-Fetch-Dest': 'document' }, { 'Sec-Fetch-Mode': 'navigate' }, { 'Sec-Fetch-Mode': 'no-cors' }
   ]) assert.equal((await request('session', { ...marker, ...headers })).status, 403);
   assert.equal((await request('session', marker, 'OPTIONS')).status, 405);
   assert.equal((await request('session', marker, 'POST')).status, 405);

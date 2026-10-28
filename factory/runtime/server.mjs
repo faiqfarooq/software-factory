@@ -112,9 +112,13 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
         if (req.method !== 'GET') return send(405, { error: 'Expected GET.' });
         // A custom header prevents simple cross-origin requests. Fetch metadata
         // additionally rejects navigations and requests from other sites.
+        // Both headers must be present and correct: a client that simply omits
+        // Sec-Fetch-* is not a page this dashboard served, and must not be
+        // handed the browser key merely for reaching the loopback port.
         if (req.headers['x-factory-client'] !== 'dashboard' ||
-            (req.headers['sec-fetch-site'] && req.headers['sec-fetch-site'] !== 'same-origin') ||
-            (req.headers['sec-fetch-dest'] && req.headers['sec-fetch-dest'] !== 'empty')) {
+            req.headers['sec-fetch-site'] !== 'same-origin' ||
+            req.headers['sec-fetch-dest'] !== 'empty' ||
+            req.headers['sec-fetch-mode'] !== 'cors') {
           return send(403, { error: 'Open the local dashboard to connect.' });
         }
         return send(200, { csrf: browserKey });

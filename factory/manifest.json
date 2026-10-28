@@ -8,7 +8,7 @@
     "runtime/checks.mjs": "0bcc0c800b685ba9280b738506b5909f63ef622a6383c0c151b1ee82921ffc5d",
     "runtime/help.mjs": "016ce8e2b2e069b5cacf7d4110b4f88c9ccc669720c36a4c4f94744c4228ac2c",
     "runtime/workflow.mjs": "7e4d083414d8aec4263c507cfd673bd9e7b30af87a60d9e2d92893f162a080dc",
-    "runtime/server.mjs": "6a1a135ba8220bf84b3f471a22340c1c00a469ff92bde1d0a7c6257175650fed",
+    "runtime/server.mjs": "3e40c98ec8274c34b6a4c492ade444cb68acf0f70ee8a7b7db1fd44bbad67e19",
     "runtime/cli.mjs": "4109383baf23bf75cc5cb1b134416eed37b8083293140ef5a3c7fb75c145ef4e",
     "runtime/WORKFLOW.md": "43a87d79d3dfea6cb794a86c518c567a77277dc6e91c442fbc92bf192efcaaa2",
     "runtime/LICENSE": "d03409d4442a7b1b0841b1366aadda0e4067bb2245d7f95db0bb5e68fd4429f7",
