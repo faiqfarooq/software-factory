@@ -30,6 +30,8 @@ Accept an exact approval from chat OR the dashboard, then bind it once to the cu
 
 Respect workspace.policy=current-branches when configured: use selected allowed repositories on pinned existing branches, bind plan/evidence to their actual commit set, and perform acceptance without creating branches or a Git merge. Preserve unrelated edits and all prior history. Mobile roadmap attachments are proposals only and never grant implementation approval. Explicit idle-owner release is a local maintenance operation, allowed only after actual authorization and successful reconciliation; it does not transfer unfinished jobs.
 
+The recorded workflow_profile decides the approval shape. Streamlined requests approve one master plan and design, then need an explicit Start for each feature; implementation, guides, tests, QA and the five reviews run inside that Start consent. Strict requests keep a separate approval at every stage. A job without the field stays Strict, and switching profiles needs its own migrate decision that is refused once new execution receipts exist. Never treat a plan edit, a design selection or a Word export as an approval, and never let a plan edit change repository selection, target branch or baseline. Register a rendered plan document only after genuinely inspecting every page; a recovered command publishes an existing result and never replays a worker, a paid call or a Git operation.
+
 ## Workflow and evidence
 
 Offer Build a complete app (mode=product) or Add or change a feature (mode=feature), with a readable title and exact target branch. Every request uses the staged lifecycle in factory/runtime/WORKFLOW.md; do not use the former two-gate automatic flow.

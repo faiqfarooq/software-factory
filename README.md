@@ -45,10 +45,10 @@ Wait for **Owner listening** in the dashboard. An idle or closed assistant canno
 ## 4. Start work and approve each stage
 
 1. Choose **New request**.
-2. Choose **Build a complete app** or **Add or change a feature**.
+2. Choose **Streamlined** (default) or **Strict**, then **Build a complete app** or **Add or change a feature**.
 3. Enter a name, requirements, target branch (or selected repositories) and optional design reference.
-4. Read the feasibility result, then click **Approve & continue** once to authorize the next stage.
-5. Continue through requirements, specification, design, implementation, QA and integration.
+4. **Streamlined:** read the master plan and its design, edit or compare drafts if you want changes, then **Approve & continue** once. **Strict:** read the feasibility result and approve each later stage separately.
+5. Choose **Start next feature**. Implementation, guides, tests, QA and five reviews run inside that consent.
 6. Inspect the local app, files/diff, five independent reviews and both Word guides before integration approval.
 
 One approval in chat **or** the dashboard is enough for that exact stage offer. Routine authorized fixes and checks continue within the stage. Integration, starting another feature and final product acceptance each have their own decisions. Push, deployment and branch deletion need separate scope.
@@ -92,7 +92,9 @@ node factory/setup.mjs --verify
 node --test factory/tests/*.test.mjs codex-claude/maintenance/scripts/*.test.mjs
 ~~~
 
-Version **2.6.0** adds a shared searchable action reference, chat/terminal help and persistent hints to the direct stage approvals, mobile roadmap proposals and idle-owner release. The twenty-three operational commands remain available alongside read-only help. Tests use no live providers and do not establish live model access, browser fidelity or a completed app. Manifest hashes establish consistency with the trusted checkout.
+Version **3.0.0** adds the Streamlined workflow profile, editable plan versions with change impact and reversible trash, generated design screens with a local prototype, Word exports of master plans and feature briefs, durable queued stage decisions and publication-only recovery, alongside the searchable action reference from 2.6. Twenty-three operational commands are available plus read-only help. Existing jobs stay on Strict until an explicit migrate decision. Tests use no live providers and do not establish live model access, browser fidelity or a completed app. Manifest hashes establish consistency with the trusted checkout.
+
+Plan documents render through installed Microsoft Word and a local Chrome/Edge. On hosts without them the export reports the missing capability instead of claiming a rendered, inspected document; no external rendering service is used.
 
 Installed apps contain factory/README.md, config.json, runtime/, dashboard/, and ignored private .local/ data, plus the necessary native launcher. App source stays in its existing folders. Developer and end-user guides are reusable Microsoft Word .docx files with review of every rendered page. Credentials, jobs, receipts and raw reports stay private. Optional external integrations default off.
 

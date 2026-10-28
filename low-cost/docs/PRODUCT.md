@@ -17,6 +17,14 @@ Product mode plans a complete app before delivering features one at a time. Feat
 
 With workspace.policy=current-branches, each request selects allowed repositories on their pinned existing branches. Changes are visible before acceptance; integration accepts a reviewed set of commits without branch creation or a Git merge. See the [complete setup and command guide](../../factory/README.md).
 
+## Choose Streamlined or Strict
+
+Each request records a workflow profile. **Streamlined** is the dashboard default: the factory analyses the current code and prepares one complete master plan with requirements, design, feature roadmap and budget. You approve that once, then explicitly start each feature; implementation, guides, tests, QA and the five reviews run inside that Start consent, and integration stays a separate decision. **Strict** keeps a separate human approval at feasibility, requirements, specification, design, implementation, QA and integration.
+
+Jobs created before version 3 have no profile recorded and remain Strict. Switching an existing job needs an explicit migrate decision; it is reversible until execution starts, and refused once fresh workers, usage or acceptance receipts exist. A numeric Streamlined master budget caps the sum of reported feature costs and blocks the job when exceeded.
+
+Plan is editable between checkpoints: save a draft, compare its impact on affected and removed features, then submit it as a new version for approval. Approved versions stay readable, removed features keep their evidence, and repository selection, target branch and baseline can never change through a plan edit. Design offers generated sample screens and a clickable local prototype. Files exports a version-bound Word document of the master plan or a feature brief, available only after the owner renders it and inspects every page.
+
 ## Requirements and roadmap
 
 Product preparation: feasibility → requirements → specification/roadmap → system/UI design. Approve each deliverable before the next stage. The roadmap maps every mandatory requirement to a feature and verification step, with unique IDs, acceptance criteria and dependencies on earlier features. Plans bind actual repository/base/target, permissions, budget and both guides. No source implementation before approved design.
