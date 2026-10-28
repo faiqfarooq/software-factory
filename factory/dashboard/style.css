@@ -4,3 +4,47 @@
 .workflow-timeline{padding:0;list-style:none;display:grid;gap:7px;margin:20px 0}.workflow-timeline li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:9px 12px;border:1px solid var(--line);border-radius:6px;font-size:12px}.workflow-timeline li:has(.approved){border-color:#cde4d7}.badge.approved,.badge.accepted{background:#e9f5ef;color:var(--green)}.badge.awaiting-stage,.badge.ready-feature,.badge.ready-acceptance{background:#fff2dd;color:var(--amber)}.badge.locked{opacity:.65}.card{min-width:0;overflow:auto}nav{overflow-y:auto}.deliverable{font-size:12px;line-height:1.7}details summary{cursor:pointer;padding:6px 0}
 .credential-form{border-top:1px solid var(--line);margin-top:18px;padding-top:2px}.credential-form .actions{margin-bottom:12px}.credential-form label{font-size:12px}.credential-form input{font-size:13px}
 .header-controls{display:flex;align-items:center;gap:10px}.workspace{padding-bottom:76px}.help-hint{position:fixed;bottom:0;left:232px;right:0;z-index:3;display:flex;align-items:center;gap:12px;padding:10px 18px;background:#fff;border-top:1px solid var(--line);font-size:12px;color:var(--muted);box-shadow:0 -2px 12px #11252e08}.help-hint button{flex-shrink:0;font-size:12px}.help-hint span{min-width:0;overflow-wrap:anywhere}.help-hint code{white-space:nowrap}.toast{bottom:96px}#help-dialog{max-width:900px;max-height:85vh;overflow:auto}#help-search{position:sticky;top:0;z-index:1}#help-status{font-size:12px}.help-group{margin-top:28px}.help-group>h3{font-size:18px}.help-action{border:1px solid var(--line);border-radius:8px;padding:16px;margin:12px 0}.help-action h4{font-size:14px;margin:0 0 8px;overflow-wrap:anywhere}.help-action p{font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere}.help-action strong{font-size:12px}.help-action pre{margin-bottom:0}@media(max-width:1050px){.help-hint{left:200px}}@media(max-width:720px){header{height:auto;min-height:57px;gap:10px;flex-wrap:wrap;padding-top:8px;padding-bottom:8px}.header-controls{gap:6px}.header-controls .owner{max-width:160px}.header-controls button{padding:6px 10px}.help-hint{left:0;gap:8px;padding:8px 12px;font-size:11px}.help-hint button{padding:6px 8px}.workspace{padding-bottom:88px}#help-dialog{padding:20px}.help-action{padding:12px}}
+
+/* Readable stage documents; code and diffs retain their literal formatting. */
+.rich-text{font-size:13px;line-height:1.75;overflow-wrap:anywhere;max-width:100%;color:var(--ink)}
+.rich-text p{margin:0 0 1em;max-width:95ch}
+.rich-text h2,.rich-text h3,.rich-text h4,.rich-text h5,.rich-text h6{line-height:1.35;margin:1.5em 0 .65em;font-weight:650;letter-spacing:-.2px}
+.rich-text h2{font-size:23px}.rich-text h3{font-size:18px}.rich-text h4{font-size:15px}.rich-text h5,.rich-text h6{font-size:13px}
+.rich-text>:first-child{margin-top:0}.rich-text>:last-child{margin-bottom:0}
+.rich-text ul,.rich-text ol{margin:.7em 0 1.2em;padding-left:25px}
+.rich-text li{padding:2px 0}.rich-text li>p{margin:0 0 .35em}.rich-text li>ul,.rich-text li>ol{margin:.3em 0 .65em}
+.rich-text strong{font-weight:650}.rich-text code{font-size:12px}
+.rich-text pre{white-space:pre;overflow:auto;max-width:100%;padding:16px;margin:1em 0;border:1px solid var(--line);line-height:1.6}
+.rich-text pre code{padding:0;background:transparent;white-space:inherit;overflow-wrap:normal}
+.rich-text blockquote{margin:1em 0;padding:12px 18px;border-left:3px solid #b6c9e8;background:#f6f9ff;color:#405260}
+.rich-text blockquote>:last-child{margin-bottom:0}.rich-text hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+.markdown-table{overflow-x:auto;max-width:100%;margin:1em 0;border:1px solid var(--line);border-radius:7px}
+.markdown-table table{min-width:420px}.markdown-table th{font-size:12px;letter-spacing:normal;font-weight:600;color:var(--ink);background:#f6f8fa}
+.markdown-table td,.markdown-table th{padding:10px 13px}.markdown-table tr:last-child td{border-bottom:0}
+.markdown-table .align-center{text-align:center}.markdown-table .align-right{text-align:right}
+.stage-summary{margin-bottom:22px}.stage-summary>p:first-child{font-size:14px;font-weight:600}
+.details-list>li>.rich-text{margin:0}.details-list>li>.rich-text>p{margin-bottom:.3em}
+@media(max-width:720px){.rich-text h2{font-size:21px}.rich-text h3{font-size:17px}.rich-text pre{padding:12px}}
+/* Planning workspace: secondary controls stay available without crowding navigation. */
+.secondary-nav {margin-top:18px;border-top:1px solid #dbe4eb;padding-top:14px}
+.secondary-nav summary {cursor:pointer;padding:10px;color:#c1d2db;font-size:13px}
+.secondary-nav button{display:block;width:100%}
+.plan-editor {width:min(1100px,94vw);max-width:94vw;max-height:90vh;overflow:auto}
+.plan-editor textarea {width:100%;font:inherit;line-height:1.5}
+.plan-editor fieldset {margin:18px 0;border:1px solid #dbe4eb;border-radius:12px;padding:18px}
+.plan-editor label {display:block;margin:16px 0}
+.design-gallery {display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:20px;margin:24px 0}
+.design-gallery section {min-width:0}
+.design-gallery iframe {display:block;width:100%;height:890px;border:1px solid #dbe4eb;border-radius:22px;background:#f4f7fa}
+.design-gallery iframe.screen-kind-dashboard,.design-gallery iframe.screen-kind-detail{height:1250px}
+.design-gallery iframe.screen-kind-family{height:1100px}
+.design-gallery iframe.screen-kind-picker{height:970px}
+.change-highlight{padding:12px 16px;border-left:3px solid #245fe3;background:#eff4ff;color:#18232e}
+.card>button,.card>details>button{margin:12px 8px 8px 0}.card>button+button{margin-left:0}.dialog-error{margin-top:16px;padding:12px;border:1px solid #e7b5ba;border-radius:6px;background:#fff3f4}
+.actions>.details,.actions>.rich-text{flex-basis:100%;margin-bottom:4px}
+.badge.ready{background:#e9f5ef;color:#19765d}.badge.rendered{background:#fff2dd;color:#92600f}
+.design-gallery h3 {margin-bottom:12px}
+.comparison{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:700px){.comparison{grid-template-columns:1fr}}
+@media(max-width:700px){.design-gallery{grid-template-columns:1fr}.secondary-nav{margin-top:8px}.plan-editor{padding:20px}}
+@media(max-width:720px){#nav{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));overflow:visible}#nav>button{min-height:44px;text-align:center}#nav>.secondary-nav{grid-column:1/-1;border-color:#29424c;margin:8px 0 0;padding:0}#nav>.secondary-nav[open]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}#nav>.secondary-nav summary{grid-column:1/-1;color:#c1d2db}.design-gallery{grid-template-columns:minmax(0,1fr)}}

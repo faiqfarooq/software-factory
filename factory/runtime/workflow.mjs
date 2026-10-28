@@ -1,7 +1,8 @@
 import { stamp, uid, digest, event } from './storage.mjs';
 import { REVIEWERS } from './profiles.mjs';
 import { integrationScopes, integrationView, performance } from './integrations.mjs';
-import { validateLifecycleCommand, claimLifecycle, publishLifecycle, lifecycleView, hasActiveWorkers } from './lifecycle.mjs';
+import {executionJobHash,stopJobHash} from './plans.mjs';
+import { validateLifecycleCommand, claimLifecycle, publishLifecycle, lifecycleView, hasActiveWorkers, currentOfferHash, startReadinessReady } from './lifecycle.mjs';
 
 const fail = message => { throw new Error(message); };
 const object = value => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -12,6 +13,17 @@ export function fields(input, allowed) {
 }
 export function connected(state, now = Date.now()) {
   return Boolean(state.owner && state.owner.connected && Date.parse(state.owner.expires_at) > now);
+}
+export function recoverCommand(state,input) {
+  fields(input,['owner_id','command_id','note']);
+  if(!text(input.note,2000))fail('Describe terminal receipts and the publication to resume.');
+  const command=state.commands.find(c=>c.id===input.command_id),job=state.jobs.find(j=>j.id===command?.job_id);
+  if(!command||command.status!=='uncertain'||command.owner_id!==input.owner_id||state.owner?.id!==input.owner_id||!connected(state)||!job||job.lifecycle!==2)fail('Only the original connected owner can recover an interrupted staged command.');
+  if(['pause','cancel','approve-merge'].includes(command.action)||job.status==='merging')fail('Reconcile actual side effects before recording integration or stop results. Do not replay this command.');
+  if(state.commands.some(c=>c.id!==command.id&&['running','uncertain'].includes(c.status))||hasActiveWorkers(job)||(state.integration_runs||[]).some(r=>r.job_id===job.id&&['running','uncertain'].includes(r.status)))fail('Reconcile every interrupted worker and tool from actual terminal receipts first.');
+  command.recovery ||= [];command.recovery.push({time:stamp(),note:input.note,generation:command.owner_generation});
+  command.owner_generation=state.owner.generation;command.status='running';command.recovered_for='publication-only';
+  event(state,'Original owner recovered existing command for publication only. No worker or provider request was replayed.');return {id:command.id,status:command.status,replay:false};
 }
 // Local maintenance only: release a reviewed stale binding, never impersonate its session.
 export function releaseOwner(state, input, runtime, now = Date.now()) {
@@ -47,7 +59,8 @@ export function enqueue(state, input, now = Date.now()) {
   const prior = state.commands.find(c => c.id === input.id);
   if (prior) { if (prior.hash !== hash) fail('Command id conflict.'); return prior; }
   if (!connected(state, now)) fail('Owner disconnected. Reconnect the original owning session.');
-  if (input.revision !== state.revision) fail('State changed. Refresh and review the current offer.');
+  const exactStageDecision=['approve-stage','approve-merge','start-feature','start-acceptance'].includes(input.action)&&state.jobs.some(job=>job.id===input.job_id&&job.lifecycle===2&&job.offer?.id===input.offer_id&&job.offer.kind===input.action);
+  if (input.revision !== state.revision && !exactStageDecision) fail('State changed. Refresh and review the current offer.');
   const allowed = ['request', 'check-live', 'approve-plan', 'approve-merge', 'revise', 'rework', 'pause', 'resume', 'cancel'];
   const pending = state.commands.filter(c => ['pending', 'running', 'uncertain'].includes(c.status));
   if (pending.length >= 100) fail('Too many outstanding commands.');
@@ -56,8 +69,11 @@ export function enqueue(state, input, now = Date.now()) {
   if (input.action === 'request' || lifecycleJob?.lifecycle === 2 || lifecycleJob?.needs_migration) {
     if (pending.some(c => c.job_id === lifecycleJob?.id && lifecycleJob && (!['pause', 'cancel'].includes(input.action) || ['pause', 'cancel'].includes(c.action)))) fail('This job already has an outstanding command.');
     validateLifecycleCommand(state, input, lifecycleJob);
+    const durable = ['approve-stage','approve-merge','start-feature','start-acceptance'].includes(input.action);
     const command = { ...input, hash, owner_id: state.owner.id, owner_generation: state.owner.generation,
-      job_binding: lifecycleJob ? digest(JSON.stringify(lifecycleJob)) : null, status: 'pending', created_at: stamp(),
+      durable_consent:durable, ...(durable ? { offer_binding:{id:lifecycleJob.offer.id,hash:lifecycleJob.offer.hash} } : {}),
+      binding_version:2,stop_binding:lifecycleJob&&['pause','cancel'].includes(input.action)?stopJobHash(lifecycleJob):null,
+      job_binding: lifecycleJob && !durable && !['pause','cancel'].includes(input.action) ? executionJobHash(lifecycleJob) : null, status: 'pending', created_at: stamp(),
       expires_at: new Date(now + 10 * 60000).toISOString() };
     state.commands.push(command); event(state, input.action + ' queued; awaiting the owner.'); return command;
   }
@@ -110,11 +126,15 @@ export function claim(state, now = Date.now()) {
   const busy = state.commands.some(c => ['running', 'uncertain'].includes(c.status));
   for (const command of state.commands.filter(c => c.status === 'pending' && (!busy || ['pause', 'cancel'].includes(c.action))).sort((a, b) => Number(['pause', 'cancel'].includes(b.action)) - Number(['pause', 'cancel'].includes(a.action)))) {
     const job = state.jobs.find(j => j.id === command.job_id);
-    if (Date.parse(command.expires_at) <= now || command.owner_id !== state.owner.id ||
+    if ((!command.durable_consent && Date.parse(command.expires_at) <= now) || command.owner_id !== state.owner.id ||
         command.owner_generation !== state.owner.generation ||
-        (command.job_binding && digest(JSON.stringify(job)) !== command.job_binding)) {
+        (command.offer_binding && (job?.offer?.id !== command.offer_binding.id || job.offer.hash !== command.offer_binding.hash || currentOfferHash(job) !== command.offer_binding.hash)) ||
+        (command.stop_binding && stopJobHash(job)!==command.stop_binding) ||
+        (command.job_binding && (command.binding_version===2?executionJobHash(job):digest(JSON.stringify(job))) !== command.job_binding)) {
       command.status = 'expired'; event(state, command.action + ' expired after its context changed.'); continue;
     }
+    if(command.action==='start-feature'&&!startReadinessReady(job)){command.status='blocked';event(state,'Start feature blocked: readiness changed after the decision. No worker dispatched.');continue;}
+    if(command.action==='pause'&&!['planning','running','reviewing'].includes(job.status)&&!hasActiveWorkers(job)){command.status='completed';command.message='The work already reached a checkpoint. No running work needed pausing; its offer was preserved.';command.finished_at=stamp();event(state,command.message);continue;}
     command.status = 'running'; command.started_at = stamp();
     if (command.action === 'request' || job?.lifecycle === 2 || job?.needs_migration) {
       claimLifecycle(state, command, job); event(state, command.action + ' acknowledged by the owner.'); return command;
@@ -160,7 +180,7 @@ export function mergeReady(job) {
     job.approver?.verdict === 'APPROVE' && job.approver.commit === job.commit);
 }
 export function publish(state, input, now = Date.now()) {
-  fields(input, ['command_id', 'job_id', 'status', 'plan', 'features', 'checks', 'reviews', 'documentation', 'usage', 'commit', 'baseline_commit', 'target_base_commit', 'target_commit', 'target_branch', 'approver', 'message', 'preview', 'preview_commit', 'preview_source', 'deliverable', 'mobile_analysis', 'mobile_runs']);
+  fields(input, ['command_id', 'job_id', 'status', 'plan', 'features', 'checks', 'reviews', 'documentation', 'usage', 'commit', 'baseline_commit', 'target_base_commit', 'target_commit', 'target_branch', 'approver', 'message', 'preview', 'preview_commit', 'preview_source', 'deliverable', 'mobile_analysis', 'mobile_runs', 'advance']);
   const command = state.commands.find(c => c.id === input.command_id && c.status === 'running');
   if (!command || command.owner_id !== state.owner?.id || command.owner_generation !== state.owner?.generation) fail('No matching running owner command.');
   const job = state.jobs.find(j => j.id === input.job_id);

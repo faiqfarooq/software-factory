@@ -83,15 +83,31 @@ Click **New request** and choose each of these:
 
 | Choice | Options |
 | --- | --- |
+| Workflow | Streamlined (default) or Strict |
 | Scope | Complete product, or one feature/change |
 | Purpose | Software development, or web app to mobile app |
 | Repository policy | Separate branches in one app, or configured existing branches across repositories |
+
+**Streamlined** asks for one decision up front: a complete master plan with requirements, design, feature scope and budget, prepared from your current code. You approve it once, then explicitly start each feature. **Strict** keeps a separate approval at every stage. Jobs created before this version stay Strict until you switch them; the choice is recorded per request and cannot be changed by editing a plan document.
 
 Enter a clear title, requirements and optional design-reference URL. With the normal policy, enter the target branch. With a configured multi-repository workspace, select the exact repositories this request may change. **Start feasibility** authorizes analysis, not implementation.
 
 Example requirements: “Customers can sign in, update their profile and recover a forgotten password. Explain any missing backend support before implementation.”
 
 ## 6. Follow the stages
+
+### Streamlined
+
+| Checkpoint | What you review | What approval permits |
+| --- | --- | --- |
+| Master plan | Requirements, scope, design, feature roadmap, code analysis, permissions and budget | Starting features |
+| Start next feature | The inherited brief and its recorded readiness checks | Implementation, guides, tests, QA and five reviews for that feature |
+| Feature integration | The exact reviewed commit or repository snapshot | Integration and verification checks |
+| Product acceptance | Whole-product journeys, guides and fresh aggregate reviews | The final integration offer |
+
+Implementation, documentation, testing, QA and reviewer work run inside the Start-feature consent and do not stop for separate approvals. Features still run one at a time, and **Start next feature** is always explicit. A numeric master budget caps the sum of reported feature costs; exceeding it blocks the job until you revise the approved budget.
+
+### Strict
 
 | Stage | What you review | What approval permits |
 | --- | --- | --- |
@@ -132,10 +148,22 @@ After every feature is accepted, choose **Start product acceptance**. The owner 
 | App & design | App preview, served version and design |
 | Agents | Ten configured roles and actual owner-reported worker runs |
 | Tests & reviews | Commit-bound checks and five independent review results |
+| Plan | The approved master plan, editable drafts, change impact and version history |
+| Design | Sample screens and a clickable local prototype |
+| Features | Per-feature briefs, readiness and progress |
+| Files | Word exports of the master plan and feature briefs |
 | Documentation | Downloadable developer guide and end-user manual |
 | Usage | Known tokens/cost, budget and reporting completeness |
 | Activity | Queued commands, receipts and project events |
 | Help (header button) | Search every action, purpose, requirements and reference example; works with a disconnected owner |
+
+### Edit the plan, review the design, export to Word
+
+**Plan → Edit plan** saves a draft without touching the approved version. **Compare changes** shows which features a draft affects, which it removes and which stay shared. **Submit revision** promotes the draft to a new version and asks for approval again; the previous version stays readable, and removed features keep their recorded evidence. **Regenerate** reanalyses the current code without discarding accepted scope. Repository selection, target branch and baseline cannot be changed by editing a plan document — those need an explicit workspace reconciliation. A plan you no longer want goes to **Plan trash** and can be restored; trashing never discards workspace metadata.
+
+**Design** shows generated sample screens for the planned app and a clickable local prototype. Select a layout and save feedback into planning. Previews render from plan text only, carry their own strict content policy and have no network access.
+
+**Files → Prepare Word download** builds a version-bound .docx of the master plan or a feature brief, including scope, contracts, acceptance, design previews and decisions. The download becomes available only after the owner renders it and genuinely inspects every page. Rendering uses installed Microsoft Word and an isolated local Chrome/Edge; on hosts without them the export reports the missing capability instead of claiming a layout pass. No external rendering service is used.
 
 The two app guides are Microsoft Word .docx files, reused across features. The writer renders and visually inspects every page before marking them complete. Downloads use exact registered committed bytes matching the reviewed hash. Rendering images and logs remain private. Runtime instruction files remain Markdown.
 
@@ -193,6 +221,9 @@ Factory's stage decisions and host command permissions are separate. Use existin
 - **Restart:** start the dashboard again and reconnect the same owner. Pending commands expire; running commands/workers/tools become uncertain. Inspect actual results and reconcile without replaying paid work or a merge.
 - **Changed branch/commit:** preserve Git, reconcile the actual result and request the appropriate revision. Never reset branches to force an approval through.
 - **Legacy active job:** choose **Adopt staged workflow**. Previous work is archived, and new stages need fresh decisions.
+- **Interrupted publication:** the original connected owner can recover the existing command and publish the result it already has, without relaunching a worker or repeating a paid call. Recovery refuses pause, cancel and integration commands, and a recovered command cannot dispatch workers, start tools or touch the workspace — reconcile those actual side effects first.
+- **Queued decision after a reconnect:** an exact stage approval stays valid across elapsed time and reconnection. It is still revoked if the offer, the plan, the source or the security configuration changed.
+- **Switch an existing job to Streamlined:** choose **Migrate**, which is reversible until execution starts. Rollback is refused once fresh workers, usage or acceptance receipts exist, and after a security configuration change.
 
 ### Release an idle disconnected owner
 

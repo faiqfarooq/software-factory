@@ -131,6 +131,7 @@ export async function workspaceOperation(root, state, input) {
   if (!input || Object.keys(input).some(k => !['owner_id', 'command_id', 'job_id', 'operation', 'checks'].includes(k))) fail('Unknown workspace fields.');
   const job = state.jobs.find(j => j.id === input.job_id), command = state.commands.find(c => c.id === input.command_id && c.job_id === input.job_id && (c.status === 'running' || (['verify-integration', 'reconcile-integration', 'reconcile-branch'].includes(input.operation) && c.status === 'uncertain')));
   if (!job || job.lifecycle !== 2 || !command || command.owner_id !== input.owner_id) fail('Workspace operation needs the matching active owner command.');
+  if (command.recovered_for === 'publication-only') fail('Publication recovery cannot mutate the workspace or replay Git operations.');
   if (['pause', 'cancel'].includes(command.action)) fail('Stop commands cannot create or merge branches.');
   const u = currentUnit(job), w = u.workspace;
   if (currentBranches(w)) return existingWorkspaceOperation(root, job, command, input);
@@ -148,6 +149,10 @@ export async function workspaceOperation(root, state, input) {
     await atomic(await safePath(root, 'factory/.local/branches/' + job.id + '-' + (job.active_feature || job.phase) + '.json'), { branch: w.branch, target, base_commit: base, command_id: command.id, job_id: job.id, time: stamp() });
     await git(root, ['switch', '-c', w.branch, target]);
     Object.assign(w, { target, base_commit: base, prepared: true, prepared_at: stamp() });
+    if(job.workflow_profile==='streamlined'&&u.inherited_approval&&u.plan){
+      if(u.inherited_approval.master_plan_hash!==job.approved_plan_hash)fail('The inherited master plan changed. Review its revision first.');
+      u.plan={...u.plan,target_branch:w.target,base_commit:w.base_commit};u.approved_plan_hash=digest(JSON.stringify(u.plan));u.inherited_approval.prepared_at=stamp();
+    }
     return { status: 'prepared', ...w };
   }
   if (input.operation === 'reconcile-branch') {
@@ -219,6 +224,12 @@ async function existingWorkspaceOperation(root, job, command, input) {
     if (job.mode === 'product' && job.phase === 'feature' && snapshotId(actual) !== (job.accepted_product_head || job.workspace.base_commit)) fail('Accepted product repositories changed. Revise the product scope before starting this feature.');
     w.repositories = actual.map(({ commit, ...r }) => ({ ...r, base_commit: commit }));
     Object.assign(w, { base_commit: snapshotId(actual), prepared: true, prepared_at: stamp() });
+    if (job.workflow_profile === 'streamlined' && u.inherited_approval && u.plan) {
+      if (u.inherited_approval.master_plan_hash !== job.approved_plan_hash) fail('The inherited master plan changed. Review the revision first.');
+      u.plan = { ...u.plan, base_commit: w.base_commit, repositories: structuredClone(w.repositories) };
+      u.approved_plan_hash = digest(JSON.stringify(u.plan));
+      u.inherited_approval.prepared_at = stamp();
+    }
     return { status: 'prepared', ...w };
   }
   if (input.operation === 'snapshot') {

@@ -34,7 +34,17 @@ export async function atomic(file, value) {
   const temp = file + '.' + uid() + '.tmp';
   try {
     await writeFile(temp, typeof value === 'string' || Buffer.isBuffer(value) ? value : JSON.stringify(value, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
-    await rename(temp, file);
+    const expected = typeof value === 'string' || Buffer.isBuffer(value) ? Buffer.from(value) : Buffer.from(JSON.stringify(value, null, 2) + '\n');
+    for (let attempt = 0; ; attempt++) {
+      try { await rename(temp, file); break; }
+      catch (error) {
+        // A virus scanner or reader can briefly hold a Windows destination.
+        // Verify an ambiguous success before retrying the same temp file.
+        if (await readFile(file).then(actual => actual.equals(expected), () => false)) break;
+        if (process.platform !== 'win32' || !['EPERM','EACCES','EBUSY'].includes(error.code) || attempt >= 7) throw error;
+        await new Promise(resolve => setTimeout(resolve, Math.min(25 * 2 ** attempt, 250)));
+      }
+    }
   } finally { await unlink(temp).catch(e => { if (e.code !== 'ENOENT') throw e; }); }
 }
 // Never break a stale lock automatically. A crashed writer needs explicit reconciliation.

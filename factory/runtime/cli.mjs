@@ -34,7 +34,7 @@ export async function ownerCall(root, operation, input) {
   return result;
 }
 export async function openBrowser(url) {
-  if (!/^http:\/\/127\.0\.0\.1:\d+\/#(?:[a-f0-9]{64})$/.test(url)) throw new Error('Refusing an invalid dashboard URL.');
+  if (!/^http:\/\/127\.0\.0\.1:\d+\/(?:#[a-f0-9]{64})?$/.test(url)) throw new Error('Refusing an invalid dashboard URL.');
   const [file, args] = process.platform === 'win32' ? ['powershell.exe', ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', "Start-Process -WindowStyle Hidden -FilePath '" + url + "'"]] :
     process.platform === 'darwin' ? ['open', [url]] : ['xdg-open', [url]];
   await new Promise((resolve, reject) => execFile(file, args, { timeout: 10000, windowsHide: true }, error => error ? reject(error) : resolve()));
@@ -58,7 +58,7 @@ export async function main(args = process.argv.slice(2)) {
   if (words[0] === 'start') {
     if (flags.port !== undefined && (!/^\d+$/.test(String(flags.port)) || Number(flags.port) > 65535)) throw new Error('Invalid dashboard port.');
     const server = await serve(root, { port: flags.port === undefined ? 0 : Number(flags.port) });
-    console.log('Dashboard: ' + server.url + '\nKeep this process running. Pairing links are private.');
+    console.log('Dashboard: ' + server.url + '\nKeep this process running. Your local browser connects automatically.');
     if (!flags['no-open']) await openBrowser(server.url).catch(() => console.log('Open the printed link in your browser.'));
     const stop = async () => { try { await server.close(); process.exit(0); } catch (error) { console.error(error.message); } };
     process.once('SIGINT', stop); process.once('SIGTERM', stop);
@@ -77,7 +77,7 @@ export async function main(args = process.argv.slice(2)) {
   }
   if (words[0] === 'status') {
     const state = await readState(root);
-    const result = { jobs: state.jobs.map(j => ({ id: j.id, mode: j.mode, status: j.status })), commands: state.commands.filter(c => ['pending', 'running', 'uncertain'].includes(c.status)).map(c => ({ id: c.id, action: c.action, status: c.status })) };
+    const result = { jobs: state.jobs.map(j => ({ id: j.id, mode: j.mode, status: j.status,workflow_profile:j.workflow_profile||'strict',trashed:Boolean(j.trashed_at) })), commands: state.commands.filter(c => ['pending', 'running', 'uncertain'].includes(c.status)).map(c => ({ id: c.id, action: c.action, status: c.status })),plan_exports:state.jobs.flatMap(j=>(j.plan_artifacts||[]).filter(a=>['generating','rendered','needs-action'].includes(a.status)).map(a=>({job_id:j.id,id:a.id,status:a.status,pages:a.pages,sha256:a.sha256}))) };
     console.log(JSON.stringify(result, null, 2)); return result;
   }
   if (words[0] === 'role-context') {
@@ -103,7 +103,7 @@ export async function main(args = process.argv.slice(2)) {
     let payload;
     if (action === 'connect') payload = { id, runtime: flags.runtime };
     else if (['next', 'heartbeat', 'disconnect'].includes(action)) payload = { owner_id: id, ...(action === 'next' ? { wait_ms: flags.wait === undefined ? 50000 : Number(flags.wait) } : {}) };
-    else if (['publish', 'finish', 'checks', 'tool', 'tool-result', 'tool-cancel', 'tool-reconcile', 'worker', 'workspace'].includes(action)) {
+    else if (['publish', 'finish', 'checks', 'tool', 'tool-result', 'tool-cancel', 'tool-reconcile', 'worker', 'workspace', 'review-plan-export', 'recover-command', 'feature-readiness'].includes(action)) {
       if (typeof flags.file !== 'string') throw new Error('Use --file with a private JSON payload.');
       const input = JSON.parse(await readFile(path.resolve(root, flags.file), 'utf8'));
       payload = action === 'publish' ? { owner_id: id, update: input } : action === 'finish' ? { owner_id: id, result: input } : action === 'tool' ? { owner_id: id, request: input } : { owner_id: id, ...input };
