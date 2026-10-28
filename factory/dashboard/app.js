@@ -9,6 +9,7 @@ const credentialDrafts = new Map(), credentialRequests = new Set();
 const commandRequests = new Map();
 let helpCatalog, helpRequest;
 const uiDrafts = new Map();
+let policyNote = '';
 const node = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
 // The dashboard needs document formatting, without interpreting provider text
 // as HTML or loading remote images, scripts, styles or Markdown dependencies.
@@ -453,7 +454,8 @@ async function openHelp() {
 }
 function workflowFields(){
  const streamlined=$('workflow-profile')?.value==='streamlined';
- $('request-scope-note').textContent=streamlined?'Prepare a complete master plan from the current code. Review its requirements, design, feature scope and budget before approval. Start each feature explicitly; implementation, docs, tests and reviews run within that consent. Integration remains a separate decision. Planning can consume provider usage.':'Strict starts feasibility and keeps a separate human approval at every later stage. Planning can consume provider usage. Preserve existing edits and reconcile the selected workspace before implementation.';
+ const profileNote=streamlined?'Prepare a complete master plan from the current code. Review its requirements, design, feature scope and budget before approval. Start each feature explicitly; implementation, docs, tests and reviews run within that consent. Integration remains a separate decision.':'Strict starts feasibility and keeps a separate human approval at every later stage.';
+ $('request-scope-note').textContent=[profileNote,policyNote,'Planning can consume provider usage.'].filter(Boolean).join(' ');
  const submit=$('request-form')?.querySelector?.('button[type="submit"]');if(submit)submit.textContent=streamlined?'Prepare master plan':'Start feasibility';
 }
 function render() {
@@ -476,9 +478,10 @@ function render() {
       const box = node('input'); box.type = 'checkbox'; box.name = 'repositories'; box.value = r.path;
       const row = node('label'); row.append(box, node('span', r.path + ' / ' + r.branch)); $('repository-options').append(row);
     }
-    $('request-scope-note').textContent = existing ?
-      'Start authorizes feasibility analysis in the selected repositories. Later stages require approval. Preserve existing edits and reconcile selected repositories before implementation. No new branches or Git merges. Analysis can consume provider usage.' :
-      'Start authorizes a fresh named branch and feasibility analysis. Each later stage needs approval. Existing changes must be reconciled before switching branches. Analysis can consume provider usage.';
+    // The repository policy note is kept beside the workflow note; neither may replace the other.
+    policyNote = existing ?
+      'Work stays in the selected repositories on their existing branches. Preserve existing edits and reconcile selected repositories before implementation. No new branches or Git merges.' :
+      'Start authorizes a fresh named branch. Existing changes must be reconciled before switching branches.';
     workflowFields();
   }
   headingText.append(node('p', page === 'overview' ? 'YOUR DEVELOPMENT WORKSPACE' : 'FACTORY / ' + titles[page].toUpperCase(), 'eyebrow'), node('h1', page === 'overview' ? 'From idea to working software.' : titles[page]), node('p', page === 'overview' ? 'One place to plan, build, review, and approve your app.' : page === 'setup' ? 'Know what is ready, what needs attention, and what comes next.' : page==='preview' ? 'Review sample screen concepts and the reported app preview.' : page==='plan' ? 'Review scope, compare drafts and approve the exact plan version.' : 'Actual progress and evidence from your project.', 'subtitle'));

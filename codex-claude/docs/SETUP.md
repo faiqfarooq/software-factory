@@ -21,4 +21,4 @@ cd D:\my-app
 node factory/runtime/cli.mjs start
 ~~~
 
-Keep its terminal running and reconnect the same owner. Use the [complete guide](../../factory/README.md) for every dashboard step, all 20 operations and recovery.
+Keep its terminal running and reconnect the same owner. Use the [complete guide](../../factory/README.md) for every dashboard step, all 23 operations and recovery.

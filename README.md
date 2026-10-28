@@ -78,7 +78,7 @@ node factory/runtime/cli.mjs help next
 node factory/runtime/cli.mjs --help
 ~~~
 
-The [step-by-step guide](factory/README.md) covers every dashboard view, all **20 runtime operations**, mobile conversion, optional integrations, upgrades and recovery. The [owner protocol](factory/runtime/WORKFLOW.md) contains detailed payloads and evidence rules.
+The [step-by-step guide](factory/README.md) covers every dashboard view, all **23 runtime operations**, mobile conversion, optional integrations, upgrades and recovery. The [owner protocol](factory/runtime/WORKFLOW.md) contains detailed payloads and evidence rules.
 
 **Factory Next** is a name used by Halo's private launcher helpers for this same dashboard. It is not another edition or a shipped command. The terminal operation **owner next** receives the next queued instruction; it does not approve or start a new feature by itself.
 
@@ -92,7 +92,7 @@ node factory/setup.mjs --verify
 node --test factory/tests/*.test.mjs codex-claude/maintenance/scripts/*.test.mjs
 ~~~
 
-Version **2.6.0** adds a shared searchable action reference, chat/terminal help and persistent hints to the direct stage approvals, mobile roadmap proposals and idle-owner release. The twenty operational commands remain available alongside read-only help. Tests use no live providers and do not establish live model access, browser fidelity or a completed app. Manifest hashes establish consistency with the trusted checkout.
+Version **2.6.0** adds a shared searchable action reference, chat/terminal help and persistent hints to the direct stage approvals, mobile roadmap proposals and idle-owner release. The twenty-three operational commands remain available alongside read-only help. Tests use no live providers and do not establish live model access, browser fidelity or a completed app. Manifest hashes establish consistency with the trusted checkout.
 
 Installed apps contain factory/README.md, config.json, runtime/, dashboard/, and ignored private .local/ data, plus the necessary native launcher. App source stays in its existing folders. Developer and end-user guides are reusable Microsoft Word .docx files with review of every rendered page. Credentials, jobs, receipts and raw reports stay private. Optional external integrations default off.
 

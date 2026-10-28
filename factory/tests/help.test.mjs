@@ -11,19 +11,19 @@ import { serve } from '../runtime/server.mjs';
 import { exists, json } from '../runtime/storage.mjs';
 
 const operations = ['start', 'check', 'status', 'role-context', 'integrations', 'inspect-frontend',
-  ...['connect', 'next', 'heartbeat', 'publish', 'worker', 'workspace', 'checks', 'tool', 'tool-result', 'tool-cancel', 'tool-reconcile', 'finish', 'disconnect', 'release'].map(s => 'owner ' + s)];
-const decisions = ['request', 'check-live', 'approve-stage', 'approve-merge', 'start-feature', 'start-acceptance', 'revise', 'revise-product', 'rework', 'pause', 'resume', 'cancel', 'migrate-workflow', 'approve-plan'];
+  ...['connect', 'next', 'heartbeat', 'publish', 'worker', 'workspace', 'checks', 'tool', 'tool-result', 'tool-cancel', 'tool-reconcile', 'feature-readiness', 'review-plan-export', 'recover-command', 'finish', 'disconnect', 'release'].map(s => 'owner ' + s)];
+const decisions = ['request', 'check-live', 'approve-stage', 'approve-merge', 'start-feature', 'start-acceptance', 'revise', 'revise-product', 'rework', 'pause', 'resume', 'cancel', 'save-draft', 'discard-draft', 'submit-revision', 'regenerate', 'select-design', 'design-feedback', 'trash', 'restore', 'migrate', 'rollback-migration', 'migrate-workflow', 'approve-plan'];
 
 test('catalog covers all operational commands and workflow decisions with purposes, requirements and examples', () => {
   const help = getHelp(), actions = help.groups.flatMap(g => g.actions);
-  assert.equal(help.operational_commands, 20);
+  assert.equal(help.operational_commands, 23);
   assert.deepEqual(help.groups.filter(g => g.id !== 'workflow').flatMap(g => g.actions.map(a => a.id)), operations);
   assert.deepEqual(getHelp('workflow').groups[0].actions.map(a => a.name), decisions);
   assert.equal(new Set(actions.map(a => a.id)).size, actions.length);
   for (const a of actions) for (const field of ['id', 'purpose', 'when', 'arguments', 'example']) assert(a[field]?.trim(), a.id + ': ' + field);
   assert.match(formatHelp('next'), /never approves a stage/);
   assert.equal(getHelp('owner next').groups[0].actions[0].id, 'owner next');
-  assert.equal(getHelp('OWNER').groups[0].actions.length, 14);
+  assert.equal(getHelp('OWNER').groups[0].actions.length, 17);
   assert.throws(() => getHelp('unknown-action'), /Unknown help topic/);
   help.groups[0].actions.pop(); assert.equal(getHelp('everyday').groups[0].actions.length, 6);
   assert(BUNDLE_FILES.includes('runtime/help.mjs'));
@@ -46,7 +46,7 @@ test('CLI help works before installation, needs no owner and writes no project s
   try {
     for (const args of [['help'], ['--help'], ['help', 'next'], ['owner', 'next', '--help'], ['start', '--help'], ['help', 'workflow'], ['help', '--json']]) {
       const result = await main([...args, '--project', path.join(root, 'not-installed')]);
-      assert.equal(result.operational_commands, 20);
+      assert.equal(result.operational_commands, 23);
     }
     assert.match(output[0], /Factory help/);
     assert.match(output[2], /owner next/);

@@ -59,7 +59,8 @@ export function enqueue(state, input, now = Date.now()) {
   const prior = state.commands.find(c => c.id === input.id);
   if (prior) { if (prior.hash !== hash) fail('Command id conflict.'); return prior; }
   if (!connected(state, now)) fail('Owner disconnected. Reconnect the original owning session.');
-  const exactStageDecision=['approve-stage','approve-merge','start-feature','start-acceptance'].includes(input.action)&&state.jobs.some(job=>job.id===input.job_id&&job.lifecycle===2&&job.offer?.id===input.offer_id&&job.offer.kind===input.action);
+  // A decision is exact only against a present offer. An absent offer_id must never match a cleared offer.
+  const exactStageDecision=['approve-stage','approve-merge','start-feature','start-acceptance'].includes(input.action)&&input.offer_id!==undefined&&state.jobs.some(job=>job.id===input.job_id&&job.lifecycle===2&&job.offer&&job.offer.id===input.offer_id&&job.offer.kind===input.action);
   if (input.revision !== state.revision && !exactStageDecision) fail('State changed. Refresh and review the current offer.');
   const allowed = ['request', 'check-live', 'approve-plan', 'approve-merge', 'revise', 'rework', 'pause', 'resume', 'cancel'];
   const pending = state.commands.filter(c => ['pending', 'running', 'uncertain'].includes(c.status));

@@ -207,7 +207,7 @@ test('shared dashboard renders repository choices and integration approval witho
   context.current = { id: 'fixture', workspace: { policy: 'current-branches', reviewed: [{ path: 'frontend', branch: 'dev', commit: 'a'.repeat(40) }] }, commit: 'b'.repeat(64), offer: { id: 'offer' } };
   vm.runInContext("openAction('approve-merge', current)", context);
   assert.equal(get('action-submit').textContent, 'Approve integration');
-  assert.match(get('action-details').children[0].textContent, /no Git merge/);
+  assert.match([...get('action-details').children].map(c => c.textContent).join(' '), /no Git merge/);
 });
 
 test('explicit launcher migration previews an exact private archive and rejects post-preview edits without partial installation', async t => {

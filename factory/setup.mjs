@@ -14,13 +14,20 @@ import { repositorySettings } from './runtime/workspace.mjs';
 import { git } from './runtime/checks.mjs';
 
 export const SOURCE = path.dirname(fileURLToPath(import.meta.url));
-const normalized = value => value.replaceAll('\r\n', '\n');
+// Text comparison normalizes line endings; binary bundle files are compared by exact bytes.
+const normalized = value => Buffer.isBuffer(value) ? value : value.replaceAll('\r\n', '\n');
+const unchanged = (before, content) => Buffer.isBuffer(before) || Buffer.isBuffer(content)
+  ? Buffer.isBuffer(before) && Buffer.isBuffer(content) && before.equals(content)
+  : normalized(before) === normalized(content);
 export const BUNDLE_FILES = [
   'README.md', 'runtime/profiles.mjs', 'runtime/storage.mjs', 'runtime/checks.mjs', 'runtime/help.mjs',
   'runtime/workflow.mjs', 'runtime/server.mjs', 'runtime/cli.mjs', 'runtime/WORKFLOW.md',
   'runtime/LICENSE', 'dashboard/index.html', 'dashboard/style.css', 'dashboard/app.js',
-  'runtime/integrations.mjs', 'runtime/lifecycle.mjs', 'runtime/workspace.mjs', 'runtime/documents.mjs', 'runtime/credentials.mjs', 'runtime/mobile.mjs', 'runtime/skills/planning/SKILL.md', 'runtime/skills/building/SKILL.md', 'runtime/skills/reviewing/SKILL.md'
+  'runtime/integrations.mjs', 'runtime/lifecycle.mjs', 'runtime/workspace.mjs', 'runtime/documents.mjs', 'runtime/credentials.mjs', 'runtime/mobile.mjs', 'runtime/skills/planning/SKILL.md', 'runtime/skills/building/SKILL.md', 'runtime/skills/reviewing/SKILL.md',
+  'runtime/plans.mjs', 'runtime/plan-commands.mjs', 'runtime/plan-artifacts.mjs', 'runtime/plan-word.mjs',
+  'runtime/design-previews.mjs', 'runtime/render-plan.ps1', 'dashboard/assets/Fredoka.ttf', 'dashboard/assets/Fredoka-LICENSE.txt'
 ];
+export const BINARY_FILES = new Set(['dashboard/assets/Fredoka.ttf']);
 export async function buildManifest(source = SOURCE) {
   const files = {};
   for (const name of BUNDLE_FILES) files[name] = digest(await readFile(await safePath(source, name)));
@@ -68,9 +75,10 @@ export async function planInstall(root, edition, source = SOURCE, { integrations
   const changes = [], managed = {};
   const add = async (relative, content, managedFile = true) => {
     const destination = await safePath(root, relative);
-    const before = await exists(destination) ? await readFile(destination, 'utf8') : null;
+    const binary = Buffer.isBuffer(content);
+    const before = await exists(destination) ? await readFile(destination, binary ? undefined : 'utf8') : null;
     const hash = digest(normalized(content));
-    if (before !== null && normalized(before) !== normalized(content) && managedFile && previous[relative] !== digest(normalized(before))) {
+    if (before !== null && !unchanged(before, content) && managedFile && previous[relative] !== digest(normalized(before))) {
       if (!migrateLauncher || receipt || journal || edition !== 'codex-claude' || relative !== '.claude/skills/factory/SKILL.md') throw new Error('File conflict; preserved without changes: ' + relative);
       // Explicitly reviewed launcher-only migration. Unmanaged factory/history remains blocked above.
       const archive = 'factory/.local/migration/claude-factory-' + digest(before) + '.md';
@@ -78,11 +86,11 @@ export async function planInstall(root, edition, source = SOURCE, { integrations
       if (await exists(archived) && await readFile(archived, 'utf8') !== before) throw new Error('Migration archive conflict; preserved without changes: ' + archive);
       await add(archive, before, false);
     }
-    if (before === null || normalized(before) !== normalized(content)) changes.push({ path: relative, content, before_hash: before === null ? null : digest(before), hash });
+    if (before === null || !unchanged(before, content)) changes.push({ path: relative, content, before_hash: before === null ? null : digest(before), hash });
     if (managedFile) managed[relative] = hash;
   };
   for (const name of BUNDLE_FILES) {
-    const content = await readFile(await safePath(source, name), 'utf8');
+    const content = await readFile(await safePath(source, name), BINARY_FILES.has(name) ? undefined : 'utf8');
     if (digest(content) !== manifest.files[name]) throw new Error('Package changed while preparing setup: ' + name);
     await add('factory/' + name, content);
   }

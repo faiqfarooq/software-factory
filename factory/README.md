@@ -237,7 +237,7 @@ node factory/runtime/cli.mjs owner release --session ACTUAL_NEW_SESSION_ID --run
 
 Use claude or deepseek for those editions. Release preserves history, clears registration and resets host-specific access checks. It never kills processes. Connect the new actual session normally and reverify access. Detailed rules are in [WORKFLOW.md](runtime/WORKFLOW.md#explicit-release-of-a-disconnected-owner).
 
-## 13. Command reference: all 20 runtime operations
+## 13. Command reference: all 23 runtime operations
 
 The shared action catalog is available through **Help** in the dashboard, **$factory help** / **/factory help** in chat, and these terminal forms:
 
@@ -250,7 +250,7 @@ node factory/runtime/cli.mjs help workflow
 node factory/runtime/cli.mjs help --json
 ~~~
 
-Help needs no owner session or running dashboard. Terminal help also works before installation when invoked using this package checkout's CLI path. It is an additional read-only entry point alongside the twenty operational commands. Everyday operations, workflow decisions and advanced owner operations are grouped separately. Workflow decisions are dashboard/chat approvals, not extra terminal subcommands. Required arguments and examples come from runtime/help.mjs, also used by the dashboard. Replace uppercase example placeholders with actual values; help never executes them. A host must discover the installed skill before its chat shortcut can work. The API-provider edition uses the dashboard or terminal reference.
+Help needs no owner session or running dashboard. Terminal help also works before installation when invoked using this package checkout's CLI path. It is an additional read-only entry point alongside the twenty-three operational commands. Everyday operations, workflow decisions and advanced owner operations are grouped separately. Workflow decisions are dashboard/chat approvals, not extra terminal subcommands. Required arguments and examples come from runtime/help.mjs, also used by the dashboard. Replace uppercase example placeholders with actual values; help never executes them. A host must discover the installed skill before its chat shortcut can work. The API-provider edition uses the dashboard or terminal reference.
 
 Run these **from the installed application root**. These are terminal operations, not twenty separate skills. **$factory** and **/factory** invoke chat skills; a phrase such as **$factory next** asks that assistant to handle the factory, rather than defining a terminal subcommand. Halo's private **Factory Next** helpers launch/poll this same service and are not another edition or an included script.
 
@@ -269,7 +269,7 @@ Prefix each operation with **node factory/runtime/cli.mjs**:
 
 Each supports --project "D:\my-app" for an explicit application root. Frontend inspection belongs in a separate mobile output workspace and does not execute scripts or fetch remotes.
 
-### Fourteen owner operations
+### Seventeen owner operations
 
 These are for the actual assistant/runner. Prefix each with **node factory/runtime/cli.mjs owner** and supply **--session ACTUAL_SESSION_ID**.
 
@@ -286,6 +286,9 @@ These are for the actual assistant/runner. Prefix each with **node factory/runti
 | tool-result | Read a reserved invocation's result | --file factory/.local/tool-id.json |
 | tool-cancel | Request cancellation during pause/cancel | --file factory/.local/tool-id.json |
 | tool-reconcile | Record conclusive interruption reconciliation | --file factory/.local/tool-reconcile.json |
+| feature-readiness | Record a planned feature's actual readiness check results | --file factory/.local/readiness.json |
+| review-plan-export | Register genuine page-by-page inspection of a rendered plan | --file factory/.local/plan-review.json |
+| recover-command | Resume an interrupted command for publication only | --file factory/.local/recover.json |
 | finish | Complete/block/fail the current command | --file factory/.local/finish.json |
 | disconnect | Disconnect owner; unfinished commands become uncertain | None |
 | release | Release a reviewed idle disconnected binding | --runtime codex --file factory/.local/owner-release.json |
