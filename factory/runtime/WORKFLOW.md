@@ -2,6 +2,26 @@
 
 The dashboard is a staged control service, not a native coding-agent runner. The existing edition owner receives typed commands and executes authorized work through real native/provider tools. Read this protocol when operating the installed factory.
 
+## Workflow profiles and master plans (version 3)
+
+The job's `workflow_profile` is authoritative. New dashboard requests default to **Streamlined**; jobs without that field remain **Strict**. The detailed stage rules below describe Strict unless explicitly stated otherwise. Never migrate an existing job just because the runtime was upgraded. Plan → Plan actions → Review Streamlined migration shows the concrete effect and requires an explicit switch; it does not start implementation. Undo is available before new execution/approval/security changes. Both profiles preserve configured role/model routing and workspace policy.
+
+Streamlined product flow: complete master plan and design → **Approve master plan** → **Start next feature** → implementation, guides, tests, formal QA and five independent reviews plus technical approver → **Approve integration** → post-integration checks → wait for the next explicit Start. Requirements, contracts, design and verification remain mandatory content; unchanged approved planning is inherited. A standalone request's **Approve plan & start feature** explicitly authorizes its delivery. After all features are accepted, **Start product acceptance** authorizes fresh aggregate journeys and independent reviews, followed by one final integration/acceptance decision. No push or deployment is implied.
+
+Before master planning or regeneration inspect actual selected code and pinned commits. Supply code_analysis rows `{feature_id,status:present|partial|missing|needs-verification,files,commit,detail}` separately from accepted status. Include full feature briefs, dependencies, acceptance and optional readiness labels; budgets, permissions, architecture, contracts, environments/auth/storage/offline and requested-platform checks; and design. Reuse the existing app theme. If no reference exists, supply representative screen definitions or use generated sample screens. They are proposals, not app/native QA evidence. See plans.mjs for bounded design and analysis schemas.
+
+At a Streamlined Start checkpoint show the inherited brief/readiness. For readiness labels the original owner records actual results using `owner feature-readiness --file ...` with `{job_id,feature_id,plan_hash,checks:[{label,status:passed|failed,detail}]}`. Start rejects missing/failing required checks. Prepare the real workspace through the bridge before writing. Within the same running command publish `advance:"qa"` after committing implementation and both genuinely rendered/inspected guides. This verifies the frozen workspace without a human implementation gate. During QA, `advance:"implementation"` with findings returns to the same builder and invalidates old evidence; two unsuccessful rounds require human attention. Source changes require a new snapshot and fresh evidence. Publish QA `status:"awaiting-stage"` with complete coverage and authentic workers/reviews: all original quality rules are verified before offering integration directly. Finish the command only after its checkpoint is published.
+
+Plan → Edit plan saves a draft. Compare changes shows affected/removed/shared changes and current/draft content. Submit revision prepares a new master approval offer, never implementation. Approved and superseded saved draft snapshots remain in version history; removed features retain execution evidence privately. Revisions invalidate affected features and transitive dependants only. Completed/cancelled jobs remain read-only for execution; new work needs a new request. Regenerate from current code is available after the reviewed Streamlined switch, queues the connected owner, preserves code and unchanged acceptance, and requires review. Strict Request changes keeps its legacy behavior. Delete plan moves idle work to Plan trash without deleting app files or Git history. Restore retains revocations. Permanent purge and Word re-import are not supported.
+
+Report cumulative usage for each product-planning, feature and final-review unit. Numeric master budgets cap the sum of known reported unit costs, not a fresh allowance for each feature. Unknown provider counters remain unknown; this is a best-effort reported-cost check rather than a guarantee on external subscription billing.
+
+Files → Prepare Word download creates a genuine version-bound .docx of the master plan or feature brief before implementation. Generation, rendering and review status are explicit. Local Chrome/Edge uses a separate temporary profile for sample screens; Word COM and Windows PDF rasterization render pages where supported. Other hosts report missing capabilities. Rendering runs serially. Prototype HTML uses escaped text and nonce CSP, no APIs/network or arbitrary file/URL loading. Design screenshots remain distinct from native QA evidence.
+
+On `status`/`next`, also inspect `plan_artifacts` with status `rendered`. Inspect **every** registered page PNG using the real image tool, then call `owner review-plan-export --file ...` with `{job_id,review:{artifact_id,sha256,inspected_pages:[1,...,N],note}}`. This is local artifact work under planning authorization, not another human approval. Never infer visual quality from metadata. The runtime rechecks DOCX bytes, render hash and page files before enabling download. Authenticated GET `/api/plans/artifact?job=...&id=...&page=N` retrieves registered pages. Plan Word exports remain separate from committed developer/user guides.
+
+Overview, Plan, Design, Features, Reviews and Files are primary; Settings & details retains models, integrations, workspace, usage and logs. Local draft/edit/trash/export work is independent of provider liveness. AI work requires the actual connected/listening owner. Dashboard actions cannot grant host access or wake an idle/closed agent. Native login, initial connection and permission controls remain native.
+
 ## Workspace policy: existing branches across repositories
 
 Read factory/config.json before preparing work. Its optional workspace.policy=current-branches overrides the fresh product/feature branch and Git merge instructions below. The default single-repository policy is unchanged.
@@ -22,6 +42,8 @@ External integrations stay off unless scoped. Web-to-mobile conversion retains i
 
 ## Connection and recovery
 
+Open the printed local dashboard URL directly. The browser establishes its local connection automatically and reconnects after a server restart; no manual browser pairing key is required. Host/Origin checks and mutation CSRF protection remain enforced. Browser access never grants the separate private owner capability or approves a stage.
+
 Start `node factory/runtime/cli.mjs start` from the application root if needed. Pair the actual stable owner session, then poll:
 
 ```text
@@ -33,7 +55,7 @@ Use codex for the hybrid owner and deepseek for the API edition. The hybrid Clau
 
 Poll waits up to 50 seconds. Heartbeat at least every 60 seconds during long work; the lease lasts 90 seconds. Remain listening while the user wants dashboard operation. An idle/closed host cannot receive commands: show Owner disconnected or the actual limitation. Native tool permissions and account login stay native.
 
-Restart expires pending commands and marks running commands, workers and tools uncertain. Reconnect the SAME owner, inspect the actual processes/Git/results, then reconcile. Never relaunch uncertain work or replay a merge/paid call. Use the original uncertain command to report terminal worker reconciliation or workspace verify-integration/reconcile-integration. Finish it blocked/failed after reconciliation if no terminal checkpoint was reached. A branch-creation intent is persisted privately before Git: reconcile-branch may recover only its exact recorded branch/target/command. Never reset an existing branch or break locks automatically.
+Restart retains exact pending stage decisions and marks running commands, workers and tools uncertain. Non-approval queue entries still expire. Reconnect the SAME owner; lease loss does not revoke authorization. Inspect actual processes/Git/results, then reconcile. Never replay merges or paid calls. Use the original uncertain command for terminal worker reconciliation or workspace verify-integration/reconcile-integration. `owner recover-command --file ...` with `{command_id,note}` restores interrupted publication only after workers/tools are terminal. New workers, tool calls and workspace mutations are forbidden on that recovered command. Merge/stop effects require their existing reconciliation paths. Finish blocked/failed if no valid terminal result exists. Branch reconciliation requires the exact persisted intent. Never reset branches or break locks automatically. Atomic persistence retries bounded Windows sharing errors and checks ambiguous success first.
 
 ### Explicit release of a disconnected owner
 
@@ -47,7 +69,7 @@ This command takes the normal state write lock and verifies the exact reviewed b
 
 ## Human approvals and sequential delivery
 
-Every new request creates lifecycle version 2. Legacy active jobs are blocked until the human chooses Adopt staged workflow. Migration archives previous work/evidence and returns to feasibility; no old consent becomes a new stage approval.
+Both profiles use lifecycle schema 2, with workflow version 3 for Streamlined. Pre-staged legacy jobs require the existing explicit Adopt staged workflow migration, distinct from the optional Strict-to-Streamlined switch. Migration never fabricates approval. The following detailed stage gates apply to Strict.
 
 Product preparation: feasibility → requirements → specification → design. Each stage publishes a substantive deliverable and waits for Approve & continue. Product design approval stops at Start next feature. It never starts a builder automatically.
 
@@ -154,24 +176,7 @@ QA and final acceptance require checks, five reviews, documentation and approver
 
 Report failures/limitations honestly; do not turn fixtures or scanner exits into application evidence. No frozen-tree edits during reviews. Findings requiring changes return to the same builder via an explicit earlier-stage revision. The service validates metadata/Git bindings; authenticating native/provider receipts, actual test execution and review quality remains the owner's responsibility.
 
-An upcoming mobile roadmap may be published as a non-executing proposal inside the current deliverable's content, using a fenced `factory-roadmap` JSON attachment. The dashboard displays validated `kind:mobile-product-proposal`, `version:1`, `status:proposed` data on Web to mobile even while a software foundation is the active job. Include source/output repositories, pinned source commit, platforms, strategy, scope/exclusions, ordered features with IDs/dependencies/web screens/acceptance, prerequisites and release checks. Use application-specific nonempty portal labels; they are derived from the features, not fixed to any project. Every feature remains proposed. Source commits may be 40- or 64-character lowercase Git hashes. Platforms and web routes must be unique, and screen_count must equal the number of distinct mapped routes. Each dependency references an earlier feature. Example attachment body (replace the placeholder commit with the actual inspected source hash):
-
-```json
-{
-  "kind": "mobile-product-proposal", "version": 1, "status": "proposed",
-  "title": "Field service mobile app",
-  "source_repo": "D:/web-app", "source_commit": "FULL_INSPECTED_SOURCE_HASH",
-  "output_repo": "D:/mobile-app", "platforms": ["android"], "strategy": "expo-native",
-  "scope": ["Technician tasks"], "excluded": ["Store publishing"],
-  "prerequisites": ["Accept the foundation"], "release_checks": ["Device task journey"],
-  "execution": "One approved feature at a time", "screen_count": 1,
-  "features": [{"id": "tasks", "title": "Assigned tasks", "portal": "technician",
-    "status": "proposed", "depends_on": [], "web_screens": ["/tasks"],
-    "acceptance": ["A technician can view assigned tasks"]}]
-}
-```
-
-Place that JSON inside the deliverable string between opening and closing triple-backtick fences, with factory-roadmap as the opening fence's language. This attachment never changes the active job's purpose, approved plan, executable feature queue or human decisions. It must not be described as an approved specification or started work. Respect offered-deliverable immutability through an actual revision command when the human requests a changed proposal. Activate delivery only through a properly scoped conversion product and its normal stage/feature commands after current work is accepted.
+An upcoming mobile roadmap may be published as a non-executing proposal inside the current deliverable's content, using a fenced `factory-roadmap` JSON attachment. The dashboard displays validated `kind:mobile-product-proposal`, `version:1`, `status:proposed` data on Web to mobile even while a software foundation is the active job. Include source/output repositories, pinned source commit, platforms, strategy, scope/exclusions, ordered features with IDs/dependencies/web screens/acceptance, prerequisites and release checks. Every feature remains proposed. This attachment never changes the active job's purpose, approved plan, executable feature queue or human decisions. It must not be described as an approved specification or started work. Respect offered-deliverable immutability through an actual revision command when the human requests a changed proposal. Activate delivery only through a properly scoped conversion product and its normal stage/feature commands after current work is accepted.
 
 Usage has tokens/usd (actual nonnegative counters or null) and completeness complete/partial/unavailable. Do not invent costs, savings or zeroes. Numeric approved budgets block advancement when reported usage exceeds them; the bridge cannot guarantee provider-enforced caps or infer unavailable consumption. Stop new dispatch if enforcing budgets cannot be verified.
 

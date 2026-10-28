@@ -1,14 +1,148 @@
-/* Shared dashboard. All project text is rendered with textContent, never HTML. */
+/* Shared dashboard. Rich text uses constructed DOM nodes; source HTML is never executed. */
 'use strict';
 const $ = id => document.getElementById(id);
-const titles = { overview: 'Product board', setup: 'Setup & connections', integrations: 'Integrations', plan: 'Workflow & features', mobile: 'Web to mobile', workspace: 'Workspace & changes', preview: 'App & design', agents: 'Agents', reviews: 'Tests & reviews', docs: 'Documentation', usage: 'Usage', activity: 'Activity' };
-let token = /^[a-f0-9]{64}$/.test(location.hash.slice(1)) ? location.hash.slice(1) : sessionStorage.getItem('factory-key') || '';
+const titles = { overview: 'Overview', setup: 'Setup & connections', integrations: 'Integrations', plan: 'Plan', features:'Features', mobile: 'Web to mobile', workspace: 'Workspace & changes', preview: 'Design', agents: 'Agents', reviews: 'Reviews', docs: 'Files', usage: 'Usage', activity: 'Activity' };
+let token = '', localSession;
 if (location.hash) history.replaceState(null, '', location.pathname);
-if (token) sessionStorage.setItem('factory-key', token);
 let state, page = 'overview', selectedJob, signature = '', actionContext, actionJobSnapshot, refreshing = false;
 const credentialDrafts = new Map(), credentialRequests = new Set();
 const commandRequests = new Map();
+const uiDrafts = new Map();
 const node = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e; };
+// The dashboard needs document formatting, without interpreting provider text
+// as HTML or loading remote images, scripts, styles or Markdown dependencies.
+function inlineMarkdown(parent, value, depth = 0) {
+  const text = String(value), plain = value => parent.append(node('span', value));
+  if (depth > 8) { plain(text); return; }
+  let position = 0, buffer = '';
+  const flush = () => { if (buffer) { plain(buffer); buffer = ''; } };
+  while (position < text.length) {
+    if (text[position] === '\\' && /[\\`*_{}\[\]()#+.!|>~-]/.test(text[position + 1] || '')) {
+      buffer += text[position + 1]; position += 2; continue;
+    }
+    if (text[position] === '`') {
+      const delimiter = text.slice(position).match(/^`+/)[0], end = text.indexOf(delimiter, position + delimiter.length);
+      if (end > position + delimiter.length) {
+        flush(); parent.append(node('code', text.slice(position + delimiter.length, end).replace(/\n/g, ' ')));
+        position = end + delimiter.length; continue;
+      }
+    }
+    if (text[position] === '[' && text[position - 1] !== '!') {
+      const link = text.slice(position).match(/^\[([^\]\n]+)\]\(([^\s)]+)\)/);
+      if (link) {
+        let url;
+        try { const candidate = new URL(link[2]); if (['http:', 'https:'].includes(candidate.protocol)) url = candidate.href; } catch { /* Other destinations stay literal text. */ }
+        if (url) {
+          flush(); const a = node('a'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+          inlineMarkdown(a, link[1], depth + 1); parent.append(a); position += link[0].length; continue;
+        }
+      }
+    }
+    const marker = ['***', '___', '**', '__', '~~', '*', '_'].find(marker => text.startsWith(marker, position));
+    if (marker && !(marker[0] === '_' && /[\w]/.test(text[position - 1] || ''))) {
+      const end = text.indexOf(marker, position + marker.length), inside = text.slice(position + marker.length, end);
+      if (end > position + marker.length && inside.trim()) {
+        flush(); const element = node(marker.length === 3 || marker.length === 2 && marker !== '~~' ? 'strong' : marker === '~~' ? 'del' : 'em');
+        if (marker.length === 3) { const emphasis = node('em'); inlineMarkdown(emphasis, inside, depth + 1); element.append(emphasis); }
+        else inlineMarkdown(element, inside, depth + 1);
+        parent.append(element); position = end + marker.length; continue;
+      }
+    }
+    buffer += text[position++];
+  }
+  flush();
+}
+function markdownCells(line) {
+  const cells = []; let cell = '', code = '';
+  for (let i = 0; i < line.length; i++) {
+    if (line[i] === '\\' && line[i + 1] === '|') { cell += '|'; i++; continue; }
+    if (line[i] === '`') {
+      const run = line.slice(i).match(/^`+/)[0]; code = code === run ? '' : code || run;
+      cell += run; i += run.length - 1; continue;
+    }
+    if (line[i] === '|' && !code) { cells.push(cell.trim()); cell = ''; } else cell += line[i];
+  }
+  cells.push(cell.trim());
+  if (line.trim().startsWith('|')) cells.shift();
+  if (line.trim().endsWith('|')) cells.pop();
+  return cells;
+}
+function markdownBlocks(parent, lines, depth = 0) {
+  if (depth > 12) { parent.append(node('p', lines.join('\n'))); return; }
+  const listItem = line => /^( *)([-+*]|\d+[.)])\s+(.*)$/.exec(line);
+  const fence = line => /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+  const divider = line => /^ {0,3}([-*_])(?:\s*\1){2,}\s*$/.test(line);
+  const tableDivider = line => { const cells = markdownCells(line); return cells.length > 0 && cells.every(cell => /^:?-{3,}:?$/.test(cell)); };
+  const startsBlock = index => /^ {0,3}#{1,6}\s|^ {0,3}>/.test(lines[index]) || fence(lines[index]) || listItem(lines[index]) || divider(lines[index]) ||
+    index + 1 < lines.length && lines[index].includes('|') && tableDivider(lines[index + 1]);
+  for (let i = 0; i < lines.length;) {
+    const line = lines[i];
+    if (!line.trim()) { i++; continue; }
+    const codeFence = fence(line);
+    if (codeFence) {
+      const body = [], delimiter = codeFence[1]; i++;
+      while (i < lines.length && !new RegExp('^ {0,3}' + delimiter[0] + '{' + delimiter.length + ',}\\s*$').test(lines[i])) body.push(lines[i++]);
+      if (i < lines.length) i++;
+      const pre = node('pre'); pre.append(node('code', body.join('\n'))); parent.append(pre); continue;
+    }
+    const heading = /^ {0,3}(#{1,6})\s+(.+?)(?:\s+#+)?\s*$/.exec(line);
+    if (heading) { const h = node('h' + Math.min(6, heading[1].length + 1)); inlineMarkdown(h, heading[2]); parent.append(h); i++; continue; }
+    if (!listItem(line) && i + 1 < lines.length && /^ {0,3}(?:=+|-+)\s*$/.test(lines[i + 1])) {
+      const h = node(lines[i + 1].trim()[0] === '=' ? 'h2' : 'h3'); inlineMarkdown(h, line); parent.append(h); i += 2; continue;
+    }
+    if (divider(line)) { parent.append(node('hr')); i++; continue; }
+    if (line.includes('|') && i + 1 < lines.length && tableDivider(lines[i + 1])) {
+      const headers = markdownCells(line), alignments = markdownCells(lines[i + 1]);
+      const scroll = node('div', undefined, 'markdown-table'); scroll.tabIndex = 0; scroll.setAttribute('role', 'region'); scroll.setAttribute('aria-label', 'Document table');
+      const table = node('table'), head = node('thead'), body = node('tbody');
+      const row = (values, tag) => { const tr = node('tr'); headers.forEach((_, column) => {
+        const cell = node(tag), alignment = alignments[column] || '';
+        if (tag === 'th') cell.setAttribute('scope', 'col');
+        if (alignment.endsWith(':')) cell.className = alignment.startsWith(':') ? 'align-center' : 'align-right';
+        inlineMarkdown(cell, values[column] || ''); tr.append(cell);
+      }); return tr; };
+      head.append(row(headers, 'th')); i += 2;
+      while (i < lines.length && lines[i].trim() && lines[i].includes('|') && !startsBlock(i)) body.append(row(markdownCells(lines[i++]), 'td'));
+      table.append(head, body); scroll.append(table); parent.append(scroll); continue;
+    }
+    if (/^ {0,3}>/.test(line)) {
+      const quote = [], box = node('blockquote');
+      while (i < lines.length && /^ {0,3}>/.test(lines[i])) quote.push(lines[i++].replace(/^ {0,3}> ?/, ''));
+      markdownBlocks(box, quote, depth + 1); parent.append(box); continue;
+    }
+    const first = listItem(line);
+    if (first) {
+      const indent = first[1].length, ordered = /^\d/.test(first[2]), list = node(ordered ? 'ol' : 'ul');
+      if (ordered) list.setAttribute('start', String(parseInt(first[2], 10)));
+      while (i < lines.length) {
+        const item = listItem(lines[i]);
+        if (!item || item[1].length !== indent || /^\d/.test(item[2]) !== ordered) break;
+        const li = node('li'), body = [item[3]], offset = item[0].length - item[3].length; i++;
+        while (i < lines.length) {
+          if (!lines[i].trim()) { body.push(''); i++; continue; }
+          const spaces = lines[i].match(/^ */)[0].length;
+          if (spaces <= indent) break;
+          body.push(lines[i++].slice(Math.min(offset, spaces)));
+        }
+        markdownBlocks(li, body, depth + 1); list.append(li);
+      }
+      parent.append(list); continue;
+    }
+    const paragraph = [];
+    do { paragraph.push(lines[i++]); } while (i < lines.length && lines[i].trim() && !startsBlock(i));
+    const p = node('p');
+    paragraph.forEach((text, index) => {
+      inlineMarkdown(p, text.trimEnd());
+      if (index < paragraph.length - 1) p.append(/ {2}$/.test(text) ? node('br') : node('span', ' '));
+    });
+    parent.append(p);
+  }
+}
+function renderDocument(content, extraClass = '') {
+  const box = node('div', undefined, 'rich-text' + (extraClass ? ' ' + extraClass : ''));
+  markdownBlocks(box, deliverableText(String(content || '')).replace(/\r\n?/g, '\n').replace(/\t/g, '    ').split('\n'));
+  return box;
+}
 const label = value => value === 'merged' && state?.workspace_settings ? 'accepted' : String(value || '').replaceAll('-', ' ');
 const badge = value => node('span', label(value), 'badge ' + value);
 const button = (text, action, primary = false, enabled = true) => {
@@ -16,21 +150,46 @@ const button = (text, action, primary = false, enabled = true) => {
 };
 function toast(text, error = false) {
   const box = $('toast'); box.textContent = text; box.className = 'toast' + (error ? ' error' : ''); box.hidden = false;
+  const modal=[...document.querySelectorAll('dialog')].find(dialog=>dialog.open);
+  if(modal){modal.querySelector?.('.dialog-error')?.remove();if(error){const message=node('p',text,'dialog-error error');message.setAttribute('role','alert');modal.append(message);}}
   clearTimeout(toast.timer); toast.timer = setTimeout(() => box.hidden = true, error ? 10000 : 4500);
 }
-async function api(route, data) {
-  const response = await fetch('/api/' + route, {
-    method: data === undefined ? 'GET' : 'POST', headers: { Authorization: 'Bearer ' + token,
-      ...(data === undefined ? {} : { 'Content-Type': 'application/json', 'X-Factory-CSRF': token }) },
-    ...(data === undefined ? {} : { body: JSON.stringify(data) })
+async function localAccess() {
+  if (token) return token;
+  if (!localSession) localSession = (async () => {
+    const response = await fetch('/api/session', { headers: { 'X-Factory-Client': 'dashboard' }, cache: 'no-store' });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || 'Could not connect to the local dashboard.');
+    if (!/^[a-f0-9]{64}$/.test(result.csrf)) throw new Error('Invalid local dashboard connection.');
+    return token = result.csrf;
+  })();
+  const pending = localSession;
+  try { return await pending; } finally { if (localSession === pending) localSession = undefined; }
+}
+async function apiResponse(route, data) {
+  const body = data === undefined ? undefined : JSON.stringify(data);
+  const request = key => fetch('/api/' + route, {
+    method: data === undefined ? 'GET' : 'POST', headers: { Authorization: 'Bearer ' + key,
+      ...(data === undefined ? {} : { 'Content-Type': 'application/json', 'X-Factory-CSRF': key }) },
+    ...(data === undefined ? {} : { body })
   });
-  if (response.status === 401) { if (!$('pair-dialog').open) $('pair-dialog').showModal(); throw new Error('Use your private dashboard link to reconnect.'); }
+  const key = await localAccess();
+  const response = await request(key);
+  if (response.status !== 401) return response;
+  await response.body?.cancel();
+  if (token === key) token = '';
+  // Authentication is checked before mutations. Retry once with the same body
+  // and command id after a dashboard restart, without replaying failed writes.
+  return request(await localAccess());
+}
+async function api(route, data) {
+  const response = await apiResponse(route, data);
   const result = await response.json(); if (!response.ok) throw new Error(result.error || 'Request failed.'); return result;
 }
 async function downloadGuide(jobId, kind, feature) {
   try {
     const query = new URLSearchParams({ job: jobId, kind, ...(feature ? { feature } : {}) });
-    const response = await fetch('/api/documents?' + query, { headers: { Authorization: 'Bearer ' + token } });
+    const response = await apiResponse('documents?' + query);
     if (!response.ok) { const error = await response.json(); throw new Error(error.error || 'Word download failed.'); }
     const url = URL.createObjectURL(await response.blob()), link = node('a');
     link.href = url; link.download = kind + '-guide.docx'; document.body.append(link); link.click(); link.remove();
@@ -45,7 +204,7 @@ function wordCard(current, kind, name, guide, feature) {
     const ready = guide.format === 'docx' && guide.status === 'complete' && guide.verification?.status === 'passed';
     c.append(node('p', ready ? guide.verification.pages + ' pages · rendered-page review reported for this file' : 'Word creation and rendered-page review are pending.', 'muted section-gap'));
     c.append(button('Download Word file', () => downloadGuide(current.id, kind, feature), true, ready));
-    if (guide.text) c.append(node('p', guide.text, 'details section-gap'));
+    if (guide.text) c.append(renderDocument(guide.text, 'section-gap'));
   }
   return c;
 }
@@ -96,7 +255,7 @@ function card(title, content) {
 function empty(title, text) {
   const e = node('div', undefined, 'empty'); e.append(node('div', '◇', 'empty-icon'), node('h2', title), node('p', text)); return e;
 }
-function list(items) { const e = node('ul', undefined, 'details-list'); for (const item of items) e.append(node('li', item)); return e; }
+function list(items) { const e = node('ul', undefined, 'details-list'); for (const item of items) { const li = node('li'); li.append(renderDocument(item)); e.append(li); } return e; }
 function table(headers, rows) {
   const e = node('table'), head = node('thead'), row = node('tr'); headers.forEach(h => row.append(node('th', h))); head.append(row); e.append(head);
   const body = node('tbody'); for (const data of rows) { const row = node('tr'); for (const cell of data) { const td = node('td'); td.append(cell instanceof Node ? cell : node('span', cell)); row.append(td); } body.append(row); } e.append(body); return e;
@@ -123,19 +282,25 @@ function ownerBanner() {
 function actions(current) {
   const box = node('div', undefined, 'actions'), online = state.owner.connected;
   if (!current) return box;
+  if (current.trashed_at) return box;
   const busy = [...commandRequests.values()].includes(current.id) || state.commands.some(c => c.job_id === current.id && ['pending', 'running', 'uncertain'].includes(c.status));
   const add = (text, action, primary = false) => box.append(button(text, () => openAction(action, current), primary, online && (!busy || ['pause', 'cancel'].includes(action))));
   if (current.lifecycle === 2 || current.needs_migration) {
     if (current.needs_migration) add('Adopt staged workflow', 'migrate-workflow', true);
     else {
-      if (current.offer) add(({ 'approve-stage': 'Approve & continue', 'approve-merge': current.workspace?.policy === 'current-branches' ? 'Approve integration' : 'Approve merge', 'start-feature': 'Start next feature', 'start-acceptance': 'Start product acceptance' })[current.offer.kind], current.offer.kind, true);
+      if(current.workflow_profile==='streamlined'&&current.offer?.kind==='approve-stage'){
+        const library=current.plan_library,master=library?.master||current.plan;
+        box.append(node('p','Approving plan v'+(library?.currentVersion?.number||'current')+' · Budget: '+(master?.budget===''||master?.budget==null?'Not specified — resolve before approval':String(master.budget))+' · '+(master?.features?.length||1)+' feature(s). '+(current.mode==='feature'?'Approval starts this feature within the displayed scope.':'Start feature remains a separate decision.'),'details'));
+        if(master?.summary)box.append(renderDocument(master.summary));
+      }
+      if (current.offer) add(({ 'approve-stage': current.workflow_profile === 'streamlined' ? current.mode === 'feature' ? 'Approve plan & start feature' : 'Approve master plan' : 'Approve & continue', 'approve-merge': current.workspace?.policy === 'current-branches' ? 'Approve integration' : 'Approve merge', 'start-feature': 'Start next feature', 'start-acceptance': 'Start product acceptance' })[current.offer.kind], current.offer.kind, true);
       if (['awaiting-stage', 'ready-feature', 'ready-acceptance', 'blocked', 'paused'].includes(current.status) && !(current.phase === 'final' && current.requires_specification_revision)) add('Request changes', 'revise');
       if (current.mode === 'product' && current.phase !== 'product' && ['awaiting-stage', 'blocked', 'paused'].includes(current.status)) add('Revise product roadmap', 'revise-product');
       if (['planning', 'running', 'reviewing'].includes(current.status)) add('Pause', 'pause');
       if (current.status === 'paused') add('Resume current stage', 'resume');
     }
     if (!['merged', 'cancelled'].includes(current.status)) add('Cancel work', 'cancel');
-    if (busy) box.append(node('span', 'Waiting for the current command. See Activity.', 'muted'));
+    if (busy) box.append(node('span', state.commands.find(c=>c.job_id===current.id&&['pending','running','uncertain'].includes(c.status))?.status==='pending' ? 'Queued — waiting for the connected owner to acknowledge.' : 'The current command is active. See Activity.', 'muted'));
     return box;
   }
   if (current.status === 'awaiting-plan') { add('Approve plan and start', 'approve-plan', true); add('Request plan changes', 'revise'); }
@@ -167,14 +332,15 @@ function workflowContent(current) {
   e.append(node('p', current.title + ' · ' + label(current.phase) + (current.active_feature ? ' / ' + current.active_feature : ''), 'details'), stages);
   const d = current.deliverables.find(d => d.stage === current.stage);
   if (d) {
-    e.append(node('h3', d.summary), node('pre', deliverableText(d.content), 'deliverable'));
+    e.append(renderDocument(d.summary, 'stage-summary'), renderDocument(d.content, 'deliverable'));
     if (d.limitations.length) e.append(node('h3', 'Limitations'), list(d.limitations));
     if (d.coverage.length) e.append(table(['Acceptance criterion', 'Passing check'], d.coverage.map(c => [c.requirement, c.check])));
   } else e.append(node('p', 'Preparing ' + label(current.stage) + '. The owner publishes the deliverable here before requesting your decision.', 'muted'));
   if (current.message) e.append(node('p', current.message, 'details'));
   if (current.stage === 'specification') e.append(planContent(current));
+  if(current.workflow_profile==='streamlined')e.append(node('p',current.plan_library?.executionNote||'Dashboard execution requires the original connected and listening owner.','muted'));
   if (['implementation', 'qa', 'integration', 'acceptance', 'final-merge', 'design'].includes(current.stage)) e.append(previewLink(current));
-  e.append(node('p', 'Approval permits only the next displayed stage. No automatic next-feature start, push or deployment.', 'muted'));
+  e.append(node('p', current.workflow_profile === 'streamlined' ? 'Feature consent includes implementation, documentation, checks and independent reviews. Integration and starting the next feature are separate decisions.' : 'Approval permits only the next displayed stage. No automatic next-feature start, push or deployment.', 'muted'));
   return e;
 }
 function featureBoard(current) {
@@ -192,14 +358,14 @@ function mobileRoadmapProposal(current) {
     try {
       const p = JSON.parse(match[1]);
       if (p.kind !== 'mobile-product-proposal' || p.version !== 1 || p.status !== 'proposed' || !text(p.title) ||
-          !text(p.source_repo) || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(p.source_commit) || !text(p.output_repo) ||
-          !Array.isArray(p.platforms) || !p.platforms.length || new Set(p.platforms).size !== p.platforms.length || !p.platforms.every(v => ['android', 'ios'].includes(v)) ||
+          !text(p.source_repo) || !/^[a-f0-9]{40}$/.test(p.source_commit) || !text(p.output_repo) ||
+          !Array.isArray(p.platforms) || !p.platforms.length || !p.platforms.every(v => ['android', 'ios'].includes(v)) ||
           !['expo-native', 'capacitor'].includes(p.strategy) || !['scope', 'excluded', 'prerequisites', 'release_checks'].every(k => strings(p[k])) ||
           !text(p.execution) || !Array.isArray(p.features) || !p.features.length || p.features.length > 100) continue;
       const seen = new Set(), screens = new Set(); let valid = true;
       for (const f of p.features) {
         if (!/^[A-Za-z][A-Za-z0-9_-]{0,59}$/.test(f.id) || seen.has(f.id) || !text(f.title) ||
-            !text(f.portal, 120) || f.status !== 'proposed' ||
+            !['shared', 'learner', 'parent'].includes(f.portal) || f.status !== 'proposed' ||
             !Array.isArray(f.depends_on) || !f.depends_on.every(id => seen.has(id)) || new Set(f.depends_on).size !== f.depends_on.length ||
             !strings(f.web_screens) || !f.web_screens.length || !strings(f.acceptance) || !f.acceptance.length) { valid = false; break; }
         seen.add(f.id);
@@ -216,7 +382,7 @@ function deliverableText(content) {
 function mobileRoadmapCard(p) {
   const box = card(p.title);
   box.append(badge('proposed'), node('p', 'Proposed release plan. No conversion feature has started; this is not implementation approval.', 'details section-gap'));
-  box.append(list(['Portals: ' + [...new Set(p.features.map(f => f.portal))].join(', '), 'Platforms: ' + p.platforms.join(', '), 'Approach: ' + label(p.strategy),
+  box.append(list(['Portals: learner and parent', 'Platforms: ' + p.platforms.join(', '), 'Approach: ' + label(p.strategy),
     'Read-only web reference: ' + p.source_repo, 'Source commit: ' + p.source_commit, 'Mobile output: ' + p.output_repo,
     'Mapped web routes: ' + p.screen_count]));
   box.append(node('h3', 'Ordered feature delivery'), table(['Order / feature', 'Portal', 'Depends on', 'Acceptance / web screens', 'State'], p.features.map((f, i) => [
@@ -231,10 +397,11 @@ function planContent(current) {
   const e = node('div');
   if (!current?.plan) return empty('The plan comes first', 'Submit your requirements. The owner will prepare a scoped plan for your approval.');
   const p = current.plan;
-  e.append(node('p', p.summary, 'details'), node('h3', 'Scope'), list(p.scope), node('h3', 'Acceptance checks'), list(p.acceptance),
+  e.append(renderDocument(p.summary), node('h3', 'Scope'), list(p.scope), node('h3', 'Acceptance checks'), list(p.acceptance),
     node('h3', 'Permissions'), list(p.permissions), node('h3', 'Budget'), node('p', p.budget === '' ? 'Not specified — resolve before approval.' : String(p.budget), 'details'),
     node('h3', p.repositories ? 'Repository baseline snapshot' : 'Merge target'), node('p', p.target_branch), node('code', p.base_commit));
   if (p.repositories) e.append(table(['Repository', 'Existing branch', 'Baseline commit'], p.repositories.map(r => [r.path, r.branch, r.base_commit])));
+  if (p.features?.length) { e.append(node('h3','Feature scope','section-gap')); for(const feature of p.features){const details=node('details');details.append(node('summary',feature.id+' · '+feature.title),node('p','Depends on: '+(feature.depends_on.join(', ')||'None')),renderDocument(feature.brief||'Inherits the master scope.'),list(feature.acceptance));if(feature.design)details.append(node('h4','Design'),renderDocument(feature.design));if(feature.readiness?.length)details.append(node('h4','Before Start feature'),list(feature.readiness));e.append(details);} }
   if (p.integrations?.length) {
     e.append(node('h3', 'Approved tool scope', 'section-gap'), table(['Tool', 'Operations / limits'], p.integrations.map(s => [s.tool,
       s.operations.join(', ') + ' · ' + s.max_calls + ' invocations' + (s.targets ? ' · Targets: ' + s.targets.join(', ') + ' · Model: ' + s.model + ' · $' + s.max_usd + ' per scan (best effort), ' + s.max_turns + ' turns per agent' : '')])));
@@ -248,6 +415,11 @@ function activity(limit = 100) {
   for (const entry of state.activity.slice(0, limit)) { const li = node('li'); li.append(node('time', new Date(entry.time).toLocaleString()), node('span', entry.message)); ul.append(li); }
   if (!state.activity.length) ul.append(node('li', 'Activity will appear here as setup and work progress.'));
   return ul;
+}
+function workflowFields(){
+ const streamlined=$('workflow-profile')?.value==='streamlined';
+ $('request-scope-note').textContent=streamlined?'Prepare a complete master plan from the current code. Review its requirements, design, feature scope and budget before approval. Start each feature explicitly; implementation, docs, tests and reviews run within that consent. Integration remains a separate decision. Planning can consume provider usage.':'Strict starts feasibility and keeps a separate human approval at every later stage. Planning can consume provider usage. Preserve existing edits and reconcile the selected workspace before implementation.';
+ const submit=$('request-form')?.querySelector?.('button[type="submit"]');if(submit)submit.textContent=streamlined?'Prepare master plan':'Start feasibility';
 }
 function render() {
   if (!$('request-dialog').open) { $('factory-purpose').value = state.purpose || 'software'; mobileFields(); }
@@ -272,16 +444,23 @@ function render() {
     $('request-scope-note').textContent = existing ?
       'Start authorizes feasibility analysis in the selected repositories. Later stages require approval. Preserve existing edits and reconcile selected repositories before implementation. No new branches or Git merges. Analysis can consume provider usage.' :
       'Start authorizes a fresh named branch and feasibility analysis. Each later stage needs approval. Existing changes must be reconciled before switching branches. Analysis can consume provider usage.';
+    workflowFields();
   }
-  headingText.append(node('p', page === 'overview' ? 'YOUR DEVELOPMENT WORKSPACE' : 'FACTORY / ' + titles[page].toUpperCase(), 'eyebrow'), node('h1', page === 'overview' ? 'From idea to working software.' : titles[page]), node('p', page === 'overview' ? 'One place to plan, build, review, and approve your app.' : page === 'setup' ? 'Know what is ready, what needs attention, and what comes next.' : 'Actual progress and evidence from your project.', 'subtitle'));
+  headingText.append(node('p', page === 'overview' ? 'YOUR DEVELOPMENT WORKSPACE' : 'FACTORY / ' + titles[page].toUpperCase(), 'eyebrow'), node('h1', page === 'overview' ? 'From idea to working software.' : titles[page]), node('p', page === 'overview' ? 'One place to plan, build, review, and approve your app.' : page === 'setup' ? 'Know what is ready, what needs attention, and what comes next.' : page==='preview' ? 'Review sample screen concepts and the reported app preview.' : page==='plan' ? 'Review scope, compare drafts and approve the exact plan version.' : 'Actual progress and evidence from your project.', 'subtitle'));
   heading.append(headingText);
-  const canRequest = state.owner.connected && !state.jobs.some(j => !['merged', 'cancelled'].includes(j.status)) && !state.commands.some(c => c.action === 'request' && ['pending', 'running', 'uncertain'].includes(c.status));
+  const canRequest = state.owner.connected && !state.jobs.some(j => !j.trashed_at && !['merged', 'cancelled'].includes(j.status)) && !state.commands.some(c => c.action === 'request' && ['pending', 'running', 'uncertain'].includes(c.status));
   heading.append(button('＋ New request', () => $('request-dialog').showModal(), true, canRequest)); main.append(heading);
+  if(!state.owner.connected&&!['overview','setup'].includes(page))main.append(node('p','Owner disconnected. Local drafts and exports remain available; AI commands need the original owner session connected and listening.','muted'));
   if (page === 'overview' || page === 'setup') main.append(ownerBanner());
   if (state.jobs.length > 1) {
     const select = node('select', undefined, 'job-select'); select.setAttribute('aria-label', 'Select job');
-    for (const j of [...state.jobs].reverse()) { const option = node('option', label(j.status) + ' · ' + j.requirements.slice(0, 40)); option.value = j.id; select.append(option); }
+    for (const j of [...state.jobs].reverse()) { const option = node('option', (j.trashed_at?'Trashed · ':label(j.status)+' · ') + j.requirements.slice(0, 40)); option.value = j.id; select.append(option); }
     select.value = current.id; select.onchange = () => { selectedJob = select.value; render(); }; main.append(select);
+  }
+  const trashed=state.jobs.filter(j=>j.trashed_at);
+  if(trashed.length&&['overview','plan'].includes(page)){const trash=card('Plan trash');for(const archived of trashed)trash.append(button('View archived plan: '+(archived.title||archived.requirements.slice(0,40)),()=>{selectedJob=archived.id;page='plan';render();}));main.append(trash);}
+  if (current?.trashed_at && ['overview','plan','features','preview','docs'].includes(page)) {
+    const archived=card('Plan trash', node('p','This plan is archived. Its history and application code are preserved.'));archived.append(button('Restore plan',()=>planCommand(current,'restore'),true));main.append(archived,planLibrary(current),planFiles(current)); return;
   }
   if (page === 'mobile') {
     const proposal = mobileRoadmapProposal(current);
@@ -320,10 +499,10 @@ function render() {
     const split = node('div', undefined, 'split'), progress = card('Current work');
     if (!current) { const e = empty('Your next idea starts here', 'Describe a complete app or one feature. Review the plan before the factory starts building.'); e.append(button('Prepare your first plan', () => $('request-dialog').showModal(), true, canRequest)); progress.append(e); }
     else {
-      progress.append(badge(current.status), node('p', current.requirements, 'details section-gap'));
-      if (current.lifecycle === 2) progress.append(workflowContent(current));
+      progress.append(badge(current.status), renderDocument(current.requirements, 'section-gap'));
+      if (current.lifecycle === 2) {progress.append(actions(current));if(current.status==='blocked'&&current.message)progress.append(node('p',current.message,'error'));const details=node('details');details.open=current.status==='blocked';details.append(node('summary','Current deliverable and evidence'),workflowContent(current));progress.append(details);}
       else { const stages = node('div', undefined, 'stage-row'); for (const [name, states] of [['Plan', ['planning', 'awaiting-plan']], ['Build', ['running', 'paused']], ['Review', ['reviewing']], ['Approve', ['awaiting-merge']], ['Merge', ['merged']]]) stages.append(node('span', name, 'stage' + (states.includes(current.status) ? ' active' : ''))); progress.append(stages); }
-      if (current.message && current.lifecycle !== 2) progress.append(node('p', current.message, 'muted')); progress.append(actions(current));
+      if (current.message && current.lifecycle !== 2) progress.append(node('p', current.message, 'muted')); if(current.lifecycle!==2)progress.append(actions(current));
       if (current.preview) { const link = node('a', 'Open app preview ↗'); link.href = current.preview; link.target = '_blank'; link.rel = 'noopener noreferrer'; progress.append(link); }
     }
     const recent = card('Latest activity', activity(5)); split.append(progress, recent); main.append(split);
@@ -370,18 +549,24 @@ function render() {
       c.average_known_tokens === null ? 'Unavailable' : Math.round(c.average_known_tokens).toLocaleString() + ' (' + c.token_samples + ' samples)'
     ]))));
   } else if (page === 'plan') {
-    const c = card(current ? 'Current stage & decision' : null, workflowContent(current)); if (current) { c.append(actions(current)); if (current.design) c.append(node('h3', 'Design reference', 'section-gap'), node('p', current.design, 'details')); } main.append(c);
+    if (current?.plan_library) main.append(planLibrary(current));
+    const c = card(current ? 'Current stage & decision' : null, workflowContent(current)); if (current) { c.append(actions(current)); if (current.design) c.append(node('h3', 'Design reference', 'section-gap'), renderDocument(current.design)); } main.append(c);
     if (current?.mode === 'product') main.append(card('Features', featureBoard(current)));
     for (const f of current?.lifecycle === 2 ? current.features : []) {
       const details = node('details'); details.append(node('summary', f.title + ' · ' + label(f.status)), node('code', f.workspace.branch));
-      for (const d of f.stages || []) details.append(node('h3', label(d.stage) + (d.approved ? ' · approved' : ''), 'section-gap'), node('pre', d.content));
+      for (const d of f.stages || []) details.append(node('h3', label(d.stage) + (d.approved ? ' · approved' : ''), 'section-gap'), renderDocument(d.content));
       if (f.checks?.length) details.append(node('h3', 'Feature checks', 'section-gap'), checksList(f.checks));
       if (f.reviews?.length) details.append(table(['Role', 'Verdict', 'Summary', 'Commit'], f.reviews.map(r => [r.role, r.verdict, r.summary, r.commit.slice(0, 12)])));
       if (f.workspace.prepared) details.append(button('View committed feature changes', async () => { try { const result = await api('workspace/diff?job=' + encodeURIComponent(current.id) + '&feature=' + encodeURIComponent(f.id)); details.append(node('pre', result.diff || 'No tracked changes.')); } catch (error) { toast(error.message, true); } }));
       main.append(card(null, details));
     }
     if (current?.decisions?.length) main.append(card('Approval history', table(['Stage', 'Unit', 'Decision', 'Time'], current.decisions.map(d => [label(d.stage), d.unit, label(d.action), new Date(d.time).toLocaleString()]))));
-    for (const d of current?.deliverables?.filter(d => d.stage !== current.stage) || []) { const details = node('details'); details.append(node('summary', label(d.stage) + (d.approved ? ' · approved' : '')), node('pre', d.content)); main.append(card(null, details)); }
+    for (const d of current?.deliverables?.filter(d => d.stage !== current.stage) || []) { const details = node('details'); details.append(node('summary', label(d.stage) + (d.approved ? ' · approved' : '')), renderDocument(d.content)); main.append(card(null, details)); }
+  } else if (page === 'features') {
+    main.append(card('Feature delivery queue', featureBoard(current)), actions(current));
+    for (const feature of current?.features || []) { const c=card(feature.id+' · '+feature.title); c.append(badge(feature.status),node('p',feature.brief||'Inherits the master requirements and design.'),list(feature.acceptance));if(feature.readiness?.length)c.append(node('h3','Readiness'),list(feature.readiness),node('p',feature.readiness_result?'Readiness evidence recorded for this plan.':'The owner must record these checks before Start feature.','muted')); main.append(c); }
+    if (current?.plan_library?.codeAnalysis.length) main.append(card('Existing code assessment',table(['Feature','Code','Evidence'],current.plan_library.codeAnalysis.map(f=>[f.feature_id,f.status,f.detail+'\n'+f.files.join(', ')]))));
+    main.append(node('p','Code presence and accepted delivery are separate. A present feature still needs verified evidence before acceptance.','muted'));
   } else if (page === 'workspace') {
     const w = state.workspace;
     if (w.policy === 'current-branches') {
@@ -399,11 +584,12 @@ function render() {
     main.append(diff);
     if (current?.merge_history?.length) main.append(card('Accepted integrations', table(['Source branch', 'Target', 'Commit'], current.merge_history.map(m => [m.branch, m.target, m.commit]))));
   } else if (page === 'preview') {
+    if (current?.plan_library) main.append(designGallery(current));
     main.append(card('Current local app / prototype', previewLink(current)));
     if (current?.accepted_preview) main.append(card('Last accepted product checkpoint', state.workspace.commit === current.accepted_preview.commit && !state.workspace.dirty ? previewLink({ preview: current.accepted_preview.url, preview_commit: current.accepted_preview.commit, commit: current.accepted_preview.commit, workspace: { branch: current.accepted_preview.branch } }) : node('p', current.accepted_preview.branch + ' / ' + current.accepted_preview.commit + '. The shared local server is now on another workspace version; this is a historical checkpoint, not a separate running preview.', 'muted')));
-    if (current?.design) main.append(card('Supplied design reference', node('p', current.design, 'details')));
+    if (current?.design) main.append(card('Supplied design reference', renderDocument(current.design)));
     const design = current?.deliverables?.find(d => d.stage === 'design');
-    main.append(card('System & UI design', design ? node('pre', design.content) : node('p', 'Design appears when the design stage is prepared. Text diagrams, data models, API examples and local prototypes can be included.', 'muted')));
+    main.append(card('System & UI design', design ? renderDocument(design.content) : node('p', 'Design appears when the design stage is prepared. Text diagrams, data models, API examples and local prototypes can be included.', 'muted')));
     main.append(node('p', 'The preview is served by your application process, separate from this dashboard. After each feature is integrated, the owner refreshes it for the accepted product and reports the served commit.', 'muted'));
   } else if (page === 'agents') {
     main.append(card('Configured roles', table(['Role', 'Provider', 'Configured model'], state.roles.map(r => [r.role, r.provider, r.model || 'Existing owner session']))));
@@ -414,7 +600,9 @@ function render() {
     else { main.append(card('Acceptance checks', current.checks.length ? checksList(current.checks) : node('p', 'No acceptance checks recorded yet.', 'muted')));
       main.append(card('Independent reviews', current.reviews.length ? table(['Role', 'Verdict', 'Findings', 'Commit'], current.reviews.map(r => [r.role, badge(r.verdict), r.summary, r.commit.slice(0, 10)])) : node('p', 'Security, UX, UI, code and QA reviews are pending.', 'muted'))); }
     for (const result of current?.integration_checks || []) main.append(card('Post-merge verification · ' + result.unit + ' / ' + result.commit.slice(0, 12), checksList(result.checks)));
+    for(const feature of current?.features||[])if(feature.checks?.length||feature.reviews?.length){const details=node('details');details.append(node('summary',feature.id+' · '+feature.title+' · '+label(feature.status)),checksList(feature.checks||[]));if(feature.reviews?.length)details.append(table(['Role','Verdict','Findings'],feature.reviews.map(r=>[r.role,r.verdict,r.summary])));main.append(card('Feature evidence',details));}
   } else if (page === 'docs') {
+    if (current?.plan_library) main.append(planFiles(current));
     const box = node('div', undefined, 'grid'); for (const [kind, name] of [['developer', 'Developer guide'], ['user', 'End-user manual']]) box.append(wordCard(current, kind, name, current?.documentation.find(d => d.kind === kind)));
     main.append(box, node('p', 'Documentation deliverables are Word .docx files. Downloads use the exact committed version whose file hash matches its reported page review. Rendered images and private review logs are kept outside the download endpoint.', 'muted'));
     for (const feature of current?.features || []) if (feature.documentation?.length) {
@@ -428,29 +616,32 @@ function render() {
   }
 }
 function openAction(action, current) {
+  $('action-dialog').querySelector?.('.dialog-error')?.remove();
   if (action === 'approve-stage') {
     if (current?.offer?.kind !== action || !current.offer.id) { toast('No current stage offer. Refresh and review the work.', true); return; }
     return submitCommand({ action, job_id: current.id, offer_id: current.offer.id, revision: state.revision });
   }
   const names = { 'start-feature': 'Start next feature', 'start-acceptance': 'Start product acceptance', 'migrate-workflow': 'Adopt staged workflow', 'approve-plan': 'Approve plan and start', 'approve-merge': 'Approve the reviewed merge', revise: 'Request changes', 'revise-product': 'Revise product roadmap', rework: 'Request rework', pause: 'Pause work', resume: 'Resume work', cancel: 'Cancel this job', 'check-live': 'Check live model access' };
   if (current?.workspace?.policy === 'current-branches') names['approve-merge'] = 'Approve integration';
-  if (['pause', 'resume', 'cancel'].includes(action)) { submitCommand({ action, job_id: current.id, revision: state.revision }); return; }
+  if (['pause', 'resume'].includes(action)) { submitCommand({ action, job_id: current.id, revision: state.revision }); return; }
   actionContext = { action, ...(current ? { job_id: current.id } : {}), revision: state.revision, ...(['approve-plan', 'approve-merge', 'start-feature', 'start-acceptance'].includes(action) ? { offer_id: current.offer?.id } : {}) };
   actionJobSnapshot = current ? JSON.stringify(current) : null;
   $('action-title').textContent = names[action]; $('action-submit').textContent = names[action]; $('action-details').replaceChildren();
   $('note-field').hidden = !['revise', 'revise-product', 'rework'].includes(action); $('action-note').value = ''; $('action-note').required = !$('note-field').hidden;
   $('revision-stage').replaceChildren();
-  for (const s of (action === 'revise-product' ? ['feasibility', 'requirements', 'specification', 'design'].map(id => ({ id, label: label(id) })) : current?.timeline?.filter(s => s.status !== 'locked') || [])) { const o = node('option', s.label); o.value = s.id; $('revision-stage').append(o); }
+  for (const s of (action === 'revise-product' ? (current.workflow_profile==='streamlined'?['specification']:['feasibility', 'requirements', 'specification', 'design']).map(id => ({ id, label: label(id) })) : current?.timeline?.filter(s => s.status !== 'locked') || [])) { const o = node('option', s.label); o.value = s.id; $('revision-stage').append(o); }
   $('revision-stage').value = action === 'revise-product' || (current?.requires_specification_revision && current.timeline?.some(s => s.id === 'specification' && s.status !== 'locked')) ? 'specification' : current?.stage || '';
   $('revision-stage').hidden = current?.lifecycle !== 2;
-  if (action === 'start-feature') { const f = current.features.find(f => f.status !== 'accepted'); $('action-details').append(node('p', 'Start ' + f.title + ' on ' + f.workspace.branch + '. Begin with its requirements; implementation needs later approval.'), list(f.acceptance)); }
+  if (action === 'start-feature') { const f = current.features.find(f => f.status !== 'accepted'); $('action-details').append(node('p', 'Start ' + f.title + ' on ' + f.workspace.branch + (current.workflow_profile === 'streamlined' ? '. This authorizes its implementation, documentation, checks, QA and independent reviews under the approved master plan. Approve integration separately.' : '. Begin with its requirements; implementation needs later approval.')), list(f.acceptance)); }
   else if (action === 'start-acceptance') $('action-details').append(node('p', 'All features are integrated. Authorize complete product acceptance and fresh product reviews. Final ' + (current.workspace?.policy === 'current-branches' ? 'integration' : 'target merge') + ' needs another approval.'));
   else if (action === 'migrate-workflow') $('action-details').append(node('p', 'Preserve previous work/history and return to feasibility on a fresh branch. No previous approval will be treated as approval of a new stage. Reconcile existing processes and changes first.'));
   if (action === 'approve-plan') $('action-details').append(planContent(current), node('p', 'This approves implementation and routine checks within the displayed scope. Final target merge requires a separate approval.', 'muted section-gap'));
   else if (action === 'approve-merge') {
+    $('action-details').append(node('p',(current.checks||[]).filter(c=>c.status==='passed'&&c.commit===current.commit).length+' passing checks · '+new Set((current.reviews||[]).filter(r=>r.verdict==='PASS'&&r.commit===current.commit).map(r=>r.role)).size+' of 5 independent reviews passed for this commit. Review details are available in Reviews.','details'));
     if (current.workspace?.policy === 'current-branches') $('action-details').append(node('p', 'Accept this exact reviewed repository snapshot on the existing branches, then run integration checks. Source changes are already on these branches. This performs no Git merge, push or deployment.'), node('code', current.commit), table(['Repository', 'Branch', 'Commit'], current.workspace.reviewed.map(r => [r.path, r.branch, r.commit])));
     else $('action-details').append(node('p', 'Merge ' + (current.workspace?.branch || 'the reviewed result') + ' into ' + (current.workspace?.target || current.plan.target_branch) + ' after checking that its evidence and target are still current.'), node('code', current.commit), node('p', 'Run post-merge checks, then wait. This does not start the next feature, push or deploy.', 'muted section-gap'));
   }
+  else if(action==='cancel')$('action-details').append(node('p','Cancel this Factory delivery? This stops the queue after actual workers are reconciled. Application code and history are preserved; this job will not resume as an active delivery.'));
   else if (action === 'check-live') $('action-details').append(node('p', 'Authorize one bounded probe per unique configured model/environment, sequentially, and a continuation check of the same builder session. These requests can consume provider usage. No automatic retries or account changes.'), list(state.models), node('p', 'The owner records actual identity, terminal results and available usage; unavailable capabilities remain blocked.', 'muted'));
   $('action-dialog').showModal();
 }
@@ -474,20 +665,21 @@ async function submitCommand(input) {
 }
 async function refresh() {
   if (refreshing) return; refreshing = true;
-  try { const next = await api('state'); const nextSignature = JSON.stringify(next); if (!state && next.purpose === 'web-to-mobile') page = 'mobile'; state = next; if (signature !== nextSignature) { signature = nextSignature; render(); } $('connection-status').textContent = 'Connected to local dashboard'; }
+  try { const next = await api('state'); const nextSignature = JSON.stringify({...next,revision:0}); if (!state && next.purpose === 'web-to-mobile') page = 'mobile'; state = next; if (signature !== nextSignature) {const focused=document.activeElement;const typing=focused&&['TEXTAREA','INPUT','SELECT'].includes(focused.tagName)&&$('main').contains?.(focused);if(!typing){signature = nextSignature; render();}} $('connection-status').textContent = 'Connected to local dashboard'; }
   catch (e) { $('connection-status').textContent = 'Disconnected · ' + e.message; }
   finally { refreshing = false; }
 }
-for (const e of document.querySelectorAll('[data-page]')) e.addEventListener('click', () => { if (e.dataset.page !== 'integrations') credentialDrafts.clear(); page = e.dataset.page; if (state) render(); });
+for (const e of document.querySelectorAll('[data-page]')) e.addEventListener('click', () => { if (e.dataset.page !== 'integrations') credentialDrafts.clear(); page = e.dataset.page; if (state) render(); window.scrollTo?.(0,0);$('main').focus?.(); });
 document.querySelector('.brand').addEventListener('click', e => { e.preventDefault(); credentialDrafts.clear(); page = 'overview'; if (state) render(); });
 window.addEventListener('pagehide', () => credentialDrafts.clear());
 for (const e of document.querySelectorAll('[data-close]')) e.addEventListener('click', () => $(e.dataset.close).close());
-$('pair-form').addEventListener('submit', async e => { e.preventDefault(); token = $('pair-key').value.trim(); try { state = await api('state'); sessionStorage.setItem('factory-key', token); $('pair-dialog').close(); signature = ''; render(); } catch (error) { $('pair-error').textContent = error.message; } });
+for(const dialog of document.querySelectorAll('dialog'))dialog.addEventListener('close',()=>dialog.querySelector?.('.dialog-error')?.remove());
 function mobileFields() {
   const enabled = $('factory-purpose').value === 'web-to-mobile';
   $('mobile-fields').hidden = !enabled; $('source-repo').required = enabled;
   for (const e of $('mobile-fields').querySelectorAll('input, select')) e.disabled = !enabled;
 }
+$('workflow-profile')?.addEventListener('change',workflowFields);
 $('factory-purpose').addEventListener('change', mobileFields);
 $('request-form').addEventListener('submit', async e => {
   e.preventDefault(); const submit = e.submitter; submit.disabled = true;
@@ -495,7 +687,7 @@ $('request-form').addEventListener('submit', async e => {
   const mobile = purpose === 'web-to-mobile' ? { source_repo: $('source-repo').value.trim(), platforms: ['android', 'ios'].filter(p => $('platform-' + p).checked), strategy: $('mobile-strategy').value, api_base_url: $('api-base-url').value.trim() } : undefined;
   const form = new FormData(e.target), repositories = state.workspace_settings ? form.getAll('repositories') : undefined;
   if (repositories && !repositories.length) { toast('Select at least one repository for this request.', true); submit.disabled = false; return; }
-  const ok = await submitCommand({ action: 'request', revision: state.revision, input: { purpose, ...(mobile ? { mobile } : {}), ...(repositories ? { repositories } : {}), mode: form.get('mode'), title: $('work-title').value, target_branch: $('target-branch').value, requirements: $('requirements').value, design: $('design').value, allow_documentation: $('planning-docs').checked } });
+  const ok = await submitCommand({ action: 'request', revision: state.revision, input: { purpose, workflow_profile:$('workflow-profile').value, ...(mobile ? { mobile } : {}), ...(repositories ? { repositories } : {}), mode: form.get('mode'), title: $('work-title').value, target_branch: $('target-branch').value, requirements: $('requirements').value, design: $('design').value, allow_documentation: $('planning-docs').checked } });
   submit.disabled = false; if (ok) { $('request-dialog').close(); e.target.reset(); }
 });
 $('action-form').addEventListener('submit', async e => {
@@ -506,10 +698,102 @@ $('action-form').addEventListener('submit', async e => {
   if (!command.offer_id) {
     try {
       const latest = await api('state');
-      if (command.job_id && JSON.stringify(latest.jobs.find(j => j.id === command.job_id)) !== actionJobSnapshot) throw new Error('The work changed while this dialog was open. Review its current stage before submitting.');
+      if (command.job_id && command.action!=='cancel' && JSON.stringify(latest.jobs.find(j => j.id === command.job_id)) !== actionJobSnapshot) throw new Error('The work changed while this dialog was open. Review its current stage before submitting.');
       command.revision = latest.revision;
     } catch (error) { toast(error.message, true); submit.disabled = false; await refresh(); return; }
   }
   const ok = await submitCommand(command); submit.disabled = false; if (ok) $('action-dialog').close();
 });
+// Versioned planning is independent of the owner execution queue. Editing a
+// draft never approves it, changes application source or advances a feature.
+async function planCommand(current,operation,extra={}) {
+  try {
+    const latest=await api('state'),fresh=latest.jobs.find(j=>j.id===current.id);
+    const displayed=JSON.stringify([current.plan_library?.currentVersion?.hash||current.plan_library?.versions.at(-1)?.hash,current.plan_library?.draft?.hash]);
+    if(displayed!==JSON.stringify([fresh?.plan_library?.currentVersion?.hash||fresh?.plan_library?.versions.at(-1)?.hash,fresh?.plan_library?.draft?.hash]))throw new Error('Plan or draft changed. Review its latest version first.');
+    const result=await api('plans/commands',{id:crypto.randomUUID(),job_id:current.id,revision:latest.revision,operation,...extra});
+    toast(result.queued?'Queued for the connected owner.':operation==='save-draft'?'Draft saved. Affected features: '+(result.impact.affected.join(', ')||'none'):'Plan updated.');
+    signature='';await refresh();return result;
+  }catch(error){toast(error.message,true);}
+}
+function planEditor(current) {
+  const dialog=node('dialog',undefined,'plan-editor'),form=node('form');
+  const plan=structuredClone(current.plan_library.draft?.plan||current.plan_library.master);
+  form.append(node('h2','Edit plan draft'),node('p','Save and review the impact before submitting for master-plan approval. Existing approved versions remain in history.','muted'));
+  const field=(caption,value,rows=3)=>{const label=node('label',caption),input=node('textarea');input.value=value;input.rows=rows;input.required=true;input.maxLength=50000;label.append(input);form.append(label);return input;};
+  const summary=field('Plan summary',plan.summary),scope=field('Scope — one item per line',plan.scope.join('\n')),acceptance=field('Acceptance — one criterion per line',plan.acceptance.join('\n')),
+    permissions=field('Permissions — one item per line',plan.permissions.join('\n')),budget=field('Budget',String(plan.budget),2);
+  const featureFields=[],featuresBox=node('div');form.append(featuresBox);
+  const addFeature=feature=>{
+    const group=node('fieldset');group.append(node('legend',feature.id));featuresBox.append(group);
+    const f=(name,value)=>{const l=node('label',name),t=node('textarea');t.value=value;t.rows=2;t.maxLength=10000;l.append(t);group.append(l);return t;};
+    const record={feature,group,title:f('Title',feature.title),depends:f('Dependencies — comma separated',feature.depends_on.join(', ')),brief:f('Implementation brief',feature.brief||''),design:f('Feature design notes',feature.design||''),acceptance:f('Acceptance — one criterion per line',feature.acceptance.join('\n')),readiness:f('Readiness checks — one per line',(feature.readiness||[]).join('\n'))};featureFields.push(record);
+    const move=offset=>{const index=featureFields.indexOf(record),target=index+offset;if(target<0||target>=featureFields.length)return;[featureFields[index],featureFields[target]]=[featureFields[target],featureFields[index]];featuresBox.replaceChildren(...featureFields.map(f=>f.group));};
+    const controls=node('div',undefined,'actions');controls.append(button('Move earlier',()=>move(-1)),button('Move later',()=>move(1)),button('Remove feature',()=>{featureFields.splice(featureFields.indexOf(record),1);group.remove();}));group.append(controls);
+  };
+  for(const feature of plan.features||[])addFeature(feature);
+  if(plan.features)form.append(button('Add feature',()=>{let number=featureFields.length+1;while(featureFields.some(f=>f.feature.id==='F'+String(number).padStart(2,'0')))number++;const id='F'+String(number).padStart(2,'0');addFeature({id,title:'New feature',depends_on:[],acceptance:[],brief:''});featureFields.at(-1).title.focus();}));
+  const advanced=node('details'),raw=node('textarea');advanced.append(node('summary','Advanced plan fields and screen definitions (overrides the fields above)'));raw.value=JSON.stringify(plan,null,2);raw.rows=14;raw.maxLength=250000;raw.setAttribute('aria-label','Complete plan JSON');advanced.append(raw);form.append(advanced);
+  let rawEdited=false;raw.addEventListener('input',()=>rawEdited=true);
+  const save=button('Save draft',()=>{},true),close=button('Close',()=>dialog.close());save.type='submit';form.append(node('p','Changing shared scope or design requires affected features and their dependants to be revalidated. Repository selection and baseline cannot be changed here.','muted'),save,close);
+  form.addEventListener('submit',async event=>{
+    event.preventDefault();save.disabled=true;
+    try {
+      const lines=v=>v.split('\n').map(s=>s.trim()).filter(Boolean);
+      const featureDraft=f=>{const value={...f.feature,title:f.title.value,depends_on:f.depends.value.split(',').map(s=>s.trim()).filter(Boolean),acceptance:lines(f.acceptance.value)};if(f.brief.value)value.brief=f.brief.value;else delete value.brief;if(f.design.value)value.design=f.design.value;else delete value.design;if(f.readiness.value||f.feature.readiness)value.readiness=lines(f.readiness.value);return value;};
+      const next=rawEdited?JSON.parse(raw.value):{...plan,summary:summary.value,scope:lines(scope.value),acceptance:lines(acceptance.value),permissions:lines(permissions.value),budget:typeof plan.budget==='number'?Number(budget.value):budget.value,...(plan.features?{features:featureFields.map(featureDraft)}:{})};
+      if(!rawEdited&&next.features&&next.code_analysis){const baseline=next.repositories?.[0]?.base_commit||next.base_commit;next.code_analysis=next.code_analysis.filter(row=>next.features.some(f=>f.id===row.feature_id));for(const feature of next.features)if(!next.code_analysis.some(row=>row.feature_id===feature.id))next.code_analysis.push({feature_id:feature.id,status:'needs-verification',files:[],commit:baseline,detail:'New planned feature. Existing implementation must be assessed before delivery; no acceptance is claimed.'});}
+      if(await planCommand(current,'save-draft',{plan:next}))dialog.close();
+    }catch(error){toast(error.message,true);}finally{save.disabled=false;}
+  });
+  dialog.addEventListener('close',()=>dialog.remove());dialog.append(form);document.body.append(dialog);dialog.showModal();
+}
+function planLibrary(current) {
+  const library=current.plan_library,box=card('Master plan'),master=library.master;
+  box.append(badge(library.profile),node('p',library.profile==='streamlined'?'Approve the complete plan → Start feature → review evidence → Approve integration.':'Strict keeps the existing stage approvals. You can review a reversible switch to Streamlined.','details'));
+  box.append(node('p',library.executionNote,'muted'));
+  if(!master)return box;
+  if(library.draft)box.append(button('Review pending draft',()=>document.getElementById('plan-draft-'+current.id)?.scrollIntoView({behavior:'smooth',block:'start'}),true));
+  if(library.profile==='strict')box.append(node('p','Strict plans can save an editable draft. Review the optional workflow switch before submitting it as one consolidated master revision.','muted'));
+  box.append(planContent({...current,plan:master}));if(!current.trashed_at)box.append(button(library.profile==='strict'?'Edit draft (Strict submission needs workflow switch)':'Edit plan',()=>planEditor(current)));
+  const versions=node('div',undefined,'actions');
+  for(const version of library.versions)versions.append(button('View v'+version.number+' · '+version.status,async()=>{try{const saved=await api('plans/version?'+new URLSearchParams({job:current.id,version:version.id}));const d=node('dialog',undefined,'plan-editor');d.append(node('h2','Plan v'+saved.number),planContent({...current,plan:saved.plan}),button('Close',()=>d.close()));d.addEventListener('close',()=>d.remove());document.body.append(d);d.showModal();}catch(e){toast(e.message,true);}}));
+  box.append(node('h3','Version history','section-gap'),versions);
+  if(library.draft){
+    const unchanged=JSON.stringify(library.draft.plan)===JSON.stringify(master),draft=card(unchanged?'Draft matches current plan':'Draft ready to review'),impact=library.draft.impact;draft.id='plan-draft-'+current.id;
+    if(!current.trashed_at)draft.append(button('Submit revision for approval',()=>planCommand(current,'submit-revision'),true,library.profile==='streamlined'&&!unchanged),button('Discard draft',()=>planCommand(current,'discard-draft')),node('p','Submission prepares a new approval offer. It does not implement the draft. Strict plans must switch workflow before consolidated submission.','muted'));
+    const changed=Object.keys(library.draft.plan).filter(key=>JSON.stringify(master[key])!==JSON.stringify(library.draft.plan[key]));
+    draft.append(node('h3','Change impact'),list(['Changed sections: '+(changed.join(', ')||'none'),'Affected features: '+(impact.affected.join(', ')||'none'),'Removed features: '+(impact.removed.join(', ')||'none'),'Shared changes: '+(impact.sharedChanged.join(', ')||'none'),'Unchanged features: '+(impact.unchanged.join(', ')||'none')]),button('Compare changes',()=>{const d=node('dialog',undefined,'plan-editor'),columns=node('div',undefined,'comparison');columns.append(card('Current plan',planContent({...current,plan:master})),card('Draft',planContent({...current,plan:library.draft.plan})));d.append(node('h2','Compare plan changes'),node('p','Changed sections: '+(changed.join(', ')||'none'),'change-highlight'),columns,button('Close',()=>d.close()));d.addEventListener('close',()=>d.remove());document.body.append(d);d.showModal();}),node('h3','Proposed plan','section-gap'),planContent({...current,plan:library.draft.plan}));box.append(draft);
+  }
+  if(current.trashed_at)return box;
+  const maintenance=node('details');maintenance.append(node('summary','Plan actions'),node('p','Regeneration asks the connected owner to inspect current code and prepare a new plan for review. It preserves existing code and grants no implementation approval. Strict plans must use the reviewed workflow switch first.','muted'),button('Regenerate from current code',()=>planCommand(current,'regenerate'),false,state.owner.connected&&library.profile==='streamlined'),button('Delete plan → Plan trash',()=>{if(confirm('Move this plan to Plan trash? Its application code and history will be preserved, and you can restore it.'))planCommand(current,'trash');}));
+  if(library.profile==='strict'&&library.migration.eligible)maintenance.append(button('Review Streamlined migration',()=>{const d=node('dialog');d.append(node('h2','Switch this plan to Streamlined'),list([library.migration.next,library.migration.note,'Builder and existing code are preserved. Unaccepted work still requires Start feature.']),button('Switch workflow',async()=>{if(await planCommand(current,'migrate'))d.close();},true),button('Keep Strict',()=>d.close()));d.addEventListener('close',()=>d.remove());document.body.append(d);d.showModal();}));
+  if(library.rollbackAvailable)maintenance.append(button('Undo workflow switch',()=>planCommand(current,'rollback-migration')));
+  box.append(maintenance);return box;
+}
+function designGallery(current) {
+  const lib=current.plan_library,box=card('Screen previews'),revision=lib.draft||lib.currentVersion||lib.versions.at(-1),plan=lib.draft?.plan||lib.master;
+  if(!plan||!revision)return box;
+  box.append(node('p','Proposed screens with sample data. These previews support design review; app and device QA results are recorded separately.','muted'));
+  box.append(node('p','Responsive phone concepts · 430 px maximum layout width','muted'));
+  const prototype='/api/plans/preview?'+new URLSearchParams({job:current.id,version:revision.id,prototype:'1'}),link=node('a','Open clickable prototype');link.href=prototype;link.target='_blank';link.rel='noopener';box.append(link);
+  const grid=node('div',undefined,'design-gallery');
+  for(const screen of (plan.design||lib.previewDesign)?.screens||[{id:'',title:'Generated screen preview'}]){const cell=node('section'),frame=node('iframe');frame.title=screen.title+' sample design';frame.className='screen-kind-'+screen.kind;frame.loading='lazy';frame.src='/api/plans/preview?'+new URLSearchParams({job:current.id,version:revision.id,...(screen.id?{screen:screen.id}:{})});frame.setAttribute('sandbox','');cell.append(node('h3',screen.title),frame);grid.append(cell);}
+  box.append(grid,button('Use comfortable layout',()=>planCommand(current,'select-design',{variant:'comfortable'})),button('Use compact layout',()=>planCommand(current,'select-design',{variant:'compact'})));
+  const feedback=node('textarea'),feedbackKey='feedback-'+current.id;feedback.placeholder='What should change in these screens?';feedback.setAttribute('aria-label','Design feedback');feedback.maxLength=10000;feedback.value=uiDrafts.get(feedbackKey)||'';feedback.addEventListener('input',()=>uiDrafts.set(feedbackKey,feedback.value));box.append(feedback,button('Save design feedback',async()=>{if(!feedback.value.trim()){toast('Describe the requested design change.',true);return;}if(await planCommand(current,'design-feedback',{version:revision.id,note:feedback.value})){uiDrafts.delete(feedbackKey);feedback.value='';}}));
+  for(const note of lib.designFeedback.slice(-5))box.append(node('p','Version '+note.version+' · '+new Date(note.time).toLocaleString(),'muted'),renderDocument(note.note));return box;
+}
+function planFiles(current) {
+  const lib=current.plan_library,box=card('Downloadable plans');
+  const versions=node('select');versions.setAttribute('aria-label','Plan version to export');for(const v of lib.versions){const o=node('option','v'+v.number+' · '+v.status);o.value=v.id;versions.append(o);}if(lib.draft){const o=node('option','Current draft');o.value=lib.draft.id;versions.append(o);}versions.value=lib.draft?.id||lib.currentVersion?.id||lib.versions.at(-1)?.id||'';
+  const feature=node('select');feature.setAttribute('aria-label','Master plan or feature brief');const all=node('option','Complete master plan');all.value='';feature.append(all);for(const f of lib.master?.features||[]){const o=node('option',f.id+' · '+f.title);o.value=f.id;feature.append(o);}
+  const selectionKey='export-'+current.id,selection=uiDrafts.get(selectionKey);if(selection){if([...versions.options].some(o=>o.value===selection.version))versions.value=selection.version;if([...feature.options].some(o=>o.value===selection.feature))feature.value=selection.feature;}const remember=()=>uiDrafts.set(selectionKey,{version:versions.value,feature:feature.value});versions.addEventListener('change',remember);feature.addEventListener('change',remember);
+  box.append(node('p','First prepare the Word file, then use Download Word below when its page review is complete. Preparation does not download a file. Word files include scope, acceptance, budget, design screens and version history.','muted'),versions,feature,button('Prepare Word download',async()=>{try{const result=await api('plans/export',{id:crypto.randomUUID(),job_id:current.id,version:versions.value,...(feature.value?{feature:feature.value}:{})});toast(result.status==='ready'?'Word file is ready. Use Download Word below.':result.status==='rendered'?'Word file is prepared and waiting for page review. No file has downloaded yet.':'Preparing Word and rendered pages locally. Download Word will appear after page review.');signature='';await refresh();}catch(e){toast(e.message,true);}},true,Boolean(lib.master)&&!current.trashed_at));
+  for(const artifact of lib.artifacts){const c=card('v'+artifact.version_number+' · '+(artifact.feature||'Master plan'));c.append(badge(artifact.status),node('p','Plan status at export: '+(artifact.plan_status||'see the version label in the Word file'),'details'),node('p',artifact.message||'Preparing local document and screen previews.','muted'));
+    if(artifact.preview_images?.length)c.append(node('p',artifact.preview_images.length+' captured sample screens · '+artifact.preview_images[0].width+' × '+artifact.preview_images[0].height+' px','muted'));
+    if(artifact.status==='ready')c.append(button('Download Word',async()=>{try{const response=await apiResponse('plans/artifact?'+new URLSearchParams({job:current.id,id:artifact.id}));if(!response.ok)throw new Error((await response.json()).error);const url=URL.createObjectURL(await response.blob()),a=node('a');a.href=url;a.download='plan-v'+artifact.version_number+(artifact.feature?'-'+artifact.feature:'')+'.docx';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){toast(e.message,true);}},true));
+    if(artifact.status==='rendered')c.append(node('p',artifact.pages+' pages await inspection by the connected owner. Ask that owner to continue the local artifact review; this needs no new app stage approval.','details'));
+    box.append(c);
+  }return box;
+}
 refresh(); setInterval(refresh, 2000);

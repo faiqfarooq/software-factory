@@ -1,278 +1,54 @@
-# Factory: step-by-step guide
+# Reusable factory
 
-Use this guide to install Factory, open its dashboard and deliver work with your assistant. Daily use happens in the dashboard; the advanced command reference is for the owner/runner.
+This workspace includes the Factory version 3 planning upgrade. New dashboard requests default to **Streamlined**: approve one complete master plan and design, explicitly start each feature, let implementation/documentation/tests/QA/reviews complete within that consent, then approve its integration. Existing jobs retain **Strict** and its detailed stage gates until explicitly switched. All five independent reviews, technical approval and native evidence requirements remain. No automatic next-feature start or deployment.
 
-## 1. Prepare and choose an edition
+The primary dashboard is Overview, Plan, Design, Features, Reviews and Files. Plan supports editable drafts, comparison/impact, immutable approved versions, code-based regeneration, reversible Plan trash and restoration. Design provides sample screens and a clickable local prototype; select a layout and save feedback into planning. Files exports master plans and feature briefs to real Word documents before implementation, including scope, contracts, acceptance, design previews and decisions. Downloads become ready only after rendering and genuine inspection of every page by the owner. Word exports use installed Windows Word/PDF tooling and isolated local Chrome/Edge; unsupported hosts show the missing capability. No external rendering service is used.
 
-You need Node.js **22 or newer**, Git, an existing application folder and the tools/accounts for your chosen edition. The dashboard needs no npm install, framework build or Python server.
+Exact queued approval decisions survive elapsed time/reconnection. Changed source/offers/security configuration still invalidate them. Interrupted publication can be recovered without relaunching work; uncertain paid calls and Git side effects must be reconciled. The dashboard requires the original live owner for AI execution and cannot wake a closed agent or grant native host permissions. See [the version 3 owner protocol](runtime/WORKFLOW.md#workflow-profiles-and-master-plans-version-3). Older installation instructions below describe Strict stage flow where they list every stage gate; this upgrade changes only the project-local Factory, not other installations.
 
-| Edition flag | Owner | Workers |
-| --- | --- | --- |
-| claude-only | Existing Claude Code session | Claude |
-| codex-claude | Existing Codex session | Codex technical reviewers and Claude specialists |
-| low-cost | DeepSeek tool-calling runner | DeepSeek, Qwen and Kimi |
+Node.js 22+ and Git are the shared prerequisites. No npm install, Python dashboard server, build step, or framework is required.
 
-Models and ten role assignments are recorded in the app's factory/config.json. Configuration alone does not verify model availability. The API edition requires an existing or separately implemented provider runner with real read/search/write/test/Git tools. The package supplies its control interface, not that runner.
+The same dashboard supports **Software development** and **Web app to mobile app** requests, with any provider edition. For a dedicated mobile workspace, create a separate application folder and install with `node factory/setup.mjs --project "D:\mobile-app" --edition claude-only --purpose web-to-mobile`. Setup installs the factory only; the owner proposes the app baseline and dependencies through the staged workflow. Existing installations can choose the mobile purpose in New request without reinstalling.
 
-Keep your current app source, guides and settings. Review existing edits before branch preparation. An empty project needs a scoped, approved Git baseline before specification; setup does not create an app baseline.
+Supply the frontend's local Git root or credential-free HTTPS Git URL, Android/iOS targets and optional public API address. The factory analyses a committed frontend snapshot, proposes Expo native UI or Capacitor web UI reuse, maps screens and existing API contracts, and builds approved features sequentially in the mobile repo. The backend is reused without changes. Missing API/auth support blocks implementation until resolved. Remote cloning, dependencies, device tooling, signing and store publishing require their actual authorized scope. iOS native builds need appropriate Apple tooling or separately approved cloud builds; a browser preview is not a device test. This package coordinates real coding agents; it does not convert an app merely by saving a request.
 
-## 2. Install from the trusted package checkout
+Offline installer/bridge tests have been run on Windows with Node.js 22. Other platforms and live native/provider workflows require separate verification.
 
-In a terminal **at the software-factory repository root**:
+From a trusted checkout of this repository:
 
-~~~powershell
-node factory/setup.mjs --project "D:\my-app" --edition codex-claude
-~~~
+```text
+node factory/setup.mjs --project "D:\my-app"
+```
 
-Replace the folder and edition. Omit --edition to select it interactively. Review the local file proposal and approve setup once. The installer verifies its package, preserves existing work, records local checks and opens a private dashboard link. Keep its terminal running.
+Choose an edition, review the file/permission proposal and approve setup once. Setup verifies the package manifest, preserves existing work, installs the selected integration, checks local prerequisites and prints the local dashboard URL. Your browser connects automatically without a pairing key. It makes no paid requests. The command keeps serving the dashboard; leave that terminal open. In noninteractive automation specify `--edition claude-only --yes`; `--yes` approves only the displayed local setup scope. Use `--no-serve` for offline installation and `--verify` to verify the source bundle without installing.
 
-Setup authorizes local factory files only. Provider login, paid checks, dependency installs, app coding and publishing have their own scope. An assistant given an edition setup prompt can complete already-authorized setup and connect the owner in the same pass.
+Inside an installed app:
 
-Useful setup options, used **from the package checkout**:
-
-| Option | Use |
-| --- | --- |
-| --no-open | Print the link without opening a browser |
-| --no-serve | Install only; start the dashboard later |
-| --yes | Accept already-authorized local setup in automation; provide project and edition too |
-| --purpose web-to-mobile | Make mobile conversion the default request purpose |
-| --integrations context7,graphify | Enable selected optional integrations; no installs or remote calls |
-| --workspace current-branches --repositories frontend,backend | Coordinate selected existing repositories |
-| --migrate-launcher | Explicitly archive/replace an unmanaged hybrid Claude forwarder; other conflicts still stop |
-
-For the full list, run:
-
-~~~powershell
-node factory/setup.mjs --help
-~~~
-
-## 3. Open or reopen the dashboard
-
-Setup opens it the first time. Later, open a terminal **in your installed application folder**:
-
-~~~powershell
-cd D:\my-app
+```text
 node factory/runtime/cli.mjs start
-~~~
+```
 
-Open the private http://127.0.0.1:PORT/#KEY link printed in that terminal. Keep it running. The port is normally selected automatically; --port 56057 requests a specific port. Add --no-open to print the link without opening it.
+The dashboard's **Integrations** view enables only the tools you choose, checks local availability and shows real tool receipts/usage. Three bundled task skills are always available; Context7, Graphify, 21st.dev and Strix default off. Select optional capabilities during setup with `--integrations context7,graphify` or enable them later while idle. Setup does not install/authenticate external products or make remote calls. Enter API keys in the masked Integration fields or use the server environment. Saved keys override environment keys and can be removed to restore fallback. Windows uses current-user encryption in ignored .local/credentials.json; other platforms use an owner-only 0600 local file. Keys never enter config or public state. Plan approval must include the tool operations and invocation limits; Strix additionally needs exact authorized URL targets, model and per-scan budget/turn limits. The owner protocol documents actual adapter operations, role restrictions and recovery.
 
-The dashboard serves only on your local computer. Keep its pairing link private. After a server restart, use the newly printed link; old pairing keys stop working.
+Open the printed link, then invoke `/factory` in Claude or `$factory` in the hybrid Codex owner. A hybrid Claude launcher forwards to Codex. If skills are not discovered, refresh the host or explicitly ask it to read factory/runtime/WORKFLOW.md. The owner must listen using the documented protocol; an idle/closed chat cannot receive dashboard commands automatically. The API edition requires its configured DeepSeek tool-calling owner. The shared dashboard does not install or authenticate AI products, generate an API coding runner, or prove provider/model access.
 
-To stop the dashboard, first pause/finish active work and reconcile workers/tools. Then press **Ctrl+C** in its terminal. Do not start another server over an existing server lock.
+Use the dashboard checklist, then name a product/feature and its target branch. Each stage stops for human approval: feasibility, requirements, specification, design, implementation, QA and integration. Products plan first, then deliver separate named feature branches sequentially; **Start next feature** is always explicit. Workspace shows your actual application folder/branch/HEAD/files and requested diff; App & design shows the owner-reported local preview and served commit. Inspect source/app locally before approving merge. Final product acceptance and product-to-target merge need separate approvals. No push/deployment/branch deletion is implicit. Host permissions/login remain native; paid diagnostics require **Check live access**.
 
-## 4. Connect the owner and check readiness
+Each exact stage offer needs one approval, given in chat or the dashboard. **Approve & continue** submits directly, without a second confirmation dialog. Routine fixes, checks, reviewer work and evidence reruns within an approved stage continue without extra conversational approval. Native host/security prompts remain separate: the owner reuses approved commands and requests new access only when actually necessary. See the [approval cadence](runtime/WORKFLOW.md#approval-cadence-within-a-stage).
 
-Open the **application folder** in your assistant and invoke:
+For stage-only interruptions in a trusted Codex workspace, explicitly choose **Full access** in Codex's permissions control below the message box (`/permissions` in the CLI). The supported project defaults are `approval_policy = "never"` and `sandbox_mode = "danger-full-access"` in `.codex/config.toml`. This grants broad local filesystem/network command access; it does not bypass Factory's stage, integration or next-feature decisions. An active host selection or managed policy can override the defaults. Factory's dashboard cannot switch the host profile or approve its security dialogs. See [Full Access setup](runtime/WORKFLOW.md#stage-approvals-with-full-access).
 
-| Edition | Chat instruction |
-| --- | --- |
-| Claude only | **/factory** in Claude Code |
-| Codex + Claude | **$factory** in Codex; Claude **/factory** forwards to this owner |
-| API providers | Connect the actual DeepSeek runner through the owner API |
+The only project factory entries are this README, config.json, versioned runtime/ and dashboard/, plus ignored .local/ created as needed. The selected host also needs a small native skill in its discovery directory. No unrelated provider files are generated. App source and app guides retain their existing locations. All private jobs/logs/usage/receipts live in .local; only sanitized state is published through authenticated API responses. The loopback-only dashboard connects local browsers automatically, checks Host/Origin and retains CSRF protection for changes. Its separate owner credential stays private in .local and is never sent to the browser.
 
-Look for **Owner listening**. **Owner paired** means its lease is connected, but it may be between polls. **Owner disconnected** means dependent controls cannot run. An idle or closed chat cannot receive commands automatically. If skill discovery fails, ask the assistant to read factory/runtime/WORKFLOW.md from the application root.
+Re-run the same setup command to check or upgrade. A checksum manifest permits updates only to unchanged managed files; conflicts stop before writes. Config, state, jobs and native settings are preserved. Changing editions/owners requires an explicit migration; setup never silently removes another integration. Existing legacy generated factories need a reviewed migration rather than an overwrite. Interrupted server/write locks require checking their recorded PID and reconciling processes/state before removing the specific lock; setup never steals a lock.
 
-In **Setup & connections**, resolve the displayed missing tools, login and permissions. **Recheck local setup** makes no model calls. **Check live access** separately authorizes bounded paid probes and builder continuation checks in the real worker environment. Failed or unavailable checks stay visible; local pairing does not verify a model.
+Owner integration, evidence formats and recovery are documented in runtime/WORKFLOW.md. Offline tests validate installation and bridge behavior; they do not prove live providers, native background delivery, review quality, or a completed app.
 
-## 5. Create a request
+An explicitly authorized stale-owner replacement is available through local `owner release` when the owner is disconnected, all jobs are finished/cancelled and no work is pending, running or uncertain. It preserves history and checks an exact private owner binding and revision before clearing registration. See [the release procedure](runtime/WORKFLOW.md#explicit-release-of-a-disconnected-owner); then connect the new actual session. There is no automatic takeover or process termination.
 
-Click **New request** and choose each of these:
+Integration references: [Codex skills](https://learn.chatgpt.com/docs/build-skills), [Claude skills](https://code.claude.com/docs/en/skills), [Claude subagents](https://code.claude.com/docs/en/sub-agents). Observed 2026-10-21; verify installed host capabilities at setup.
 
-| Choice | Options |
-| --- | --- |
-| Scope | Complete product, or one feature/change |
-| Purpose | Software development, or web app to mobile app |
-| Repository policy | Separate branches in one app, or configured existing branches across repositories |
+Documentation deliverables are Microsoft Word .docx files: one developer guide and one end-user manual, updated across features. The documentation writer renders and inspects every page before marking them complete. Documentation downloads the exact registered committed files whose hashes match their reported page review. Runtime instruction files remain Markdown; no duplicate Word guide pair is created per feature.
+# Existing branches across application repositories
 
-Enter a clear title, requirements and optional design-reference URL. With the normal policy, enter the target branch. With a configured multi-repository workspace, select the exact repositories this request may change. **Start feasibility** authorizes analysis, not implementation.
-
-Example requirements: “Customers can sign in, update their profile and recover a forgotten password. Explain any missing backend support before implementation.”
-
-## 6. Follow the stages
-
-| Stage | What you review | What approval permits |
-| --- | --- | --- |
-| Feasibility | Dependencies, risks and blockers | Requirements analysis |
-| Requirements | Intended behavior and acceptance criteria | Specification and plan |
-| Specification | Scope, permissions, budget, baseline, features and guide coverage | System/UI design |
-| Design | Architecture, data/API contracts, screens and available prototype | Implementation, or the product's next-feature checkpoint |
-| Implementation | Committed code, both Word guides and local preview/limitations | Formal QA |
-| QA | Checks, criterion coverage, five reviews and technical approver | Prepare the integration offer |
-| Integration | Exact reviewed commit or repository snapshot | Integration and verification checks |
-
-Click **Approve & continue** once after reading the displayed stage. It submits directly. An exact approval in chat or the dashboard is sufficient; the owner records it through the same bridge. Duplicate submissions are guarded. Routine fixes, builds, guide rendering, reviewer work and evidence-only reruns within the authorized stage continue without extra questions. Source changes discovered during QA return to the actual implementation revision checkpoint.
-
-Use **Request changes** to return to the current or an earlier stage. Previous work remains in history; affected downstream evidence and approvals are refreshed. Material changes to scope, permissions or budget require the corresponding revision.
-
-An approval is **Pending** until received, **Running** after acknowledgment, and **Completed** after the owner reaches the next checkpoint. A technical approver's recommendation does not replace your integration approval.
-
-## 7. Inspect the app and finish a product
-
-**Workspace & changes** shows the actual folder, branch, HEAD and changed paths. Load its diff when you want to inspect tracked changes. Open that application folder in your editor. Preserve unrelated edits and deliberately commit intended files; setup never blanket-stages your app.
-
-**App & design** links to the app server reported by the owner and shows its served version. Starting the factory dashboard does not start your app server. Use your app's actual development command or the run instructions supplied by the owner; each app can differ. Missing browser/prototype support must be reported as a limitation.
-
-For products, preparation covers feasibility, requirements, specification and design. Then choose **Start next feature**. Each feature goes through requirements, specification, design, implementation, QA and integration. Features run one at a time and wait after accepted integration. Failed verification stops progress and preserves Git.
-
-After every feature is accepted, choose **Start product acceptance**. The owner runs whole-product journeys, checks the guides and obtains five fresh independent reviews plus the approver. Approve acceptance, then separately review the final product integration offer. Push, deployment, signing/publishing and branch deletion need their actual scope.
-
-## 8. Find results in the dashboard
-
-| View | What it shows |
-| --- | --- |
-| Overview | Current work, readiness and recent activity |
-| Setup & connections | Local prerequisites, owner status and live checks |
-| Integrations | Enabled tools, private credential forms and tool receipts |
-| Workflow & features | Current deliverable, dependencies and approval history |
-| Web to mobile | Source analysis, route mapping, proposed roadmap and device evidence |
-| Workspace & changes | Local repos, files, branches and requested diff |
-| App & design | App preview, served version and design |
-| Agents | Ten configured roles and actual owner-reported worker runs |
-| Tests & reviews | Commit-bound checks and five independent review results |
-| Documentation | Downloadable developer guide and end-user manual |
-| Usage | Known tokens/cost, budget and reporting completeness |
-| Activity | Queued commands, receipts and project events |
-
-The two app guides are Microsoft Word .docx files, reused across features. The writer renders and visually inspects every page before marking them complete. Downloads use exact registered committed bytes matching the reviewed hash. Rendering images and logs remain private. Runtime instruction files remain Markdown.
-
-Unknown usage is shown as unavailable, not zero. API-equivalent cost differs from actual subscription billing. Observed time includes human waits; tool/cache counts do not prove savings.
-
-## 9. Work across existing repositories
-
-From the **package checkout**, install in a parent folder with exact repository paths:
-
-~~~powershell
-node factory/setup.mjs --project "D:\my-workspace" --edition codex-claude --workspace current-branches --repositories frontend,backend
-~~~
-
-Setup pins their current named branches. Each request selects its writable repositories from that allowlist. Selected repos need committed baselines and reconciled edits before preparation. Unselected repos and the parent folder can retain unrelated edits.
-
-This policy creates no product/feature branches and performs no Git merge. Changes are visible on existing branches before acceptance. The owner captures a clean set of actual commits; checks/reviews bind to its snapshot ID. **Approve integration** accepts that exact set and runs integration checks. Expanding writable scope requires a new request or explicitly reviewed migration.
-
-## 10. Convert a web app to mobile
-
-Use a **separate, non-nested mobile output repository**. The frontend is read-only reference material and the existing backend is reused. Multi-repository editing mode cannot be used for a web-to-mobile request.
-
-For a dedicated mobile installation, run from the **package checkout**:
-
-~~~powershell
-node factory/setup.mjs --project "D:\mobile-app" --edition codex-claude --purpose web-to-mobile
-~~~
-
-Alternatively choose **Web app to mobile app** in a new request. Supply the frontend's absolute local Git root or credential-free HTTPS Git URL, Android/iOS platforms, preferred approach (assess, Expo native or Capacitor) and optional public backend address.
-
-The owner analyses a pinned frontend commit, discovers screens/API/auth constraints and proposes a roadmap. Missing backend support blocks implementation. A roadmap proposal can also be shown while foundation work is active; **Proposed** is planning data and grants no execution approval. The formal feature queue shows actual delivery status. Portal labels come from the proposal, so different apps can use their own roles.
-
-Follow the usual approvals. QA needs API-parity checks and actual device/emulator results for every planned platform at the reviewed version. A browser preview does not establish device success. iOS native builds need suitable Apple tooling or separately approved cloud builds. Dependencies, devices, signing, production writes and store publishing need their authorized scope.
-
-## 11. Optional integrations and host permissions
-
-Bundled Agent Skills are always available. Four external integrations default off:
-
-| Integration | Purpose |
-| --- | --- |
-| Context7 | Focused library documentation for an installed version |
-| Graphify | Local code-only index and dependency context |
-| 21st.dev | UI catalog and separately approved generation |
-| Strix | Scan an approved URL with model/budget/turn limits |
-
-Enable tools in **Integrations** while work is idle and reconciled. Availability is distinct from a verified real connection. Tool use needs request/plan scope. Enabling a tool does not authorize dependency installation, publishing or source uploads.
-
-Enter keys only in the masked integration fields or server environment. Saved keys override environment values. Removing them restores environment fallback. Windows storage is encrypted for the current user; other platforms use a local owner-only file. Keys never enter config, public state, prompts or Git. Credentials/settings changes revoke affected offers and require a specification revision.
-
-Factory's stage decisions and host command permissions are separate. Use existing host permissions for routine authorized work. Optional Codex **Full access** requires your explicit choice; Factory installation never enables it. Where supported, the corresponding settings are approval_policy = "never" and sandbox_mode = "danger-full-access". This permits broad local filesystem/network actions; host/managed policy can override settings. See [official OpenAI permissions guidance](https://learn.chatgpt.com/docs/sandboxing). Factory cannot change the active host profile or approve security dialogs for you.
-
-## 12. Pause, reconnect and recover
-
-- **Pause/Cancel:** the owner stops dispatch and reconciles actual workers/tools before confirming. A request is not confirmation. Partial work and history remain available.
-- **Resume:** continue the same stage after reconciliation; changed scope or frozen source requires its real revision gate.
-- **Restart:** start the dashboard again and reconnect the same owner. Pending commands expire; running commands/workers/tools become uncertain. Inspect actual results and reconcile without replaying paid work or a merge.
-- **Changed branch/commit:** preserve Git, reconcile the actual result and request the appropriate revision. Never reset branches to force an approval through.
-- **Legacy active job:** choose **Adopt staged workflow**. Previous work is archived, and new stages need fresh decisions.
-
-### Release an idle disconnected owner
-
-Use this only after explicit authorization to replace a stale owner. It refuses a connected/listening owner, unfinished jobs and outstanding commands/workers/tools. The original owner must reconcile unfinished work first.
-
-The owner inspects private state and writes a payload containing expected_owner_id, expected_generation, current revision and the authorized note. Then, **from the application root**:
-
-~~~powershell
-node factory/runtime/cli.mjs owner release --session ACTUAL_NEW_SESSION_ID --runtime codex --file factory/.local/owner-release.json
-~~~
-
-Use claude or deepseek for those editions. Release preserves history, clears registration and resets host-specific access checks. It never kills processes. Connect the new actual session normally and reverify access. Detailed rules are in [WORKFLOW.md](runtime/WORKFLOW.md#explicit-release-of-a-disconnected-owner).
-
-## 13. Command reference: all 20 runtime operations
-
-Run these **from the installed application root**. These are terminal operations, not twenty separate skills. **$factory** and **/factory** invoke chat skills; a phrase such as **$factory next** asks that assistant to handle the factory, rather than defining a terminal subcommand. Halo's private **Factory Next** helpers launch/poll this same service and are not another edition or an included script.
-
-### Six general operations
-
-Prefix each operation with **node factory/runtime/cli.mjs**:
-
-| Operation | Purpose/example suffix |
-| --- | --- |
-| start | Open the dashboard; optional --port 56057 --no-open |
-| check | Refresh local prerequisites without model calls |
-| status | Show jobs and outstanding-command summaries |
-| role-context | Get a role's assigned skill/tools: --role builder |
-| integrations | Show integration status and receipts |
-| inspect-frontend | Inspect committed frontend candidates: --source "D:\web-app" |
-
-Each supports --project "D:\my-app" for an explicit application root. Frontend inspection belongs in a separate mobile output workspace and does not execute scripts or fetch remotes.
-
-### Fourteen owner operations
-
-These are for the actual assistant/runner. Prefix each with **node factory/runtime/cli.mjs owner** and supply **--session ACTUAL_SESSION_ID**.
-
-| Operation | Purpose | Additional arguments |
-| --- | --- | --- |
-| connect | Register/reconnect the actual owner | --runtime codex (or claude / deepseek) |
-| next | Wait for the next queued instruction | Optional --wait 50000 (0–55000 ms) |
-| heartbeat | Renew the owner lease | None |
-| publish | Report progress or a stage deliverable | --file factory/.local/publish.json |
-| worker | Record actual worker execution/reconciliation | --file factory/.local/worker.json |
-| workspace | Prepare branches/repos, snapshot or verify integration | --file factory/.local/workspace.json |
-| checks | Record authorized live-access evidence | --file factory/.local/checks.json |
-| tool | Start an approved scoped integration | --file factory/.local/tool.json |
-| tool-result | Read a reserved invocation's result | --file factory/.local/tool-id.json |
-| tool-cancel | Request cancellation during pause/cancel | --file factory/.local/tool-id.json |
-| tool-reconcile | Record conclusive interruption reconciliation | --file factory/.local/tool-reconcile.json |
-| finish | Complete/block/fail the current command | --file factory/.local/finish.json |
-| disconnect | Disconnect owner; unfinished commands become uncertain | None |
-| release | Release a reviewed idle disconnected binding | --runtime codex --file factory/.local/owner-release.json |
-
-Example owner connection and poll, **from the application root**:
-
-~~~powershell
-node factory/runtime/cli.mjs owner connect --session ACTUAL_SESSION_ID --runtime codex
-node factory/runtime/cli.mjs owner next --session ACTUAL_SESSION_ID --wait 50000
-~~~
-
-The next operation claims a queued instruction once. If none arrives before the wait ends it returns no command. It never grants approval or automatically starts a feature. The owner keeps listening and heartbeats at least every 60 seconds during long work; the lease lasts 90 seconds.
-
-JSON filenames above are examples, not files setup creates. The owner writes actual current IDs, bindings and evidence privately. Read the [owner protocol](runtime/WORKFLOW.md) for schemas; do not fabricate successful evidence or edit normalized state manually.
-
-## 14. Upgrade and troubleshoot
-
-For an upgrade, stop/reconcile the owner/server, then rerun the original setup command **from a trusted package checkout**. Versioned upgrades preserve config, jobs, sessions, receipts and usage. Changed managed files or unmanaged legacy factories stop for a reviewed migration. A custom Halo-style installation may need reconciliation; copying files over it is not an upgrade procedure.
-
-| Problem | Next step |
-| --- | --- |
-| Dashboard does not open | Run start in the installed app; use its printed link; try --no-open |
-| Link no longer connects | Use the current server's private link; restart rotates keys |
-| Owner disconnected | Invoke the edition skill in the original session and verify listening |
-| Missing CLI/login/model | Follow checklist/native permissions; executable presence is not proof of access |
-| Action stays pending | Owner must poll and acknowledge it; inspect Activity |
-| Offer expired/changed | Refresh and review the current deliverable |
-| Branch preparation blocked | Reconcile intended edits/baseline without discarding unrelated files |
-| Word guide incomplete | Complete authoring/rendering/page review before implementation approval |
-| Server/write lock remains | Inspect PID/processes, reconcile and remove only a conclusively stale lock |
-| Integration checks fail | Preserve Git, stop the queue and revise the appropriate earlier stage |
-
-Private .local/ contains credentials, pairing data, jobs, logs, receipts, usage, branch intents and caches. Do not copy it into another project, delete it wholesale, serve it with a generic static server or commit it.
-
-The installed layout is factory/README.md, config.json, runtime/, dashboard/ and lazily created .local/, plus necessary native discovery launchers. There are no empty boards, copied setup prompts or duplicate app guides. The source checkout also contains the installer, checksum manifest and offline tests.
-
-Offline tests verify installer/bridge behavior, not live provider identity, reviewer quality, browser fidelity or a completed app. Native writes outside the bridge still need the owner's scope checks. See [WORKFLOW.md](runtime/WORKFLOW.md) for precise execution/recovery rules.
+Setup may select --workspace current-branches --repositories frontend,backend. The shared dashboard then selects the repositories for each request and shows each existing branch and HEAD. No product/feature branches or Git merges are created in this mode. Source changes are visible on existing branches before acceptance. The staged approvals and five independent reviews remain required, bound to a recorded set of real commits. See the workspace policy in [WORKFLOW.md](runtime/WORKFLOW.md). Existing edits and empty repositories must be reconciled before they participate in implementation.

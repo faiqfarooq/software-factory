@@ -5,13 +5,17 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import { atomic, safePath, readConfig, readState, saveState, locked, stamp, uid, event, json } from './storage.mjs';
 import { profile } from './profiles.mjs';
 import { inspect, git } from './checks.mjs';
-import { enqueue, claim, publish, finish, publicState, fields, connected } from './workflow.mjs';
+import { enqueue, claim, publish, finish, publicState, fields, connected, recoverCommand } from './workflow.mjs';
 import { CATALOG, integrationSettings, prerequisites, reserveRun, executeIntegration } from './integrations.mjs';
 import { currentUnit, stage, recordWorker } from './lifecycle.mjs';
 import { workspaceView, workspaceDiff, workspaceOperation, assertWorkspace, bindWorkspace, workspaceWord, repositorySettings } from './workspace.mjs';
 import { committedWord, WORD_MIME } from './documents.mjs';
 import { loadCredentials, saveCredentials, updateCredentials, credentialEnvironment, credentialView } from './credentials.mjs';
 import { assertMobileSource } from './mobile.mjs';
+import { revisionOf } from './plans.mjs';
+import { applyPlanCommand } from './plan-commands.mjs';
+import { designPreview } from './design-previews.mjs';
+import { reservePlanExport, buildPlanExport, readPlanArtifact, reviewPlanExport } from './plan-artifacts.mjs';
 
 const equal = (a, b) => typeof a === 'string' && typeof b === 'string' && a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
@@ -34,9 +38,10 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
   let config = await readConfig(root);
   await repositorySettings(root, config.workspace);
   let credentials = await loadCredentials(root);
+  const previewFont = await readFile(await safePath(root,'factory/dashboard/assets/Fredoka.ttf')).then(bytes=>bytes.toString('base64'),()=>undefined);
   const baseEnvironment = integrationDependencies.environment || process.env;
   const toolEnvironment = id => credentialEnvironment(credentials, baseEnvironment, id);
-  const selected = profile(config.edition), toolTasks = new Map();
+  const selected = profile(config.edition), toolTasks = new Map(), artifactTasks = new Map();
   const lockPath = await safePath(root, 'factory/.local/server.lock');
   await mkdir(path.dirname(lockPath), { recursive: true });
   let lock;
@@ -44,7 +49,7 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
   catch (e) { if (e.code === 'EEXIST') throw new Error('Dashboard already started or interrupted. Inspect factory/.local/server.lock and connection.json; do not start a second server.'); throw e; }
   await lock.writeFile(JSON.stringify({ pid: process.pid, time: stamp() }));
   const browserKey = randomBytes(32).toString('hex'), ownerKey = randomBytes(32).toString('hex');
-  let origin, waiting = false, closing = false, mutation = Promise.resolve();
+  let origin, waiting = false, closing = false, mutation = Promise.resolve(), artifactPipeline = Promise.resolve();
   const mutate = fn => {
     const task = mutation.then(() => locked(root, async () => {
       const state = await readState(root);
@@ -68,6 +73,7 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
         state.jobs.some(j => (j.workers || []).some(w => ['running', 'uncertain'].includes(w.status)) || !['merged', 'cancelled', 'awaiting-plan', 'awaiting-stage', 'ready-feature', 'ready-acceptance', 'paused', 'blocked'].includes(j.status))) throw new Error('Pause/finish and reconcile active work before changing integrations or credentials.');
   };
   const invalidateIntegrationPlans = (state, message) => {
+    state.authorization_epoch = (state.authorization_epoch || 0) + 1;
     for (const job of state.jobs.filter(j => !['merged', 'cancelled'].includes(j.status))) {
       if (job.lifecycle === 2) { currentUnit(job).approved_plan_hash = null; job.configuration_changed = true; }
       job.offer = null; job.approved_plan_hash = null; job.status = 'blocked'; job.message = message;
@@ -90,14 +96,50 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
         return send(200, await readFile(await safePath(root, 'factory/dashboard/' + file), 'utf8'), type);
       }
       if (JSON.stringify(await readConfig(root)) !== JSON.stringify(config)) return send(409, { error: 'Factory configuration changed. Reconcile the owner and restart the dashboard.' });
+      if (req.method === 'GET' && route === '/api/plans/preview') {
+        if (req.headers['sec-fetch-site'] && !['same-origin', 'none'].includes(req.headers['sec-fetch-site'])) return send(403, { error: 'Open previews from the local dashboard.' });
+        const query = new URL(req.url, origin).searchParams, state = await readState(root);
+        const job = state.jobs.find(j => j.id === query.get('job'));
+        if (!job || job.trashed_at) throw new Error('Select a visible plan.');
+        const version = revisionOf(job, query.get('version') || undefined);
+        if (!version) throw new Error('Unknown plan version.');
+        const preview = designPreview(version.plan, { screen: query.get('screen'), reference: job.design, prototype: query.get('prototype') === '1',fontData:previewFont });
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer', 'X-Frame-Options': 'SAMEORIGIN', 'Content-Security-Policy': preview.csp });
+        return res.end(preview.html);
+      }
+      if (route === '/api/session') {
+        if (req.method !== 'GET') return send(405, { error: 'Expected GET.' });
+        // A custom header prevents simple cross-origin requests. Fetch metadata
+        // additionally rejects navigations and requests from other sites.
+        if (req.headers['x-factory-client'] !== 'dashboard' ||
+            (req.headers['sec-fetch-site'] && req.headers['sec-fetch-site'] !== 'same-origin') ||
+            (req.headers['sec-fetch-dest'] && req.headers['sec-fetch-dest'] !== 'empty')) {
+          return send(403, { error: 'Open the local dashboard to connect.' });
+        }
+        return send(200, { csrf: browserKey });
+      }
       const auth = (req.headers.authorization || '').replace(/^Bearer /, '');
       const ownerRoute = route.startsWith('/api/owner/');
-      if (!equal(auth, ownerRoute ? ownerKey : browserKey)) return send(401, { error: 'Pair this dashboard using the local link printed by setup.' });
+      if (!equal(auth, ownerRoute ? ownerKey : browserKey)) return send(401, { error: 'Local dashboard connection expired. Reconnecting is required.' });
+      if (req.method === 'GET' && route === '/api/plans/version') {
+        const query = new URL(req.url, origin).searchParams, state = await readState(root), job = state.jobs.find(j => j.id === query.get('job'));
+        if (!job) throw new Error('Unknown plan.');
+        const version = revisionOf(job, query.get('version') || undefined);
+        if (!version) throw new Error('Unknown plan version.');
+        return send(200, version);
+      }
+      if (req.method === 'GET' && route === '/api/plans/artifact') {
+        const query = new URL(req.url, origin).searchParams, state = await readState(root), job = state.jobs.find(j => j.id === query.get('job'));
+        if (!job) throw new Error('Unknown plan.');
+        const result = await readPlanArtifact(root, job, query.get('id'), { image: query.get('image') || undefined, ...(query.has('page') ? {page:Number(query.get('page'))} : {}) });
+        res.writeHead(200, { 'Content-Type': result.type, 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...(result.filename ? {'Content-Disposition':'attachment; filename="'+result.filename+'"'} : {}) });
+        return res.end(result.bytes);
+      }
       if (req.method === 'GET' && route === '/api/state') {
         const state = await readState(root), result = publicState(state, config);
         const keys = credentialView(credentials, baseEnvironment);
         result.integrations = result.integrations.map(tool => ({ ...tool, credentials: keys[tool.id] || null }));
-        result.workspace = await workspaceView(root, state.jobs.find(j => !['merged', 'cancelled'].includes(j.status)) || state.jobs.at(-1), config);
+        result.workspace = await workspaceView(root, state.jobs.find(j => !j.trashed_at && !['merged', 'cancelled'].includes(j.status)) || state.jobs.at(-1), config);
         result.roles = Object.entries(config.roles).map(([role, provider]) => ({ role, provider, model: config.models[role] }));
         return send(200, result);
       }
@@ -124,6 +166,47 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
       if (!ownerRoute && (req.headers.origin !== origin || !equal(req.headers['x-factory-csrf'], browserKey))) return send(403, { error: 'Browser origin and CSRF token are required.' });
       if (!String(req.headers['content-type'] || '').startsWith('application/json')) return send(415, { error: 'Expected JSON.' });
       const input = await body(req);
+      if (route === '/api/plans/commands') {
+        const snapshot = input.operation === 'regenerate' ? await workspaceView(root, (await readState(root)).jobs.find(j => j.id === input.job_id), config) : undefined;
+        const result = await mutate(state => applyPlanCommand(state, input, { enqueue, sourceSnapshot:snapshot }));
+        return send(200, result);
+      }
+      if (route === '/api/plans/export') {
+        const reservation = await mutate(state => reservePlanExport(state, input));
+        const artifact = reservation.artifact;
+        if (!reservation.duplicate) {
+          const task = artifactPipeline.then(async () => {
+            await delay(0);
+            let result;
+            try { result = await buildPlanExport(root, origin, reservation.job, reservation.revision, artifact); }
+            catch { result = {status:'needs-action', message:'Export did not complete. Inspect the local renderer and retry; no layout pass was claimed.'}; }
+            await mutate(state => { const saved = state.jobs.find(j => j.id === input.job_id)?.plan_artifacts?.find(a => a.id === artifact.id); if (saved) Object.assign(saved, result); });
+          });
+          artifactPipeline = task.catch(() => {});
+          artifactTasks.set(artifact.id, task);
+          task.catch(() => {}).finally(() => artifactTasks.delete(artifact.id));
+        }
+        return send(202, {id:artifact.id,status:artifact.status,duplicate:reservation.duplicate});
+      }
+      if (route === '/api/owner/review-plan-export') {
+        fields(input, ['owner_id','job_id','review']);
+        const result = await mutate(async state => { requireOwner(state,input.owner_id); touch(state); const job=state.jobs.find(j=>j.id===input.job_id); if(!job)throw new Error('Unknown plan.'); return reviewPlanExport(root,job,input.review); });
+        return send(200,result);
+      }
+      if (route === '/api/owner/recover-command') {
+        const result=await mutate(async state=>{requireOwner(state,input.owner_id); const job=state.jobs.find(j=>j.id===state.commands.find(c=>c.id===input.command_id)?.job_id); if(job?.workspace?.prepared)await assertWorkspace(root,job,{frozen:false}); return recoverCommand(state,input);});
+        return send(200,result);
+      }
+      if(route==='/api/owner/feature-readiness') {
+        fields(input,['owner_id','job_id','feature_id','plan_hash','checks']);
+        const result=await mutate(async state=>{
+          requireOwner(state,input.owner_id);const job=state.jobs.find(j=>j.id===input.job_id),feature=job?.features.find(f=>f.id===input.feature_id);
+          if(!feature||job.trashed_at||job.status!=='ready-feature'||input.plan_hash!==job.approved_plan_hash||!Array.isArray(input.checks)||input.checks.length>50)throw new Error('Record readiness for the current approved feature at its Start checkpoint.');
+          for(const check of input.checks){fields(check,['label','status','detail']);if(!['passed','failed'].includes(check.status)||typeof check.label!=='string'||typeof check.detail!=='string'||check.detail.length<10||check.detail.length>3000)throw new Error('Readiness needs actual check evidence.');}
+          await assertWorkspace(root,job);
+          job.feature_readiness ||= {};job.feature_readiness[feature.id]={plan_hash:input.plan_hash,checks:input.checks,time:stamp()};touch(state);return {status:'recorded'};
+        });return send(200,result);
+      }
       if (route === '/api/integrations/check') {
         fields(input, []);
         await mutate(async state => {
@@ -270,12 +353,11 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
         if (typeof input.id !== 'string' || !/^[A-Za-z0-9_-]{1,100}$/.test(input.id) || input.runtime !== selected.owner) throw new Error('Owner identity/runtime does not match the selected edition.');
         const owner = await mutate(state => {
           if (state.owner && state.owner.id !== input.id) throw new Error('A different owner is registered. Resume the original session; changing owner requires an explicit migration.');
-          if (connected(state)) throw new Error('Owner is already connected. Use heartbeat/next instead.');
-          for (const command of state.commands) {
-            if (command.status === 'pending') command.status = 'expired';
-            if (command.status === 'running') command.status = 'uncertain';
-          }
-          state.owner = { id: input.id, runtime: input.runtime, generation: uid(), connected: true, listening: false };
+          if (connected(state)) { touch(state); return {id:state.owner.id,runtime:state.owner.runtime,reconnected:false}; }
+          // Liveness is not authorization. Reconnect the same stable owner and
+          // leave durable decisions and execution receipts intact. A server
+          // restart, separately, marks interrupted execution uncertain.
+          state.owner = { id: input.id, runtime: input.runtime, generation: state.owner?.generation || uid(), connected: true, listening: false };
           touch(state); event(state, 'Owner connected. Local pairing does not prove model access.');
           return { id: state.owner.id, runtime: state.owner.runtime };
         });
@@ -311,7 +393,9 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
             if (state.commands.some(c => c.status === 'pending')) command = await mutate(next);
           }
           await mutate(state => { requireOwner(state, input.owner_id); touch(state); state.owner.listening = false; });
-          return send(200, { command: command || null });
+          const saved=await readState(root);
+          const artifacts=saved.jobs.flatMap(job=>(job.plan_artifacts||[]).filter(a=>a.status==='rendered').map(a=>({job_id:job.id,artifact_id:a.id,sha256:a.sha256,pages:a.pages,status:a.status,task:'Inspect every registered page, then owner review-plan-export. This is not an app stage decision.'})));
+          return send(200, { command: command || null, artifacts });
         } finally { waiting = false; }
       }
       if (route === '/api/owner/heartbeat') {
@@ -325,7 +409,7 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
           requireOwner(state, input.owner_id); touch(state);
           const job = publish(state, input.update);
           if (job.lifecycle === 2) {
-            if (job.status === 'awaiting-stage' && ['specification', 'design', 'implementation', 'qa', 'integration', 'acceptance', 'final-merge'].includes(stage(job))) {
+            if ((job.status === 'awaiting-stage' || input.update.advance === 'qa') && ['specification', 'design', 'implementation', 'qa', 'integration', 'acceptance', 'final-merge'].includes(stage(job))) {
               await assertWorkspace(root, job, { frozen: ['implementation', 'qa', 'integration', 'acceptance', 'final-merge'].includes(stage(job)) });
               if (['implementation', 'qa', 'integration', 'acceptance', 'final-merge'].includes(stage(job))) for (const guide of currentUnit(job).documentation) await workspaceWord(root, guide, currentUnit(job));
             }
@@ -386,10 +470,10 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
         await mutate(state => {
           requireOwner(state, input.owner_id); state.owner.connected = false; state.owner.listening = false;
           for (const command of state.commands) {
-            if (command.status === 'pending') command.status = 'expired';
+            if (command.status === 'pending' && !command.durable_consent) command.status = 'expired';
             if (command.status === 'running') command.status = 'uncertain';
           }
-          event(state, 'Owner disconnected; pending commands expired.');
+          event(state, 'Owner disconnected. Exact stage decisions retained; interrupted execution needs reconciliation.');
         });
         return send(200, { status: 'disconnected' });
       }
@@ -405,6 +489,7 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
       state.integration_profile = Object.entries(integrationSettings(config.integrations)).filter(([, v]) => v.enabled).map(([id]) => id);
       for (const run of state.integration_runs || []) if (run.status === 'running') run.status = 'uncertain';
       for (const job of state.jobs) {
+        for (const artifact of job.plan_artifacts || []) if (artifact.status === 'generating') { artifact.status = 'needs-action'; artifact.message = 'Export interrupted by dashboard restart. Retry locally; no provider request was replayed.'; }
         for (const worker of job.workers || []) if (worker.status === 'running') worker.status = 'uncertain';
         if (job.lifecycle !== 2 && !['merged', 'cancelled'].includes(job.status)) {
           job.needs_migration = true; job.offer = null; job.status = 'blocked'; job.message = 'Adopt the staged workflow to continue. Previous work and approval history are preserved.';
@@ -417,7 +502,7 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
       }
       if (state.owner) { state.owner.connected = false; state.owner.listening = false; }
       for (const command of state.commands) {
-        if (command.status === 'pending') command.status = 'expired';
+        if (command.status === 'pending' && !command.durable_consent) command.status = 'expired';
         if (command.status === 'running') command.status = 'uncertain';
       }
       event(state, 'Dashboard started. Reconnect the existing owner.');
@@ -426,7 +511,7 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
     origin = 'http://127.0.0.1:' + server.address().port;
     await atomic(await safePath(root, 'factory/.local/connection.json'), { origin, owner_key: ownerKey, browser_key: browserKey, pid: process.pid });
     const close = async () => {
-      if (toolTasks.size) throw new Error('Integration tools are running. Pause/cancel and reconcile them before stopping the dashboard.');
+      if (toolTasks.size || artifactTasks.size) throw new Error('Local tools or document rendering are running. Wait for their receipts before stopping the dashboard.');
       if (closing) return; closing = true;
       await mutation;
       await new Promise(resolve => { server.close(resolve); server.closeAllConnections(); });
@@ -434,7 +519,7 @@ export async function serve(root, { port = 0, integrationDependencies = {} } = {
       await unlink(await safePath(root, 'factory/.local/connection.json')).catch(() => {});
       await lock.close(); await unlink(lockPath);
     };
-    return { origin, url: origin + '/#' + browserKey, close };
+    return { origin, url: origin + '/', close };
   } catch (error) {
     server.close(); await lock.close(); await unlink(lockPath); throw error;
   }

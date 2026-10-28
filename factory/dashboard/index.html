@@ -16,17 +16,20 @@
     <div class="edition" id="edition">Connecting…</div>
     <nav aria-label="Factory sections" id="nav">
       <button data-page="overview" class="selected">Overview</button>
+      <button data-page="plan">Plan</button>
+      <button data-page="preview">Design</button>
+      <button data-page="features">Features</button>
+      <button data-page="reviews">Reviews</button>
+      <button data-page="docs">Files</button>
+      <details class="secondary-nav"><summary>Settings & details</summary>
       <button data-page="setup">Setup & connections</button>
       <button data-page="integrations">Integrations</button>
-      <button data-page="plan">Workflow & features</button>
       <button data-page="mobile">Web to mobile</button>
       <button data-page="workspace">Workspace & changes</button>
-      <button data-page="preview">App & design</button>
       <button data-page="agents">Agents</button>
-      <button data-page="reviews">Tests & reviews</button>
-      <button data-page="docs">Documentation</button>
       <button data-page="usage">Usage</button>
       <button data-page="activity">Activity</button>
+      </details>
     </nav>
     <div class="sidebar-foot"><span class="dot"></span> Local workspace<br><small>Your project. Your accounts.</small></div>
   </aside>
@@ -39,23 +42,16 @@
     <footer>One factory. From plan to reviewed code. <span id="connection-status" role="status"></span></footer>
   </div>
   <div class="toast" id="toast" role="status" hidden></div>
-  <dialog id="pair-dialog">
-    <form id="pair-form">
-      <p class="eyebrow">CONNECT THIS BROWSER</p><h2>Open your private dashboard link</h2>
-      <p>Use the link printed by setup, or paste its pairing key below. The key is stored only for this browser tab.</p>
-      <label for="pair-key">Pairing key</label><input id="pair-key" type="password" autocomplete="off" required>
-      <p id="pair-error" class="error" role="alert"></p>
-      <button class="primary" type="submit">Connect</button>
-    </form>
-  </dialog>
   <dialog id="request-dialog">
     <form id="request-form">
-      <div class="dialog-heading"><div><p class="eyebrow">ONE STAGE AT A TIME</p><h2>What are we building?</h2></div><button type="button" class="quiet" data-close="request-dialog" aria-label="Close request">×</button></div>
+      <div class="dialog-heading"><div><p class="eyebrow">PLAN FIRST, THEN DELIVER</p><h2>What are we building?</h2></div><button type="button" class="quiet" data-close="request-dialog" aria-label="Close request">×</button></div>
       <fieldset><legend>Choose the scope</legend><div class="mode-options">
         <label><input type="radio" name="mode" value="product" checked> Build a complete app</label>
         <label><input type="radio" name="mode" value="feature"> Add or change a feature</label>
       </div></fieldset>
       <label for="factory-purpose">Factory purpose</label><select id="factory-purpose"><option value="software">Software development</option><option value="web-to-mobile">Web app to mobile app</option></select>
+      <label for="workflow-profile">Approval workflow</label><select id="workflow-profile"><option value="streamlined">Streamlined — approve the complete plan, then deliver features</option><option value="strict">Strict — separate approval at every stage</option></select>
+      <p class="muted">Streamlined keeps requirements, design, testing, documentation and five independent reviews. Start each feature explicitly; approve its integration when the evidence is ready.</p>
       <fieldset id="mobile-fields" hidden><legend>Existing frontend and mobile targets</legend>
         <label for="source-repo">Frontend repository</label><input id="source-repo" maxlength="2000" placeholder="D:\web-frontend or https://github.com/team/frontend.git">
         <p class="muted">Use a separate mobile output repository as this workspace. The frontend is read-only reference material. Remote cloning needs owner access; submitting this form does not fetch or run source code.</p>
@@ -73,7 +69,7 @@
       <label for="design">Design reference <span class="muted">optional</span></label><input id="design" type="url" placeholder="https://…">
       <label id="planning-docs-option" hidden><input id="planning-docs" type="checkbox"> Allow up to 10 Context7 lookups while preparing this plan. Only public library questions are sent.</label>
       <p class="muted" id="request-scope-note">Start authorizes a fresh named branch and feasibility analysis. Each later stage needs your approval. Existing changes must be reconciled before switching branches. Analysis can consume provider usage.</p>
-      <button type="submit" class="primary">Start feasibility</button>
+      <button type="submit" class="primary">Prepare master plan</button>
     </form>
   </dialog>
   <dialog id="action-dialog">

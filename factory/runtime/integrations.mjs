@@ -115,6 +115,7 @@ export function reserveRun(state, config, request) {
   if (!integrationSettings(config.integrations)[request.tool].enabled) throw new Error('Integration is disabled.');
   const command = state.commands.find(c => c.id === request.command_id && c.status === 'running' && c.owner_id === state.owner?.id && c.owner_generation === state.owner?.generation);
   const job = state.jobs.find(j => j.id === request.job_id);
+  if (command?.recovered_for === 'publication-only') throw new Error('Publication recovery cannot dispatch new tool invocations.');
   if (!command || !job || command.job_id !== job.id || !['request', 'approve-plan', 'approve-stage', 'start-feature', 'start-acceptance', 'migrate-workflow', 'revise', 'revise-product', 'rework', 'resume'].includes(command.action)) throw new Error('A running scoped owner command is required.');
   if (!['planning', 'running', 'reviewing'].includes(job.status)) throw new Error('Tool calls are unavailable at this stage.');
   const u = job.lifecycle === 2 ? currentUnit(job) : job;
